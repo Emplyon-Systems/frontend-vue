@@ -26,6 +26,21 @@ export interface UserRole {
   name: string;
   slug: string;
   description?: string | null;
+  permissions?: RolePermission[];
+}
+
+export interface UserCompany {
+  id: number;
+  name: string;
+  cnpj?: string | null;
+}
+
+export interface UserBranch {
+  id: number;
+  company_id: number;
+  name: string;
+  cnpj?: string | null;
+  company?: UserCompany | null;
 }
 
 export interface UserRecord {
@@ -36,6 +51,8 @@ export interface UserRecord {
   created_at?: string;
   updated_at?: string;
   roles?: UserRole[];
+  companies?: UserCompany[];
+  branches?: UserBranch[];
 }
 
 export interface RolePermission {
@@ -60,6 +77,67 @@ export interface PermissionRecord {
   description?: string | null;
 }
 
+export interface CompanyRecord {
+  id: number;
+  name: string;
+  cnpj: string;
+  street: string;
+  street_number: string;
+  neighborhood: string;
+  zip_code: string;
+  city: string;
+  state: string;
+  email: string;
+  phone: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  users?: Array<{
+    id: number;
+    name: string;
+    email: string;
+    roles?: UserRole[];
+    pivot?: { is_primary?: boolean };
+  }>;
+  branches?: Array<{
+    id: number;
+    company_id: number;
+    name: string;
+    cnpj: string;
+    city: string;
+    state: string;
+    pivot?: { is_primary?: boolean };
+  }>;
+}
+
+export interface BranchRecord {
+  id: number;
+  company_id: number;
+  name: string;
+  cnpj: string;
+  street: string;
+  street_number: string;
+  neighborhood: string;
+  zip_code: string;
+  city: string;
+  state: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  company?: {
+    id: number;
+    name: string;
+    cnpj?: string | null;
+  } | null;
+  users?: Array<{
+    id: number;
+    name: string;
+    email: string;
+    roles?: UserRole[];
+    pivot?: { is_primary?: boolean };
+  }>;
+}
+
 export interface AuditRecord {
   id: number;
   user_id: number | null;
@@ -71,7 +149,7 @@ export interface AuditRecord {
   ip_address?: string | null;
   user_agent?: string | null;
   created_at: string;
-  user?: { id: number; name: string; email: string } | null;
+  user?: { id: number; name: string; email: string; roles?: { id: number; name: string }[] } | null;
 }
 
 export type PluckItem = { id: number; name?: string; label?: string };

@@ -17,9 +17,32 @@
               <i class="iconoir-menu-scale"></i>
             </button>
           </li>
-          <li class="mx-3 welcome-text">
+          <li class="mx-3 welcome-text d-flex align-items-center gap-2">
             <h3 class="mb-0 fw-bold text-truncate">{{ welcomeText }}</h3>
-            <!-- <h6 class="mb-0 fw-normal text-muted text-truncate fs-14">Here's your overview this week.</h6> -->
+            <DropDown v-if="authStore.hasMultipleContexts()" is="span" custom-class="dropdown">
+              <a
+                class="nav-link dropdown-toggle arrow-none p-0"
+                data-bs-toggle="dropdown"
+                href="#"
+                role="button"
+                title="Trocar empresa/filial"
+              >
+                <i class="iconoir-building text-muted"></i>
+              </a>
+              <div class="dropdown-menu py-2">
+                <a
+                  v-for="ctx in authStore.getContextOptions()"
+                  :key="ctx.branch_id ? `b-${ctx.company_id}-${ctx.branch_id}` : `c-${ctx.company_id}`"
+                  href="#"
+                  class="dropdown-item py-2"
+                  :class="{ 'bg-primary-subtle': isActiveContext(ctx) }"
+                  @click.prevent="switchContext(ctx)"
+                >
+                  <i class="iconoir-building me-2"></i>
+                  {{ ctx.label }}
+                </a>
+              </div>
+            </DropDown>
           </li>
         </ul>
         <ul
@@ -414,12 +437,29 @@ import simplebar from "simplebar-vue";
 import DropDown from "@/components/DropDown.vue";
 import { useLayoutStore } from "@/stores/layout";
 import { useAuthStore } from "@/stores/auth";
+import { getPanelHomeForUser } from "@/config/panels";
 
 const show = ref("all-tab");
 const authStore = useAuthStore();
-const welcomeText = computed(
-  () => `Bem Vindo, ${authStore.user?.name || "Utilizador"}!`
-);
+const welcomeText = computed(() => {
+  const name = authStore.user?.name || authStore.user?.email || "Usuário";
+  const ctxLabel = authStore.getActiveContextLabel();
+  return ctxLabel ? `Bem Vindo, ${name} - ${ctxLabel}!` : `Bem Vindo, ${name}!`;
+});
+
+function isActiveContext(ctx: { company_id: number; branch_id?: number | null }) {
+  const ac = authStore.activeContext;
+  if (!ac) return false;
+  return ac.company_id === ctx.company_id && (ac.branch_id ?? null) === (ctx.branch_id ?? null);
+}
+
+function switchContext(ctx: { company_id: number; branch_id?: number | null; label: string }) {
+  authStore.selectContext(ctx);
+  const path = getPanelHomeForUser(authStore.user) || "/";
+  if (window.location.pathname !== path) {
+    window.location.href = path;
+  }
+}
 const useLayout = useLayoutStore();
 const { layout, setLeftSideBarSize } = useLayout;
 

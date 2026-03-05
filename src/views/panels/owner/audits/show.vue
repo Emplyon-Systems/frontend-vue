@@ -2,8 +2,9 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
+import AppAlert from "@/components/AppAlert.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
-import * as auditsApi from "@/api/resources/audits";
+import { auditsApi } from "@/api/resources";
 import type { AuditRecord } from "@/types/api";
 
 const route = useRoute();
@@ -61,7 +62,7 @@ onMounted(() => {
         </b-button>
       </div>
 
-      <b-alert v-if="loadError" variant="danger" show>{{ loadError }}</b-alert>
+      <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
 
       <template v-else-if="audit">
         <b-row>
@@ -88,9 +89,22 @@ onMounted(() => {
                   <span class="text-muted">ID do registo</span>
                   <span>{{ audit.auditable_id ?? "—" }}</span>
                 </b-list-group-item>
-                <b-list-group-item class="d-flex justify-content-between align-items-center">
+                <b-list-group-item class="d-flex justify-content-between align-items-start">
                   <span class="text-muted">Utilizador</span>
-                  <span>{{ audit.user?.name ?? audit.user?.email ?? audit.user_id ?? "—" }}</span>
+                  <span class="text-end">
+                    <span v-if="audit.user">{{ audit.user.name }}</span>
+                    <span v-else class="text-muted">—</span>
+                    <span v-if="audit.user?.roles?.length" class="d-block small mt-1">
+                      <b-badge
+                        v-for="r in audit.user.roles"
+                        :key="r.id"
+                        variant="light"
+                        class="text-dark me-1"
+                      >
+                        {{ r.name }}
+                      </b-badge>
+                    </span>
+                  </span>
                 </b-list-group-item>
                 <b-list-group-item v-if="audit.ip_address" class="d-flex justify-content-between align-items-center">
                   <span class="text-muted">IP</span>

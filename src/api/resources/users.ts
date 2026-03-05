@@ -12,6 +12,13 @@ export interface UsersListParams {
   page?: number;
   per_page?: number;
   search?: string;
+  created_at_from?: string;
+  created_at_until?: string;
+  role_id?: number;
+  company_id?: number;
+  company_ids?: number[];
+  order_by?: string;
+  order_dir?: "asc" | "desc";
 }
 
 export interface UserCreatePayload {
@@ -19,6 +26,8 @@ export interface UserCreatePayload {
   email: string;
   password: string;
   roles?: number[];
+  company_ids?: number[];
+  branch_ids?: number[];
 }
 
 export interface UserUpdatePayload {
@@ -26,6 +35,8 @@ export interface UserUpdatePayload {
   email?: string;
   password?: string;
   roles?: number[];
+  company_ids?: number[];
+  branch_ids?: number[];
 }
 
 export async function list(params?: UsersListParams) {
@@ -54,6 +65,15 @@ export async function remove(id: number | string) {
 }
 
 export async function plucks() {
-  const res = await http.get<ApiResponse & { plucks: { id: number; name?: string }[] }>(`${base}/plucks`);
-  return res.data.plucks ?? [];
+  const res = await http.get<
+    ApiResponse & {
+      plucks: {
+        users?: { id: number; name?: string; email?: string }[];
+        roles?: { id: number; name?: string; slug?: string }[];
+        companies?: { id: number; name?: string; cnpj?: string }[];
+        branches?: { id: number; company_id?: number; name?: string; cnpj?: string }[];
+      };
+    }
+  >(`${base}/plucks`);
+  return res.data.plucks ?? {};
 }

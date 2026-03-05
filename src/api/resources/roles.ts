@@ -12,6 +12,15 @@ const base = "/roles";
 export interface RolesListParams {
   page?: number;
   per_page?: number;
+  search?: string;
+  company_id?: number;
+  company_ids?: number[];
+  branch_id?: number;
+  branch_ids?: number[];
+  created_at_from?: string;
+  created_at_until?: string;
+  order_by?: string;
+  order_dir?: "asc" | "desc";
 }
 
 export interface RoleCreatePayload {
@@ -64,7 +73,9 @@ export async function syncPermissions(id: number | string, permissionIds: number
  * Plucks – lista reduzida para multiselects (chama GET /roles/plucks).
  * Padrão: backend expõe plucks; front usa em formulários.
  */
-export async function plucks(): Promise<{ id: number; name: string; slug: string }[]> {
-  const res = await http.get<ApiResponse & { plucks: { id: number; name: string; slug: string }[] }>(`${base}/plucks`);
+export async function plucks(params?: { company_id?: number; company_ids?: number[]; branch_id?: number; branch_ids?: number[] }): Promise<{ id: number; name: string; slug: string; branch_id?: number | null; branch_name?: string | null }[]> {
+  const res = await http.get<ApiResponse & { plucks: { id: number; name: string; slug: string; branch_id?: number | null; branch_name?: string | null }[] }>(`${base}/plucks`, {
+    params: params ?? {},
+  });
   return res.data.plucks ?? [];
 }

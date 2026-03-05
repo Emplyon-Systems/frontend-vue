@@ -5,6 +5,9 @@
         <b-col>
           <b-card-title>{{ title }}</b-card-title>
         </b-col>
+        <b-col cols="auto">
+          <slot name="header-extra" />
+        </b-col>
       </b-row>
     </b-card-header>
     <b-card-body class="pt-0">
