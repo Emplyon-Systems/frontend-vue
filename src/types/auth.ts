@@ -58,7 +58,7 @@ export interface MeResponse {
 }
 
 /** Formato genérico de resposta da API (success/error) */
-export interface ApiResponse<T = unknown> {
+export type ApiResponse<T = unknown> = {
   action: string;
   status: number;
   msg: string;
