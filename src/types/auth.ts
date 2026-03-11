@@ -26,6 +26,17 @@ export interface User {
   created_at?: string;
   updated_at?: string;
   roles?: Role[];
+  companies?: Array<{
+    id: number;
+    name: string;
+    cnpj?: string | null;
+  }>;
+  branches?: Array<{
+    id: number;
+    name: string;
+    company_id?: number;
+    company?: { id: number; name: string };
+  }>;
 }
 
 /** Resposta do login: success('login', { user, token, token_type }) */

@@ -10,10 +10,8 @@
                 {{ currentYear }}
                 Emplyon
                 <span class="text-muted d-none d-sm-inline-block float-end">
-                  Crafted with
-                  <i class="iconoir-heart text-danger"></i>
-                  by {{ developedBy }}</span
-                >
+                  Versão 1.0
+                </span>
               </p>
             </b-card-body>
           </b-card>
@@ -23,5 +21,5 @@
   </footer>
 </template>
 <script setup lang="ts">
-import { currentYear, developedBy } from "@/helpers/constants";
+import { currentYear } from "@/helpers/constants";
 </script>

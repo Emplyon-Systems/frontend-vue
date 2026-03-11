@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
-import DataForm from "./DataForm.vue";
+import DataForm from "./form/DataForm.vue";
 
 const route = useRoute();
 
