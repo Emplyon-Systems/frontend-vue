@@ -39,6 +39,7 @@ declare module 'vue' {
     BTab: typeof import('bootstrap-vue-next')['BTab']
     BTable: typeof import('bootstrap-vue-next')['BTable']
     BTableSimple: typeof import('bootstrap-vue-next')['BTableSimple']
+    BTabs: typeof import('bootstrap-vue-next')['BTabs']
     BTbody: typeof import('bootstrap-vue-next')['BTbody']
     BTd: typeof import('bootstrap-vue-next')['BTd']
     BTh: typeof import('bootstrap-vue-next')['BTh']
