@@ -412,8 +412,12 @@
               <div class="dropdown-divider mt-0"></div>
               <small class="text-muted px-2 pb-1 d-block">Conta</small>
               <router-link class="dropdown-item" to="/">
-                <i class="las la-user fs-18 me-1 align-text-bottom"></i>
+                <i class="las la-home fs-18 me-1 align-text-bottom"></i>
                 Dashboard
+              </router-link>
+              <router-link :to="myProfileRoute" class="dropdown-item">
+                <i class="las la-user fs-18 me-1 align-text-bottom"></i>
+                Meu perfil
               </router-link>
               <div class="dropdown-divider mb-0"></div>
               <a
@@ -441,6 +445,14 @@ import { getPanelHomeForUser } from "@/config/panels";
 
 const show = ref("all-tab");
 const authStore = useAuthStore();
+
+const myProfileRoute = computed(() => {
+  const path = getPanelHomeForUser(authStore.user) || "/";
+  if (path.startsWith("/company")) return { name: "company.my-profile.view" };
+  if (path.startsWith("/branch")) return { name: "branch.my-profile.view" };
+  if (path.startsWith("/employee")) return { name: "employee.my-profile.view" };
+  return { name: "owner.my-profile.view" };
+});
 const welcomeText = computed(() => {
   const name = authStore.user?.name || authStore.user?.email || "Usuário";
   const ctxLabel = authStore.getActiveContextLabel();

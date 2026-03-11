@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
@@ -8,8 +8,17 @@ import { usersApi } from "@/api/resources";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+const profileViewRoute = computed(() => {
+  const name = String(route.name ?? "");
+  if (name.startsWith("company.")) return "company.my-profile.view";
+  if (name.startsWith("branch.")) return "branch.my-profile.view";
+  if (name.startsWith("employee.")) return "employee.my-profile.view";
+  return "owner.my-profile.view";
+});
 const userId = computed(() => Number(authStore.user?.id ?? 0));
 
 const loading = ref(false);
@@ -39,7 +48,7 @@ function clearError(field: string) {
 }
 
 function cancel() {
-  router.push({ name: "employee.my-profile.view" });
+  router.push({ name: profileViewRoute.value });
 }
 
 function loadUser() {
@@ -91,7 +100,7 @@ function submit() {
     })
     .then(() => {
       notifySuccess("Perfil atualizado com sucesso.");
-      router.push({ name: "employee.my-profile.view" });
+      router.push({ name: profileViewRoute.value });
     })
     .catch(mapApiErrors)
     .finally(() => (loading.value = false));

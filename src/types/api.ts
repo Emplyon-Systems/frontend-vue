@@ -53,6 +53,12 @@ export interface UserRecord {
   roles?: UserRole[];
   companies?: UserCompany[];
   branches?: UserBranch[];
+  sectors?: Array<{
+    id: number;
+    name: string;
+    slug?: string;
+    branch?: { id: number; name?: string } | null;
+  }>;
 }
 
 export interface RolePermission {
@@ -67,6 +73,10 @@ export interface RoleRecord {
   name: string;
   slug: string;
   description?: string | null;
+  company_id?: number | null;
+  branch_id?: number | null;
+  company?: { id: number; name?: string } | null;
+  branch?: { id: number; name?: string; company_id?: number } | null;
   permissions?: RolePermission[];
 }
 
@@ -136,6 +146,22 @@ export interface BranchRecord {
     roles?: UserRole[];
     pivot?: { is_primary?: boolean };
   }>;
+  sectors?: Array<{ id: number; name: string; slug: string }>;
+}
+
+export interface SectorRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+  } | null;
 }
 
 export interface AuditRecord {

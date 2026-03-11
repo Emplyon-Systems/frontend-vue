@@ -8,6 +8,7 @@
         :avatarSrc="avatarSrc"
         :companyNames="companyNames"
         :branchNames="branchNames"
+        :sectorNames="sectorNames"
         :roleNames="roleNames"
         :permissionCount="permissions.length"
       />
@@ -26,11 +27,17 @@
                     :roleNames="roleNames"
                     :companyNames="companyNames"
                     :branchNames="branchNames"
+                    :sectorNames="sectorNames"
                     :description="description"
                     :showSocial="showSocial"
                     :onEdit="onEdit"
                     full-width
                   />
+                </b-row>
+              </b-tab>
+              <b-tab title="Setores e Filiais">
+                <b-row class="justify-content-center">
+                  <AccessTab :branches="branches" :sectors="sectors" />
                 </b-row>
               </b-tab>
               <b-tab title="Permissões">
@@ -48,7 +55,9 @@
 <script setup lang="ts">
 import ProfileInfo from "./ProfileInfo.vue";
 import PersonalInformation from "./PersonalInformation.vue";
+import AccessTab from "./AccessTab.vue";
 import PermissionsTab from "./PermissionsTab.vue";
+import type { UserRecord } from "@/types/api";
 
 withDefaults(
   defineProps<{
@@ -59,6 +68,9 @@ withDefaults(
     roleNames?: string[];
     companyNames?: string[];
     branchNames?: string[];
+    sectorNames?: string[];
+    branches?: UserRecord["branches"];
+    sectors?: UserRecord["sectors"];
     permissions?: Array<{ name: string; slug: string }>;
     description?: string;
     showSocial?: boolean;
@@ -68,6 +80,9 @@ withDefaults(
     roleNames: () => [],
     companyNames: () => [],
     branchNames: () => [],
+    sectorNames: () => [],
+    branches: () => [],
+    sectors: () => [],
     permissions: () => [],
     showSocial: false,
   }

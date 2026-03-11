@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import DataForm from "./form/DataForm.vue";
-import { usersApi, rolesApi } from "@/api/resources";
+import { usersApi, rolesApi, sectorsApi, branchesApi } from "@/api/resources";
 import { userInitialForm, validateUserForm, type UserFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
@@ -15,14 +15,21 @@ const loading = ref(false);
 const roleOptions = ref<{ id: number; name: string; slug?: string }[]>([]);
 const companyOptions = ref<{ id: number; name: string }[]>([]);
 const branchOptions = ref<{ id: number; company_id?: number; name: string; company_name?: string }[]>([]);
+const sectorOptions = ref<{ id: number; branch_id: number; name: string; slug?: string }[]>([]);
 const form = ref<UserFormData>(userInitialForm("create"));
 const errors = ref<Record<string, string>>({});
 const isSuperadmin = ref(false);
+/** Em contexto filial, a filial vem fixa (pré-selecionada e bloqueada). */
+const fixedBranchId = computed(() => authStore.activeContext?.branch_id ?? null);
 const selectedCompanyIds = computed(() => (form.value.company_ids ?? []).filter((id) => Number.isFinite(id) && id > 0));
 const selectedBranchIds = computed(() =>
   (form.value.branch_ids ?? []).filter((id) => Number.isFinite(id) && id > 0)
 );
 const filteredBranchOptions = computed(() => {
+  if (fixedBranchId.value) {
+    const branch = branchOptions.value.find((b) => b.id === fixedBranchId.value);
+    return branch ? [branch] : [];
+  }
   if (!isSuperadmin.value) return branchOptions.value;
   if (!selectedCompanyIds.value.length) return branchOptions.value;
   return branchOptions.value.filter((branch) =>
@@ -78,6 +85,7 @@ function submit() {
       roles: validation.data.roles.length ? validation.data.roles : undefined,
       company_ids: validation.data.company_ids.length ? validation.data.company_ids : undefined,
       branch_ids: validation.data.branch_ids.length ? validation.data.branch_ids : undefined,
+      sector_ids: validation.data.sector_ids?.length ? validation.data.sector_ids : undefined,
     })
     .then(() => {
       notifySuccess("Utilizador criado com sucesso.");
@@ -101,8 +109,34 @@ function formatRoleLabel(role: { name: string; branch_name?: string | null }) {
   return `${role.name} (${role.branch_name})`;
 }
 
+async function ensureFixedBranchName(branchId: number) {
+  const existing = branchOptions.value.find((b) => b.id === branchId);
+  if (existing && !existing.name.startsWith("Filial #")) return;
+  let branchName =
+    authStore.activeContext?.branch_id === branchId
+      ? authStore.activeContext?.branch_name
+      : authStore.user?.branches?.find((b) => b.id === branchId)?.name;
+  if (!branchName) {
+    try {
+      const res = await branchesApi.getById(branchId);
+      branchName = res.branch?.name ?? `Filial #${branchId}`;
+    } catch {
+      branchName = `Filial #${branchId}`;
+    }
+  }
+  if (existing) {
+    branchOptions.value = branchOptions.value.map((b) =>
+      b.id === branchId ? { ...b, name: branchName ?? b.name } : b
+    );
+  } else {
+    branchOptions.value = [...branchOptions.value, { id: branchId, company_id: undefined, name: branchName, company_name: undefined }].sort(
+      (a, b) => (a.name ?? "").localeCompare(b.name ?? "")
+    );
+  }
+}
+
 onMounted(() => {
-  Promise.all([usersApi.plucks()]).then(([plucks]) => {
+  Promise.all([usersApi.plucks()]).then(async ([plucks]) => {
     isSuperadmin.value = authStore.hasRole("superadmin");
     companyOptions.value = (plucks.companies ?? [])
       .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
@@ -119,6 +153,10 @@ onMounted(() => {
         company_name: companyMap.get(Number(b.company_id ?? 0)),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+    if (fixedBranchId.value) {
+      await ensureFixedBranchName(fixedBranchId.value);
+      form.value = { ...form.value, branch_ids: [fixedBranchId.value] };
+    }
   });
 });
 
@@ -149,14 +187,27 @@ watch(
       if (defaultRole) nextRoles = [defaultRole.id];
     }
 
+    const fixedId = fixedBranchId.value;
     const shouldNormalizeBranches = Boolean(superadmin) || (filteredBranchIds?.length ?? 0) > 0;
     const validBranchIds = new Set(filteredBranchIds ?? []);
-    const nextBranchIds = shouldNormalizeBranches
+    let nextBranchIds = shouldNormalizeBranches
       ? (form.value.branch_ids ?? []).filter((bid) => validBranchIds.has(bid))
       : (form.value.branch_ids ?? []);
+    if (fixedId) nextBranchIds = [fixedId];
 
+    if ((branchIds?.length ?? 0) > 0) {
+      const plucks = await sectorsApi.plucks(
+        branchIds.length === 1 ? { branch_id: branchIds[0] } : { branch_ids: branchIds }
+      );
+      sectorOptions.value = plucks;
+    } else {
+      sectorOptions.value = [];
+    }
+
+    const validSectorIds = new Set(sectorOptions.value.map((s) => s.id));
+    const nextSectorIds = (form.value.sector_ids ?? []).filter((sid) => validSectorIds.has(sid));
     const nextCompanyIds = form.value.company_ids ?? [];
-    form.value = { ...form.value, company_ids: nextCompanyIds, roles: nextRoles, branch_ids: nextBranchIds };
+    form.value = { ...form.value, company_ids: nextCompanyIds, roles: nextRoles, branch_ids: nextBranchIds, sector_ids: nextSectorIds };
   },
   { immediate: true }
 );
@@ -182,6 +233,8 @@ watch(
             :role-options="roleOptions"
             :company-options="companyOptions"
             :branch-options="filteredBranchOptions"
+            :sector-options="sectorOptions"
+            :fixed-branch-id="fixedBranchId"
             :show-company-selector="isSuperadmin"
             @clear-error="clearError"
           />

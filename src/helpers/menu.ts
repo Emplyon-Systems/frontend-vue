@@ -35,6 +35,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
     "branches.delete",
     "branches.plucks",
   ]);
+  const canSectors = hasAny([
+    "sectors.index",
+    "sectors.read",
+    "sectors.create",
+    "sectors.update",
+    "sectors.delete",
+    "sectors.plucks",
+  ]);
   const companiesRouteName = path === "/company" ? "company.branches" : "owner.companies";
   const companySelfRouteName = "company.my-company.view";
   const branchSelfRouteName = "branch.my-branch.view";
@@ -54,7 +62,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
     return [
       { key: "main", label: "Menu", isTitle: true },
       { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name: "panels.owner.dashboard" } },
-      ...((isSuperadmin || canCompanies || canBranches)
+      ...((isSuperadmin || canCompanies || canBranches || canSectors)
         ? [
             {
               key: "companies",
@@ -79,6 +87,18 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
                         icon: "iconoir-git-branch",
                         label: "Filiais",
                         route: { name: branchRouteName },
+                      } as MenuItemType,
+                    ]
+                  : []),
+                ...(isSuperadmin || canSectors
+                  ? [
+                      {
+                        key: "sectors-list",
+                        icon: "iconoir-folder",
+                        label: "Setores",
+                        route: {
+                          name: "owner.sectors",
+                        },
                       } as MenuItemType,
                     ]
                   : []),
@@ -107,19 +127,20 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
       : path === "/employee"
         ? "panels.employee.dashboard"
         : "panels.owner.dashboard";
+  const myProfileRouteName =
+    path === "/company"
+      ? "company.my-profile.view"
+      : path === "/branch"
+        ? "branch.my-profile.view"
+        : path === "/employee"
+          ? "employee.my-profile.view"
+          : "owner.my-profile.view";
+
   const baseMenu: MenuItemType[] = [
     { key: "main", label: "Menu", isTitle: true },
     { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name } },
+    { key: "my-profile", icon: "iconoir-user", label: "Perfil", route: { name: myProfileRouteName } },
   ];
-
-  if (path === "/employee") {
-    baseMenu.push({
-      key: "my-profile",
-      icon: "iconoir-user",
-      label: "Perfil",
-      route: { name: "employee.my-profile.view" },
-    });
-  }
 
   if (systemChildren.length) {
     baseMenu.push({
@@ -130,15 +151,25 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
     });
   }
 
-  if (path !== "/employee" && (canBranches || canCompanies)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors)) {
     const isBranchPanel = path === "/branch";
-    if (isBranchPanel && canBranches) {
-      baseMenu.push({
-        key: "branch",
-        icon: "iconoir-git-branch",
-        label: "Filial",
-        route: { name: branchSelfRouteName },
-      });
+    if (isBranchPanel) {
+      if (canBranches) {
+        baseMenu.push({
+          key: "branch",
+          icon: "iconoir-git-branch",
+          label: "Filial",
+          route: { name: branchSelfRouteName },
+        });
+      }
+      if (canSectors) {
+        baseMenu.push({
+          key: "sectors-list",
+          icon: "iconoir-folder",
+          label: "Setores",
+          route: { name: "branch.sectors" },
+        });
+      }
       return baseMenu;
     }
 
@@ -175,6 +206,16 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
                 icon: "iconoir-git-branch",
                 label: "Filiais",
                 route: { name: branchRouteName },
+              } as MenuItemType,
+            ]
+          : []),
+        ...(canSectors
+          ? [
+              {
+                key: "sectors-list",
+                icon: "iconoir-folder",
+                label: "Setores",
+                route: { name: path === "/company" ? "company.sectors" : "owner.sectors" },
               } as MenuItemType,
             ]
           : []),

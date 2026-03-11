@@ -43,6 +43,17 @@
             {{ branch }}
           </b-badge>
         </div>
+        <div v-if="sectorNames?.length" class="mb-3">
+          <p class="text-muted mb-1 small">Setores</p>
+          <b-badge
+            v-for="sector in sectorNames"
+            :key="sector"
+            :variant="null"
+            class="border text-gray-700 fs-12 fw-medium me-1"
+          >
+            {{ sector }}
+          </b-badge>
+        </div>
         <div v-if="roleNames?.length" class="mb-3">
           <b-badge
             v-for="role in roleNames"
@@ -83,6 +94,11 @@
             <b>Filial(is)</b>:
             <span class="ms-1">{{ branchNames.join(", ") }}</span>
           </li>
+          <li v-if="sectorNames?.length" class="mt-2">
+            <i class="iconoir-view-grid me-2 text-secondary fs-18 align-middle"></i>
+            <b>Setores</b>:
+            <span class="ms-1">{{ sectorNames.join(", ") }}</span>
+          </li>
         </ul>
         <b-row v-if="showSocial" class="justify-content-center mt-4">
           <div class="col-auto text-end border-end">
@@ -120,6 +136,7 @@ withDefaults(
     roleNames?: string[];
     companyNames?: string[];
     branchNames?: string[];
+    sectorNames?: string[];
     description?: string;
     showSocial?: boolean;
     fullWidth?: boolean;
@@ -129,6 +146,7 @@ withDefaults(
     roleNames: () => [],
     companyNames: () => [],
     branchNames: () => [],
+    sectorNames: () => [],
     showSocial: false,
     fullWidth: false,
   }

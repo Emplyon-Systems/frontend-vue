@@ -197,6 +197,50 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/branches/view.vue"),
   },
   {
+    path: "/sectors",
+    name: "owner.sectors",
+    meta: {
+      title: setTitle("Setores"),
+      authRequired: true,
+      panel: "owner",
+      permission: ["sectors.index", "sectors.read"],
+    },
+    component: () => import("@/pages/panels/owner/sectors/index.vue"),
+  },
+  {
+    path: "/sectors/create",
+    name: "owner.sectors.create",
+    meta: {
+      title: setTitle("Novo setor"),
+      authRequired: true,
+      panel: "owner",
+      permission: "sectors.create",
+    },
+    component: () => import("@/pages/panels/owner/sectors/create.vue"),
+  },
+  {
+    path: "/sectors/:id/edit",
+    name: "owner.sectors.edit",
+    meta: {
+      title: setTitle("Editar setor"),
+      authRequired: true,
+      panel: "owner",
+      permission: "sectors.update",
+    },
+    component: () => import("@/pages/panels/owner/sectors/edit.vue"),
+  },
+  {
+    path: "/sectors/:id",
+    name: "owner.sectors.view",
+    meta: {
+      title: setTitle("Visualizar setor"),
+      authRequired: true,
+      panel: "owner",
+      permission: "sectors.read",
+    },
+    component: () => import("@/pages/panels/owner/sectors/view.vue"),
+  },
+  {
     path: "/roles",
     name: "owner.roles",
     meta: {
@@ -227,6 +271,24 @@ const panelRoutes = [
     component: () => import("@/views/panels/owner/audits/index.vue"),
   },
   {
+    path: "/my-profile",
+    name: "owner.my-profile.view",
+    meta: {
+      title: setTitle("Meu perfil"),
+      authRequired: true,
+    },
+    component: () => import("@/views/panels/employee/profile/View.vue"),
+  },
+  {
+    path: "/my-profile/edit",
+    name: "owner.my-profile.edit",
+    meta: {
+      title: setTitle("Editar meu perfil"),
+      authRequired: true,
+    },
+    component: () => import("@/views/panels/employee/profile/Edit.vue"),
+  },
+  {
     path: "/audits/:id",
     name: "owner.audits.show",
     meta: {
@@ -235,6 +297,24 @@ const panelRoutes = [
       panel: "owner",
     },
     component: () => import("@/views/panels/owner/audits/show.vue"),
+  },
+  {
+    path: "/company/my-profile",
+    name: "company.my-profile.view",
+    meta: {
+      title: setTitle("Meu perfil"),
+      authRequired: true,
+    },
+    component: () => import("@/views/panels/employee/profile/View.vue"),
+  },
+  {
+    path: "/company/my-profile/edit",
+    name: "company.my-profile.edit",
+    meta: {
+      title: setTitle("Editar meu perfil"),
+      authRequired: true,
+    },
+    component: () => import("@/views/panels/employee/profile/Edit.vue"),
   },
   {
     path: "/company",
@@ -304,6 +384,68 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/branches/view.vue"),
   },
   {
+    path: "/company/sectors",
+    name: "company.sectors",
+    meta: {
+      title: setTitle("Setores da empresa"),
+      authRequired: true,
+      permission: ["sectors.index", "sectors.read"],
+    },
+    component: () => import("@/pages/panels/owner/sectors/index.vue"),
+  },
+  {
+    path: "/company/sectors/create",
+    name: "company.sectors.create",
+    meta: {
+      title: setTitle("Novo setor"),
+      authRequired: true,
+      permission: "sectors.create",
+    },
+    component: () => import("@/pages/panels/owner/sectors/create.vue"),
+  },
+  {
+    path: "/company/sectors/:id/edit",
+    name: "company.sectors.edit",
+    meta: {
+      title: setTitle("Editar setor"),
+      authRequired: true,
+      permission: "sectors.update",
+    },
+    component: () => import("@/pages/panels/owner/sectors/edit.vue"),
+  },
+  {
+    path: "/company/sectors/:id",
+    name: "company.sectors.view",
+    meta: {
+      title: setTitle("Visualizar setor"),
+      authRequired: true,
+      permission: "sectors.read",
+    },
+    component: () => import("@/pages/panels/owner/sectors/view.vue"),
+  },
+  {
+    path: "/branch/my-profile",
+    name: "branch.my-profile.view",
+    meta: {
+      title: setTitle("Meu perfil"),
+      authRequired: true,
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/views/panels/employee/profile/View.vue"),
+  },
+  {
+    path: "/branch/my-profile/edit",
+    name: "branch.my-profile.edit",
+    meta: {
+      title: setTitle("Editar meu perfil"),
+      authRequired: true,
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/views/panels/employee/profile/Edit.vue"),
+  },
+  {
     path: "/branch",
     name: "panels.branch.dashboard",
     meta: {
@@ -335,6 +477,54 @@ const panelRoutes = [
       rolePrefix: ["filial-b"],
     },
     component: () => import("@/views/panels/branch/branches/EditMyBranch.vue"),
+  },
+  {
+    path: "/branch/sectors",
+    name: "branch.sectors",
+    meta: {
+      title: setTitle("Setores da filial"),
+      authRequired: true,
+      permission: ["sectors.index", "sectors.read"],
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/sectors/index.vue"),
+  },
+  {
+    path: "/branch/sectors/create",
+    name: "branch.sectors.create",
+    meta: {
+      title: setTitle("Novo setor"),
+      authRequired: true,
+      permission: "sectors.create",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/sectors/create.vue"),
+  },
+  {
+    path: "/branch/sectors/:id/edit",
+    name: "branch.sectors.edit",
+    meta: {
+      title: setTitle("Editar setor"),
+      authRequired: true,
+      permission: "sectors.update",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/sectors/edit.vue"),
+  },
+  {
+    path: "/branch/sectors/:id",
+    name: "branch.sectors.view",
+    meta: {
+      title: setTitle("Visualizar setor"),
+      authRequired: true,
+      permission: "sectors.read",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/sectors/view.vue"),
   },
   {
     path: "/employee/my-profile",

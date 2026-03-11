@@ -10,7 +10,7 @@ import ConfirmDeleteModal from "@/components/ConfirmDeleteModal.vue";
 import RolesFilter from "@/views/panels/owner/roles/Filter.vue";
 import { branchesApi, companiesApi, rolesApi } from "@/api/resources";
 import type { RoleRecord } from "@/types/api";
-import { notifySuccess } from "@/helpers/notify";
+import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
@@ -44,8 +44,17 @@ const hasActiveFilters = computed(
     !!appliedFilters.value.created_at_until
 );
 const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
+/** Empresa pode editar perfis das suas filiais (incl. Gerente de Filial). */
+const isCompanyContext = computed(
+  () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id == null
+);
+/** Utilizador tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
+const hasCompanyLevelAccess = computed(() =>
+  authStore.getContextOptions().some((o) => o.branch_id == null)
+);
 const filteredBranchOptions = computed(() => {
-  if (!isSuperadmin.value) return [];
+  if (!isSuperadmin.value && !hasCompanyLevelAccess.value) return [];
+  if (!isSuperadmin.value) return branchOptions.value;
   if (!(filters.value.company_ids?.length ?? 0)) return branchOptions.value;
   const selected = new Set((filters.value.company_ids ?? []).map((id) => Number(id)));
   return branchOptions.value.filter((b) => selected.has(Number(b.company_id ?? 0)));
@@ -55,6 +64,7 @@ const listagemColumns = [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "slug", label: "Slug", sortable: true, align: "start" as const },
+  { key: "branch", label: "Filial", sortable: false, align: "start" as const },
   { key: "description", label: "Descrição", sortable: false, align: "start" as const },
   { key: "permissions", label: "Permissões", sortable: false, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
@@ -77,9 +87,11 @@ function loadList(page = 1) {
       company_ids: isSuperadmin.value && (appliedFilters.value.company_ids?.length ?? 0)
         ? appliedFilters.value.company_ids
         : undefined,
-      branch_ids: isSuperadmin.value && (appliedFilters.value.branch_ids?.length ?? 0)
-        ? appliedFilters.value.branch_ids
-        : undefined,
+      branch_ids:
+        (isSuperadmin.value || hasCompanyLevelAccess.value) &&
+        (appliedFilters.value.branch_ids?.length ?? 0)
+          ? appliedFilters.value.branch_ids
+          : undefined,
       created_at_from: appliedFilters.value.created_at_from || undefined,
       created_at_until: appliedFilters.value.created_at_until || undefined,
       order_by: orderBy.value,
@@ -126,12 +138,18 @@ function confirmDelete(role: RoleRecord) {
 
 function doDelete() {
   if (deleteId.value == null) return;
-  rolesApi.remove(deleteId.value).then(() => {
-    deleteModal.value = false;
-    deleteId.value = null;
-    notifySuccess("Perfil eliminado com sucesso.");
-    loadList(pagination.value.current_page);
-  });
+  rolesApi
+    .remove(deleteId.value)
+    .then(() => {
+      deleteModal.value = false;
+      deleteId.value = null;
+      notifySuccess("Perfil eliminado com sucesso.");
+      loadList(pagination.value.current_page);
+    })
+    .catch((err: { response?: { data?: { errors?: { role?: string[] } } } }) => {
+      const msg = err.response?.data?.errors?.role?.[0] ?? "Não foi possível eliminar o perfil.";
+      notifyError(msg);
+    });
 }
 
 function goCreate() {
@@ -142,16 +160,26 @@ function goEdit(id: number) {
   router.push({ name: "owner.roles.form", params: { id: String(id) } });
 }
 
-/** Perfil criado automaticamente pela filial (filial-b{id}). Não pode ser editado nem eliminado. */
+/** Perfil criado automaticamente pela filial (filial-b{id}). Só a empresa (contexto empresa) ou owner/superadmin pode editar. */
 function isSystemBranchRole(role: RoleRecord): boolean {
   return (role.slug ?? "").startsWith("filial-b");
+}
+function canEditRole(role: RoleRecord): boolean {
+  if (!isSystemBranchRole(role)) return true;
+  return isSuperadmin.value || isCompanyContext.value || hasCompanyLevelAccess.value;
 }
 
 onMounted(() => loadList());
 
 onMounted(async () => {
-  if (!isSuperadmin.value) return;
-  const [companies, branches] = await Promise.all([companiesApi.plucks(), branchesApi.plucks()]);
+  if (!isSuperadmin.value && !hasCompanyLevelAccess.value) return;
+  const loadCompanies = isSuperadmin.value
+    ? companiesApi.plucks()
+    : Promise.resolve([] as { id: number; name?: string }[]);
+  const branches = await (isSuperadmin.value || hasCompanyLevelAccess.value
+    ? branchesApi.plucks()
+    : Promise.resolve([]));
+  const companies = await loadCompanies;
   companyOptions.value = (companies ?? [])
     .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -181,7 +209,9 @@ onMounted(async () => {
       <UIComponentCard v-if="showFilters" title="Filtros" class="mb-3">
         <RolesFilter
           v-model="filters"
-          :show-tenant-filters="isSuperadmin"
+          :show-tenant-filters="isSuperadmin || hasCompanyLevelAccess"
+          :show-company-filter="isSuperadmin"
+          :show-branch-filter="isSuperadmin || hasCompanyLevelAccess"
           :company-options="companyOptions"
           :branch-options="filteredBranchOptions"
           @apply="applyFilters"
@@ -210,6 +240,7 @@ onMounted(async () => {
             <b-td>{{ (item as RoleRecord).id }}</b-td>
             <b-td>{{ (item as RoleRecord).name }}</b-td>
             <b-td><code>{{ (item as RoleRecord).slug }}</code></b-td>
+            <b-td>{{ (item as RoleRecord).branch?.name ?? "Nível empresa" }}</b-td>
             <b-td>{{ (item as RoleRecord).description || "—" }}</b-td>
             <b-td>
               <span v-if="(item as RoleRecord).permissions?.length">
@@ -228,8 +259,8 @@ onMounted(async () => {
               <TableActionButtons
                 :item-id="(item as RoleRecord).id"
                 :show-view="false"
-                :show-edit="!isSystemBranchRole(item as RoleRecord)"
-                :show-delete="!isSystemBranchRole(item as RoleRecord)"
+                :show-edit="canEditRole(item as RoleRecord)"
+                :show-delete="canEditRole(item as RoleRecord)"
                 edit-title="Editar"
                 delete-title="Eliminar"
                 @edit="goEdit"

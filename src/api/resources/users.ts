@@ -17,6 +17,8 @@ export interface UsersListParams {
   role_id?: number;
   company_id?: number;
   company_ids?: number[];
+  branch_ids?: number[];
+  sector_ids?: number[];
   order_by?: string;
   order_dir?: "asc" | "desc";
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import Selectr from "mobius1-selectr";
+import Selectr from "@/lib/selectr";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import InputMask from "@/components/InputMask.vue";
 import type { BranchFormData } from "@/core/schemas";

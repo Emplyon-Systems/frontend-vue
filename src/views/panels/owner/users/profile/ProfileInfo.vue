@@ -64,6 +64,12 @@
               <div
                 class="border-dashed rounded border-theme-color p-2 me-2 flex-grow-1 flex-basis-0"
               >
+                <h5 class="fw-semibold fs-22 mb-1">{{ sectorNames.length }}</h5>
+                <p class="text-muted mb-0 fw-medium">Setores</p>
+              </div>
+              <div
+                class="border-dashed rounded border-theme-color p-2 me-2 flex-grow-1 flex-basis-0"
+              >
                 <h5 class="fw-semibold fs-22 mb-1">{{ roleNames.length }}</h5>
                 <p class="text-muted mb-0 fw-medium">Perfis</p>
               </div>
@@ -89,12 +95,14 @@ withDefaults(
     avatarSrc?: string;
     companyNames?: string[];
     branchNames?: string[];
+    sectorNames?: string[];
     roleNames?: string[];
     permissionCount?: number;
   }>(),
   {
     companyNames: () => [],
     branchNames: () => [],
+    sectorNames: () => [],
     roleNames: () => [],
     permissionCount: 0,
   }

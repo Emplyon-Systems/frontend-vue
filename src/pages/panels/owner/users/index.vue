@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
@@ -8,11 +8,13 @@ import ListagemCard from "@/components/ListagemCard.vue";
 import TableActionButtons from "@/components/TableActionButtons.vue";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal.vue";
 import UsersFilter from "@/views/panels/owner/users/Filter.vue";
-import { usersApi } from "@/api/resources";
+import { usersApi, sectorsApi } from "@/api/resources";
 import type { UserRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
+const authStore = useAuthStore();
 const loading = ref(true);
 const users = ref<UserRecord[]>([]);
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
@@ -20,6 +22,8 @@ const initialFilters = () => ({
   search: "",
   role_id: "",
   company_ids: [] as string[],
+  branch_ids: [] as string[],
+  sector_ids: [] as string[],
   created_at_from: "",
   created_at_until: "",
 });
@@ -33,11 +37,25 @@ const deleteModal = ref(false);
 const showFilters = ref(false);
 const roleOptions = ref<{ value: string; text: string }[]>([]);
 const companyOptions = ref<{ value: string; text: string }[]>([]);
+const branchOptions = ref<{ value: string; text: string; company_id?: number }[]>([]);
+const sectorOptions = ref<{ value: string; text: string; branch_id?: number }[]>([]);
+const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
+const hasCompanyLevelAccess = computed(() =>
+  authStore.getContextOptions().some((o) => o.branch_id == null)
+);
+const filteredBranchOptions = computed(() => {
+  if (!isSuperadmin.value) return branchOptions.value;
+  const companyIds = (filters.value.company_ids ?? []).map((id) => Number(id)).filter((id) => id > 0);
+  if (!companyIds.length) return branchOptions.value;
+  return branchOptions.value.filter((b) => companyIds.includes(Number(b.company_id ?? 0)));
+});
 const hasActiveFilters = computed(
   () =>
     !!appliedFilters.value.search.trim() ||
     !!appliedFilters.value.role_id ||
     (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
+    (appliedFilters.value.branch_ids?.length ?? 0) > 0 ||
+    (appliedFilters.value.sector_ids?.length ?? 0) > 0 ||
     !!appliedFilters.value.created_at_from ||
     !!appliedFilters.value.created_at_until
 );
@@ -60,15 +78,24 @@ const resultLabel = computed(() => {
 
 function loadList(page = 1) {
   loading.value = true;
+  const companyIds = (appliedFilters.value.company_ids ?? [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  const branchIds = (appliedFilters.value.branch_ids ?? [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  const sectorIds = (appliedFilters.value.sector_ids ?? [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
   usersApi
     .list({
       page,
       per_page: pagination.value.per_page,
       search: appliedFilters.value.search.trim() || undefined,
       role_id: appliedFilters.value.role_id ? Number(appliedFilters.value.role_id) : undefined,
-      company_ids: (appliedFilters.value.company_ids ?? []).length
-        ? appliedFilters.value.company_ids.map((id) => Number(id)).filter((id) => Number.isFinite(id))
-        : undefined,
+      company_ids: companyIds.length ? companyIds : undefined,
+      branch_ids: branchIds.length ? branchIds : undefined,
+      sector_ids: sectorIds.length ? sectorIds : undefined,
       created_at_from: appliedFilters.value.created_at_from || undefined,
       created_at_until: appliedFilters.value.created_at_until || undefined,
       order_by: orderBy.value,
@@ -97,7 +124,44 @@ function loadPlucks() {
       value: String(company.id),
       text: company.name || `Empresa #${company.id}`,
     }));
+
+    branchOptions.value = (plucks.branches ?? []).map((branch) => ({
+      value: String(branch.id),
+      text: branch.name || `Filial #${branch.id}`,
+      company_id: branch.company_id,
+    }));
   });
+}
+
+function formatSectorLabel(s: { name?: string; id: number; branch_name?: string }): string {
+  const name = s.name || `Setor #${s.id}`;
+  const branch = s.branch_name?.trim();
+  return branch ? `${name} - (${branch})` : name;
+}
+
+async function loadSectorOptions(branchIds: string[]) {
+  const ids = branchIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0);
+  const plucks = await sectorsApi.plucks();
+  let sorted = plucks.map((s) => ({ ...s }));
+  if (ids.length > 0) {
+    const idSet = new Set(ids);
+    sorted = [
+      ...sorted.filter((s) => idSet.has(s.branch_id)),
+      ...sorted.filter((s) => !idSet.has(s.branch_id)),
+    ].sort((a, b) => {
+      const aIn = idSet.has(a.branch_id) ? 0 : 1;
+      const bIn = idSet.has(b.branch_id) ? 0 : 1;
+      if (aIn !== bIn) return aIn - bIn;
+      return (a.name ?? "").localeCompare(b.name ?? "");
+    });
+  } else {
+    sorted.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+  }
+  sectorOptions.value = sorted.map((s) => ({
+    value: String(s.id),
+    text: formatSectorLabel(s),
+    branch_id: s.branch_id,
+  }));
 }
 
 function applyFilters() {
@@ -170,6 +234,14 @@ function companiesForDisplay(user: UserRecord) {
   return Array.from(unique.values());
 }
 
+watch(
+  () => filters.value.branch_ids,
+  (branchIds) => {
+    loadSectorOptions(branchIds ?? []);
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
   loadPlucks();
   loadList();
@@ -197,8 +269,13 @@ onMounted(() => {
         <UsersFilter
           v-model="filters"
           :active="hasActiveFilters"
+          :show-company-filter="isSuperadmin"
+          :show-branch-filter="isSuperadmin || hasCompanyLevelAccess"
+          :show-sector-filter="isSuperadmin || hasCompanyLevelAccess"
           :role-options="roleOptions"
           :company-options="companyOptions"
+          :branch-options="filteredBranchOptions"
+          :sector-options="sectorOptions"
           @apply="applyFilters"
           @reset="resetFilters"
         />

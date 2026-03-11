@@ -6,16 +6,35 @@ import UIComponentCard from "@/components/UIComponentCard.vue";
 import { rolesApi, permissionsApi } from "@/api/resources";
 import { roleInitialForm, validateRoleForm, type RoleFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
+import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{
   roleId: number | null;
 }>();
 
 const router = useRouter();
+const authStore = useAuthStore();
 const isEdit = computed(() => props.roleId !== null);
 
-/** Perfil criado automaticamente pela filial (filial-b{id}). Não pode ser editado nem eliminado. */
+/** Perfil criado automaticamente pela filial (filial-b{id}). */
 const isSystemBranchRole = computed(() => (form.value.slug ?? "").startsWith("filial-b"));
+/** Empresa (contexto empresa) ou superadmin podem editar perfis das filiais. */
+const isCompanyContext = computed(
+  () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id == null
+);
+/** Utilizador tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
+const hasCompanyLevelAccess = computed(() =>
+  authStore.getContextOptions().some((o) => o.branch_id == null)
+);
+const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
+/** Bloqueado só quando é perfil-filial e o utilizador não é empresa nem superadmin. */
+const isRoleLocked = computed(
+  () =>
+    isSystemBranchRole.value &&
+    !isCompanyContext.value &&
+    !isSuperadmin.value &&
+    !hasCompanyLevelAccess.value
+);
 const loading = ref(false);
 const loadError = ref("");
 const permissionOptions = ref<{ id: number; name: string; slug: string }[]>([]);
@@ -29,6 +48,7 @@ const permissionModuleLabels: Record<string, string> = {
   companies: "Empresas",
   permissions: "Permissões",
   roles: "Perfis",
+  sectors: "Setores",
   users: "Usuários",
 };
 
@@ -195,7 +215,7 @@ watch(
     <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
 
     <UIComponentCard v-else title="Dados do perfil">
-      <AppAlert v-if="isSystemBranchRole" variant="info" class="mb-3">
+      <AppAlert v-if="isRoleLocked" variant="info" class="mb-3">
         Este perfil é gerido automaticamente pela filial e não pode ser editado nem eliminado.
       </AppAlert>
       <b-form @submit.prevent="submit">
@@ -207,7 +227,7 @@ watch(
                 v-model="form.name"
                 type="text"
                 placeholder="Ex: Administrador"
-                :readonly="isSystemBranchRole"
+                :readonly="isRoleLocked"
                 :state="errors.name ? false : null"
               />
               <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
@@ -220,7 +240,7 @@ watch(
                 v-model="form.slug"
                 type="text"
                 placeholder="Ex: admin"
-                :readonly="isSystemBranchRole"
+                :readonly="isRoleLocked"
                 :state="errors.slug ? false : null"
               />
               <b-form-invalid-feedback v-if="errors.slug">{{ errors.slug }}</b-form-invalid-feedback>
@@ -236,7 +256,7 @@ watch(
                 v-model="form.description"
                 type="text"
                 placeholder="Descrição opcional"
-                :readonly="isSystemBranchRole"
+                :readonly="isRoleLocked"
               />
             </b-form-group>
           </b-col>
@@ -253,7 +273,7 @@ watch(
                 />
                 <b-form-checkbox
                   :model-value="totalVisiblePermissions > 0 && totalVisibleSelectedPermissions === totalVisiblePermissions"
-                  :disabled="isSystemBranchRole"
+                  :disabled="isRoleLocked"
                   @update:model-value="toggleAllVisible(Boolean($event))"
                 >
                   Selecionar todas visíveis
@@ -276,7 +296,7 @@ watch(
                     <b-form-checkbox
                       class="mb-2"
                       :model-value="group.selected > 0 && group.selected === group.total"
-                      :disabled="isSystemBranchRole"
+                      :disabled="isRoleLocked"
                       @update:model-value="toggleModule(group.moduleName, Boolean($event))"
                     >
                       Marcar todo módulo
@@ -292,7 +312,7 @@ watch(
                       >
                         <b-form-checkbox
                           :model-value="isPermissionSelected(permission.id)"
-                          :disabled="isSystemBranchRole"
+                          :disabled="isRoleLocked"
                           @update:model-value="togglePermission(permission.id, Boolean($event))"
                         >
                           {{ permission.label }}
@@ -315,11 +335,11 @@ watch(
         </b-row>
         <b-row>
           <b-col class="d-flex gap-2">
-            <b-button v-if="!isSystemBranchRole" type="submit" variant="primary" :disabled="loading">
+            <b-button v-if="!isRoleLocked" type="submit" variant="primary" :disabled="loading">
               {{ loading ? "A guardar..." : "Guardar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">
-              {{ isSystemBranchRole ? "Voltar" : "Cancelar" }}
+              {{ isRoleLocked ? "Voltar" : "Cancelar" }}
             </b-button>
           </b-col>
         </b-row>

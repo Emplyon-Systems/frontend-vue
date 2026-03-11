@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import ProfilePage from "@/views/panels/owner/users/profile/index.vue";
@@ -11,8 +11,17 @@ import { useAuthStore } from "@/stores/auth";
 
 type PermissionItem = { name: string; slug: string };
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+const profileRouteNames = computed(() => {
+  const name = String(route.name ?? "");
+  if (name.startsWith("company.")) return { view: "company.my-profile.view", edit: "company.my-profile.edit", back: "panels.company.dashboard" };
+  if (name.startsWith("branch.")) return { view: "branch.my-profile.view", edit: "branch.my-profile.edit", back: "panels.branch.dashboard" };
+  if (name.startsWith("employee.")) return { view: "employee.my-profile.view", edit: "employee.my-profile.edit", back: "panels.employee.dashboard" };
+  return { view: "owner.my-profile.view", edit: "owner.my-profile.edit", back: "panels.owner.dashboard" };
+});
 const userId = computed(() => Number(authStore.user?.id ?? 0));
 
 const loadingUser = ref(true);
@@ -20,16 +29,19 @@ const loadError = ref("");
 const form = ref<UserFormData>(userInitialForm("edit"));
 const companyNames = ref<string[]>([]);
 const branchNames = ref<string[]>([]);
+const sectorNames = ref<string[]>([]);
+const branches = ref<UserRecord["branches"]>([]);
+const sectors = ref<UserRecord["sectors"]>([]);
 const permissions = ref<PermissionItem[]>([]);
 const roleNames = ref<string[]>([]);
 const primaryCompanyName = computed(() => companyNames.value[0] ?? "");
 
 function back() {
-  router.push({ name: "panels.employee.dashboard" });
+  router.push({ name: profileRouteNames.value.back });
 }
 
 function goEdit() {
-  router.push({ name: "employee.my-profile.edit" });
+  router.push({ name: profileRouteNames.value.edit });
 }
 
 function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
@@ -46,6 +58,9 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
   roleNames.value = (user.roles ?? []).map((r) => r.name).filter(Boolean);
   companyNames.value = (user.companies ?? []).map((c) => c.name).filter(Boolean) as string[];
   branchNames.value = (user.branches ?? []).map((b) => b.name).filter(Boolean) as string[];
+  sectorNames.value = (user.sectors ?? []).map((s) => s.name).filter(Boolean) as string[];
+  branches.value = user.branches ?? [];
+  sectors.value = user.sectors ?? [];
 
   const map = new Map<string, PermissionItem>();
   for (const permission of (user.roles ?? []).flatMap((role) => role.permissions ?? [])) {
@@ -113,6 +128,9 @@ onMounted(loadUser);
         :role-names="roleNames"
         :company-names="companyNames"
         :branch-names="branchNames"
+        :sector-names="sectorNames"
+        :branches="branches"
+        :sectors="sectors"
         :permissions="permissions"
         :subtitle="primaryCompanyName || form.email"
         :onEdit="goEdit"

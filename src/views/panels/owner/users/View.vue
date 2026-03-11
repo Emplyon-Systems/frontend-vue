@@ -22,6 +22,9 @@ const loadError = ref("");
 const form = ref<UserFormData>(userInitialForm("edit"));
 const companyNames = ref<string[]>([]);
 const branchNames = ref<string[]>([]);
+const sectorNames = ref<string[]>([]);
+const branches = ref<UserRecord["branches"]>([]);
+const sectors = ref<UserRecord["sectors"]>([]);
 const permissions = ref<PermissionItem[]>([]);
 
 const roleNames = ref<string[]>([]);
@@ -48,6 +51,9 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
   roleNames.value = (user.roles ?? []).map((r) => r.name).filter(Boolean);
   companyNames.value = (user.companies ?? []).map((c) => c.name).filter(Boolean) as string[];
   branchNames.value = (user.branches ?? []).map((b) => b.name).filter(Boolean) as string[];
+  sectorNames.value = (user.sectors ?? []).map((s) => s.name).filter(Boolean);
+  branches.value = user.branches ?? [];
+  sectors.value = user.sectors ?? [];
 
   const map = new Map<string, PermissionItem>();
   for (const permission of (user.roles ?? []).flatMap((role) => role.permissions ?? [])) {
@@ -114,6 +120,9 @@ onMounted(loadUser);
         :role-names="roleNames"
         :company-names="companyNames"
         :branch-names="branchNames"
+        :sector-names="sectorNames"
+        :branches="branches"
+        :sectors="sectors"
         :permissions="permissions"
         :subtitle="primaryCompanyName || form.email"
         :onEdit="goEdit"

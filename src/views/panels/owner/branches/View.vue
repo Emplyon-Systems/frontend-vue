@@ -31,6 +31,7 @@ const form = ref<BranchFormData>(branchInitialForm());
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 const users = ref<BranchRecord["users"]>([]);
 const usersCount = ref(0);
+const sectors = ref<BranchRecord["sectors"]>([]);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
 
 function back() {
@@ -66,6 +67,7 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
   };
   users.value = branch.users ?? [];
   usersCount.value = branch.users?.length ?? 0;
+  sectors.value = branch.sectors ?? [];
 }
 
 function loadBranch() {
@@ -128,6 +130,7 @@ onMounted(async () => {
         :state="form.state"
         :users="users"
         :usersCount="usersCount"
+        :sectors="sectors"
         :subtitle="companyOptions.find((c) => c.id === form.company_id)?.name || ''"
         :onEdit="canEditBranch ? goEdit : undefined"
       />

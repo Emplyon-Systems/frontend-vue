@@ -36,6 +36,9 @@
               <b-tab title="Usuários">
                 <BranchUsersTab :users="users" />
               </b-tab>
+              <b-tab title="Setores">
+                <BranchSectorsTab :sectors="sectors" />
+              </b-tab>
             </b-tabs>
           </b-card-body>
         </b-card>
@@ -48,6 +51,7 @@
 import ProfileInfo from "./ProfileInfo.vue";
 import BranchInformation from "./BranchInformation.vue";
 import BranchUsersTab from "./BranchUsersTab.vue";
+import BranchSectorsTab from "./BranchSectorsTab.vue";
 import type { BranchRecord } from "@/types/api";
 
 withDefaults(
@@ -63,12 +67,14 @@ withDefaults(
     state?: string;
     users?: BranchRecord["users"];
     usersCount?: number;
+    sectors?: BranchRecord["sectors"];
     subtitle?: string;
     onEdit?: () => void;
   }>(),
   {
     users: () => [],
     usersCount: 0,
+    sectors: () => [],
   }
 );
 </script>
