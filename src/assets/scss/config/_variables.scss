@@ -345,6 +345,8 @@ $purple: $purple;
 $blue: $blue;
 $light: $gray-100;
 $dark: $gray-900;
+/** Cor laranja da identidade visual (coral) para botões e destaques */
+$coral: $coral-prime;
 // scss-docs-end theme-color-variables
 
 // scss-docs-start theme-colors-map
@@ -358,6 +360,7 @@ $theme-colors: (
   "pink": $pink,
   "purple": $purple,
   "blue": $blue,
+  "coral": $coral,
   "light": $light,
   "dark": $dark,
 );

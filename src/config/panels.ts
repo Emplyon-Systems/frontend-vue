@@ -1,3 +1,5 @@
+import type { User } from "@/types/auth";
+
 /**
  * Configuração dos painéis (owner, company, branch, employee).
  * Usado pelo router e pelo redirect após login (getPanelHomeForUser).
@@ -12,7 +14,7 @@ export interface PanelConfig {
 export const PANEL_CONFIG: Record<string, PanelConfig> = {
   owner: {
     path: "/",
-    allowedRoles: ["superadmin", "owner"],
+    allowedRoles: ["superadmin"],
     defaultRoute: "/",
   },
   company: {
@@ -27,20 +29,43 @@ export const PANEL_CONFIG: Record<string, PanelConfig> = {
   },
   employee: {
     path: "/employee",
-    allowedRoles: ["user", "employee"],
+    allowedRoles: ["user", "employee", "colaborador"],
     defaultRoute: "/employee",
   },
 };
 
+/** Utilizador mínimo para decidir o painel (roles + vínculos empresa/filial). */
+export type UserPanelInput = Pick<User, "roles"> & {
+  companies?: Array<{ id: number }>;
+  branches?: Array<{ id: number }>;
+};
+
 /**
- * Redireciona o utilizador para a home do painel correspondente ao seu role.
- * Prioridade: superadmin/owner -> owner, admin/empresa -> company, branch_manager/branch/filial -> branch, resto -> employee.
+ * Redireciona o utilizador para a home do painel conforme perfis e vínculos (empresa/filial).
+ * Regras: superadmin → owner; só colaborador → employee; tem perfil de filial e está atribuído a filial(ais) → branch;
+ * tem perfil de empresa e está atribuído a empresa(s) → company; senão → employee.
  */
-export function getPanelHomeForUser(roles: { slug: string }[] | undefined): string {
-  if (!roles?.length) return "/";
+export function getPanelHomeForUser(user: UserPanelInput | undefined): string {
+  const roles = user?.roles;
+  if (!roles?.length) return PANEL_CONFIG.employee.defaultRoute;
+
   const slugs = roles.map((r) => r.slug);
-  if (slugs.some((s) => ["superadmin", "owner"].includes(s))) return PANEL_CONFIG.owner.defaultRoute;
-  if (slugs.some((s) => ["admin", "empresa"].includes(s))) return PANEL_CONFIG.company.defaultRoute;
-  if (slugs.some((s) => ["branch_manager", "branch", "filial"].includes(s))) return PANEL_CONFIG.branch.defaultRoute;
+  const hasBranches = (user?.branches?.length ?? 0) > 0;
+  const hasCompanies = (user?.companies?.length ?? 0) > 0;
+
+  const isCollaboratorRole = (slug: string) => slug === "colaborador" || slug.startsWith("colaborador-b");
+  const isBranchScopedRole = (slug: string) =>
+    !isCollaboratorRole(slug) && (slug.startsWith("filial-b") || /-b\d+$/.test(slug));
+  const hasBranchRole = () =>
+    slugs.some((s) => ["branch_manager", "branch", "filial"].includes(s) || isBranchScopedRole(s));
+  const hasCompanyScopedRole = (slug: string) => ["admin", "empresa"].includes(slug) || /-c\d+$/.test(slug);
+  const hasCompanyRole = () => slugs.some(hasCompanyScopedRole);
+  const onlyCollaborator = () => slugs.every((s) => isCollaboratorRole(s));
+
+  if (slugs.includes("superadmin")) return PANEL_CONFIG.owner.defaultRoute;
+  if (onlyCollaborator()) return PANEL_CONFIG.employee.defaultRoute;
+  if (hasBranchRole() && hasBranches) return PANEL_CONFIG.branch.defaultRoute;
+  if (hasCompanyRole() && hasCompanies) return PANEL_CONFIG.company.defaultRoute;
+
   return PANEL_CONFIG.employee.defaultRoute;
 }

@@ -21,4 +21,5 @@ export const DEFAULT_PAGE_TITLE =
 export const AUTH_STORAGE_KEYS = {
   USER: "emplyon_user",
   TOKEN: "emplyon_token",
+  ACTIVE_CONTEXT: "emplyon_active_context",
 } as const;

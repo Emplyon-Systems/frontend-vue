@@ -13,6 +13,10 @@ export interface AuditsListParams {
   auditable_type?: string;
   event?: string;
   user_id?: number;
+  created_at_from?: string;
+  created_at_until?: string;
+  order_by?: string;
+  order_dir?: "asc" | "desc";
 }
 
 export async function list(params?: AuditsListParams) {
