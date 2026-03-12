@@ -42,6 +42,9 @@ router.beforeEach((to, _from, next) => {
   const role = to.meta.role as string | string[] | undefined;
   const rolePrefix = to.meta.rolePrefix as string[] | undefined;
   if (auth.isAuthenticated && (permission || role || rolePrefix)) {
+    if (auth.hasRole("superadmin")) {
+      return next();
+    }
     const perms = Array.isArray(permission) ? permission : permission ? [permission] : [];
     const roles = Array.isArray(role) ? role : role ? [role] : [];
     const prefixes = Array.isArray(rolePrefix) ? rolePrefix : [];

@@ -7,6 +7,13 @@ const requiredText = (label: string, max: number) =>
     .min(1, `${label} é obrigatório.`)
     .max(max, `${label} deve ter no máximo ${max} caracteres.`);
 
+const timeSchema = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato inválido (use HH:mm)");
+
+function toHhMm(time: string): string {
+  const m = String(time ?? "").match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : "08:00";
+}
+
 const branchBaseSchema = z.object({
   company_id: z.number({ required_error: "Empresa é obrigatória." }).int().positive("Empresa é obrigatória."),
   name: requiredText("Nome", 255),
@@ -17,6 +24,10 @@ const branchBaseSchema = z.object({
   neighborhood: requiredText("Bairro", 255),
   city: requiredText("Município", 255),
   state: requiredText("Estado", 2),
+  expedient_start_time: timeSchema,
+  expedient_end_time: timeSchema,
+  store_open_time: timeSchema,
+  store_close_time: timeSchema,
 });
 
 export const branchCreateSchema = branchBaseSchema;
@@ -38,6 +49,10 @@ export const branchInitialForm = (): BranchFormData => ({
   neighborhood: "",
   city: "",
   state: "",
+  expedient_start_time: "08:00",
+  expedient_end_time: "18:00",
+  store_open_time: "09:00",
+  store_close_time: "18:00",
 });
 
 function toFieldErrors(error: z.ZodError): BranchFieldErrors {
@@ -63,5 +78,15 @@ export function validateBranchForm(
     return { success: false, errors: toFieldErrors(parsed.error) };
   }
 
-  return { success: true, data: parsed.data };
+  const data = parsed.data;
+  return {
+    success: true,
+    data: {
+      ...data,
+      expedient_start_time: toHhMm(data.expedient_start_time),
+      expedient_end_time: toHhMm(data.expedient_end_time),
+      store_open_time: toHhMm(data.store_open_time),
+      store_close_time: toHhMm(data.store_close_time),
+    },
+  };
 }

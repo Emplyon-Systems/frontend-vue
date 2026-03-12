@@ -40,6 +40,11 @@ function cancel() {
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
 }
 
+function toHhMm(v: string): string {
+  const m = String(v ?? "").trim().match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : "08:00";
+}
+
 function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>>) {
   const branch = data.branch;
   if (!branch) return;
@@ -53,6 +58,10 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     neighborhood: branch.neighborhood ?? "",
     city: branch.city ?? "",
     state: branch.state ?? "",
+    expedient_start_time: toHhMm(branch.expedient_start_time ?? "08:00"),
+    expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
+    store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
+    store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
   };
 }
 
