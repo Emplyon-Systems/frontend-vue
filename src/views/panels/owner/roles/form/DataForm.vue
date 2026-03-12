@@ -46,9 +46,12 @@ const permissionModuleLabels: Record<string, string> = {
   audits: "Auditoria",
   branches: "Filiais",
   companies: "Empresas",
+  modality_types: "Modalidades",
   permissions: "Permissões",
+  scale_types: "Tipos de escala",
   roles: "Perfis",
   sectors: "Setores",
+  shifts: "Turnos",
   users: "Usuários",
 };
 

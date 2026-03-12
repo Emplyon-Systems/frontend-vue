@@ -87,6 +87,11 @@ function cleanZipCode(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function formatTime(v: string): string {
+  const m = String(v ?? "").match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : "—";
+}
+
 async function fillAddressByZipCode() {
   if (isView.value) return;
 
@@ -235,6 +240,14 @@ onBeforeUnmount(() => {
               <b-col cols="12" md="4">
                 <p class="text-muted mb-0 small">Estado</p>
                 <p class="mb-0 fw-medium">{{ localForm.state || "—" }}</p>
+              </b-col>
+              <b-col cols="12" md="6">
+                <p class="text-muted mb-0 small">Horário expediente (funcionários)</p>
+                <p class="mb-0 fw-medium">{{ formatTime(localForm.expedient_start_time) }} – {{ formatTime(localForm.expedient_end_time) }}</p>
+              </b-col>
+              <b-col cols="12" md="6">
+                <p class="text-muted mb-0 small">Horário loja (clientes)</p>
+                <p class="mb-0 fw-medium">{{ formatTime(localForm.store_open_time) }} – {{ formatTime(localForm.store_close_time) }}</p>
               </b-col>
             </b-row>
           </div>
@@ -400,6 +413,65 @@ onBeforeUnmount(() => {
             @update:model-value="updateField('state', String($event ?? ''))"
           />
           <b-form-invalid-feedback v-if="errors.state">{{ errors.state }}</b-form-invalid-feedback>
+        </b-form-group>
+      </b-col>
+    </b-row>
+
+    <b-row>
+      <b-col md="6">
+        <b-form-group label-for="branch-expedient-start" class="mb-3">
+          <template #label>Início do expediente (funcionários) <span class="text-danger">*</span></template>
+          <b-form-input
+            id="branch-expedient-start"
+            :model-value="localForm.expedient_start_time"
+            type="time"
+            :disabled="isView"
+            :state="errors.expedient_start_time ? false : null"
+            @update:model-value="updateField('expedient_start_time', String($event ?? ''))"
+          />
+          <b-form-invalid-feedback v-if="errors.expedient_start_time">{{ errors.expedient_start_time }}</b-form-invalid-feedback>
+        </b-form-group>
+      </b-col>
+      <b-col md="6">
+        <b-form-group label-for="branch-expedient-end" class="mb-3">
+          <template #label>Fim do expediente (funcionários) <span class="text-danger">*</span></template>
+          <b-form-input
+            id="branch-expedient-end"
+            :model-value="localForm.expedient_end_time"
+            type="time"
+            :disabled="isView"
+            :state="errors.expedient_end_time ? false : null"
+            @update:model-value="updateField('expedient_end_time', String($event ?? ''))"
+          />
+          <b-form-invalid-feedback v-if="errors.expedient_end_time">{{ errors.expedient_end_time }}</b-form-invalid-feedback>
+        </b-form-group>
+      </b-col>
+      <b-col md="6">
+        <b-form-group label-for="branch-store-open" class="mb-3">
+          <template #label>Abertura da loja (clientes) <span class="text-danger">*</span></template>
+          <b-form-input
+            id="branch-store-open"
+            :model-value="localForm.store_open_time"
+            type="time"
+            :disabled="isView"
+            :state="errors.store_open_time ? false : null"
+            @update:model-value="updateField('store_open_time', String($event ?? ''))"
+          />
+          <b-form-invalid-feedback v-if="errors.store_open_time">{{ errors.store_open_time }}</b-form-invalid-feedback>
+        </b-form-group>
+      </b-col>
+      <b-col md="6">
+        <b-form-group label-for="branch-store-close" class="mb-3">
+          <template #label>Fecho da loja (clientes) <span class="text-danger">*</span></template>
+          <b-form-input
+            id="branch-store-close"
+            :model-value="localForm.store_close_time"
+            type="time"
+            :disabled="isView"
+            :state="errors.store_close_time ? false : null"
+            @update:model-value="updateField('store_close_time', String($event ?? ''))"
+          />
+          <b-form-invalid-feedback v-if="errors.store_close_time">{{ errors.store_close_time }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
     </b-row>
