@@ -231,6 +231,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
           route: { name: "branch.modality-types" },
         });
       }
+      if (canScaleTypes) {
+        baseMenu.push({
+          key: "scale-types-list",
+          icon: "iconoir-calendar",
+          label: "Tipos de escala",
+          route: { name: "branch.scale-types" },
+        });
+      }
       if (systemChildren.length) {
         baseMenu.push({
           key: "sistema",
