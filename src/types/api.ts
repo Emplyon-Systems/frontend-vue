@@ -131,6 +131,10 @@ export interface BranchRecord {
   zip_code: string;
   city: string;
   state: string;
+  expedient_start_time?: string;
+  expedient_end_time?: string;
+  store_open_time?: string;
+  store_close_time?: string;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
@@ -161,6 +165,57 @@ export interface SectorRecord {
     id: number;
     name?: string;
     company_id?: number;
+  } | null;
+}
+
+export interface ShiftRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  start_time: string;
+  end_time: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+    company?: { id: number; name?: string } | null;
+  } | null;
+}
+
+export interface ModalityTypeRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  is_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+    company?: { id: number; name?: string } | null;
+  } | null;
+}
+
+export interface ScaleTypeRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+    company?: { id: number; name?: string } | null;
   } | null;
 }
 

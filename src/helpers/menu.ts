@@ -43,6 +43,30 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
     "sectors.delete",
     "sectors.plucks",
   ]);
+  const canShifts = hasAny([
+    "shifts.index",
+    "shifts.read",
+    "shifts.create",
+    "shifts.update",
+    "shifts.delete",
+    "shifts.plucks",
+  ]);
+  const canModalityTypes = hasAny([
+    "modality_types.index",
+    "modality_types.read",
+    "modality_types.create",
+    "modality_types.update",
+    "modality_types.delete",
+    "modality_types.plucks",
+  ]);
+  const canScaleTypes = hasAny([
+    "scale_types.index",
+    "scale_types.read",
+    "scale_types.create",
+    "scale_types.update",
+    "scale_types.delete",
+    "scale_types.plucks",
+  ]);
   const companiesRouteName = path === "/company" ? "company.branches" : "owner.companies";
   const companySelfRouteName = "company.my-company.view";
   const branchSelfRouteName = "branch.my-branch.view";
@@ -62,7 +86,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
     return [
       { key: "main", label: "Menu", isTitle: true },
       { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name: "panels.owner.dashboard" } },
-      ...((isSuperadmin || canCompanies || canBranches || canSectors)
+      ...((isSuperadmin || canCompanies || canBranches || canSectors || canShifts || canModalityTypes || canScaleTypes)
         ? [
             {
               key: "companies",
@@ -87,6 +111,36 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
                         icon: "iconoir-git-branch",
                         label: "Filiais",
                         route: { name: branchRouteName },
+                      } as MenuItemType,
+                    ]
+                  : []),
+                ...(isSuperadmin || canShifts
+                  ? [
+                      {
+                        key: "shifts-list",
+                        icon: "iconoir-clock",
+                        label: "Turnos",
+                        route: { name: "owner.shifts" },
+                      } as MenuItemType,
+                    ]
+                  : []),
+                ...(isSuperadmin || canModalityTypes
+                  ? [
+                      {
+                        key: "modality-types-list",
+                        icon: "iconoir-book",
+                        label: "Modalidades",
+                        route: { name: "owner.modality-types" },
+                      } as MenuItemType,
+                    ]
+                  : []),
+                ...(isSuperadmin || canScaleTypes
+                  ? [
+                      {
+                        key: "scale-types-list",
+                        icon: "iconoir-calendar",
+                        label: "Tipos de escala",
+                        route: { name: "owner.scale-types" },
                       } as MenuItemType,
                     ]
                   : []),
@@ -127,31 +181,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
       : path === "/employee"
         ? "panels.employee.dashboard"
         : "panels.owner.dashboard";
-  const myProfileRouteName =
-    path === "/company"
-      ? "company.my-profile.view"
-      : path === "/branch"
-        ? "branch.my-profile.view"
-        : path === "/employee"
-          ? "employee.my-profile.view"
-          : "owner.my-profile.view";
 
   const baseMenu: MenuItemType[] = [
     { key: "main", label: "Menu", isTitle: true },
     { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name } },
-    { key: "my-profile", icon: "iconoir-user", label: "Perfil", route: { name: myProfileRouteName } },
   ];
+  // Perfil removido do sidebar — acessível apenas pelo dropdown do utilizador (TopBar)
 
-  if (systemChildren.length) {
-    baseMenu.push({
-      key: "sistema",
-      icon: "iconoir-settings",
-      label: "Sistema",
-      children: systemChildren,
-    });
-  }
-
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canShifts || canModalityTypes || canScaleTypes)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
       if (canBranches) {
@@ -168,6 +205,38 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
           icon: "iconoir-folder",
           label: "Setores",
           route: { name: "branch.sectors" },
+        });
+      }
+      if (canShifts) {
+        baseMenu.push({
+          key: "shifts-list",
+          icon: "iconoir-clock",
+          label: "Turnos",
+          route: { name: "branch.shifts" },
+        });
+      }
+      if (canModalityTypes) {
+        baseMenu.push({
+          key: "modality-types-list",
+          icon: "iconoir-book",
+          label: "Modalidades",
+          route: { name: "branch.modality-types" },
+        });
+      }
+      if (canScaleTypes) {
+        baseMenu.push({
+          key: "scale-types-list",
+          icon: "iconoir-calendar",
+          label: "Tipos de escala",
+          route: { name: "branch.scale-types" },
+        });
+      }
+      if (systemChildren.length) {
+        baseMenu.push({
+          key: "sistema",
+          icon: "iconoir-settings",
+          label: "Sistema",
+          children: systemChildren,
         });
       }
       return baseMenu;
@@ -209,6 +278,36 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
               } as MenuItemType,
             ]
           : []),
+        ...(canShifts
+          ? [
+              {
+                key: "shifts-list",
+                icon: "iconoir-clock",
+                label: "Turnos",
+                route: { name: path === "/company" ? "company.shifts" : "owner.shifts" },
+              } as MenuItemType,
+            ]
+          : []),
+        ...(canModalityTypes
+          ? [
+              {
+                key: "modality-types-list",
+                icon: "iconoir-book",
+                label: "Modalidades",
+                route: { name: path === "/company" ? "company.modality-types" : "owner.modality-types" },
+              } as MenuItemType,
+            ]
+          : []),
+        ...(canScaleTypes
+          ? [
+              {
+                key: "scale-types-list",
+                icon: "iconoir-calendar",
+                label: "Tipos de escala",
+                route: { name: path === "/company" ? "company.scale-types" : "owner.scale-types" },
+              } as MenuItemType,
+            ]
+          : []),
         ...(canSectors
           ? [
               {
@@ -220,6 +319,16 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
             ]
           : []),
       ],
+    });
+  }
+
+  // Sistema sempre por último (Empresas e Filial)
+  if (systemChildren.length) {
+    baseMenu.push({
+      key: "sistema",
+      icon: "iconoir-settings",
+      label: "Sistema",
+      children: systemChildren,
     });
   }
 

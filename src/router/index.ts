@@ -42,6 +42,9 @@ router.beforeEach((to, _from, next) => {
   const role = to.meta.role as string | string[] | undefined;
   const rolePrefix = to.meta.rolePrefix as string[] | undefined;
   if (auth.isAuthenticated && (permission || role || rolePrefix)) {
+    if (auth.hasRole("superadmin")) {
+      return next();
+    }
     const perms = Array.isArray(permission) ? permission : permission ? [permission] : [];
     const roles = Array.isArray(role) ? role : role ? [role] : [];
     const prefixes = Array.isArray(rolePrefix) ? rolePrefix : [];
@@ -50,8 +53,13 @@ router.beforeEach((to, _from, next) => {
     const hasRoleByPrefix = prefixes.length > 0 && (auth.user?.roles ?? []).some((r) =>
       prefixes.some((p) => (r.slug ?? "").startsWith(p))
     );
-    if (!hasPerm && !hasRole && !hasRoleByPrefix) {
-      return next({ name: "error.404" });
+    // Aceita perfis com escopo de filial (ex.: assistente-b123) quando a rota permite filial-b*
+    const allowsBranchScoped = prefixes.some((p) => p === "filial-b");
+    const hasBranchScopedRole = allowsBranchScoped && (auth.user?.roles ?? []).some(
+      (r) => /-b\d+$/.test(r.slug ?? "")
+    );
+    if (!hasPerm && !hasRole && !hasRoleByPrefix && !hasBranchScopedRole) {
+      return next({ name: "error.403" });
     }
   }
 
