@@ -181,20 +181,12 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
       : path === "/employee"
         ? "panels.employee.dashboard"
         : "panels.owner.dashboard";
-  const myProfileRouteName =
-    path === "/company"
-      ? "company.my-profile.view"
-      : path === "/branch"
-        ? "branch.my-profile.view"
-        : path === "/employee"
-          ? "employee.my-profile.view"
-          : "owner.my-profile.view";
 
   const baseMenu: MenuItemType[] = [
     { key: "main", label: "Menu", isTitle: true },
     { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name } },
-    { key: "my-profile", icon: "iconoir-user", label: "Perfil", route: { name: myProfileRouteName } },
   ];
+  // Perfil removido do sidebar — acessível apenas pelo dropdown do utilizador (TopBar)
 
   if (path !== "/employee" && (canBranches || canCompanies || canSectors || canShifts || canModalityTypes || canScaleTypes)) {
     const isBranchPanel = path === "/branch";
