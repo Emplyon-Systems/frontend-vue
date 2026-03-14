@@ -53,8 +53,13 @@ router.beforeEach((to, _from, next) => {
     const hasRoleByPrefix = prefixes.length > 0 && (auth.user?.roles ?? []).some((r) =>
       prefixes.some((p) => (r.slug ?? "").startsWith(p))
     );
-    if (!hasPerm && !hasRole && !hasRoleByPrefix) {
-      return next({ name: "error.404" });
+    // Aceita perfis com escopo de filial (ex.: assistente-b123) quando a rota permite filial-b*
+    const allowsBranchScoped = prefixes.some((p) => p === "filial-b");
+    const hasBranchScopedRole = allowsBranchScoped && (auth.user?.roles ?? []).some(
+      (r) => /-b\d+$/.test(r.slug ?? "")
+    );
+    if (!hasPerm && !hasRole && !hasRoleByPrefix && !hasBranchScopedRole) {
+      return next({ name: "error.403" });
     }
   }
 

@@ -47,6 +47,15 @@ const authRoutes = [
     component: () => import("@/views/auth/error-404.vue"),
   },
   {
+    path: "/auth/error-403",
+    name: "error.403",
+    meta: {
+      title: setTitle("Sem permissão"),
+      authRequired: true,
+    },
+    component: () => import("@/views/auth/error-403.vue"),
+  },
+  {
     path: "/auth/error-500",
     name: "error.500",
     meta: {
