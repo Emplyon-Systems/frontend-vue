@@ -10,7 +10,9 @@ const requiredText = (label: string, max: number) =>
 const userBaseSchema = z.object({
   name: requiredText("Nome", 255),
   email: z.string().trim().min(1, "E-mail é obrigatório.").email("E-mail inválido.").max(255),
+  status: z.enum(["active", "inactive"]).default("active"),
   roles: z.array(z.number()).default([]),
+  direct_permission_ids: z.array(z.number()).default([]),
   company_ids: z.array(z.number()).default([]),
   branch_ids: z.array(z.number()).default([]),
   sector_ids: z.array(z.number()).default([]),
@@ -48,7 +50,16 @@ export type UserFormMode = "create" | "edit";
 export type UserFieldErrors = Partial<Record<keyof UserFormData, string>>;
 
 export function userInitialForm(mode: UserFormMode): UserFormData {
-  const base = { name: "", email: "", roles: [] as number[], company_ids: [] as number[], branch_ids: [] as number[], sector_ids: [] as number[] };
+  const base = {
+    name: "",
+    email: "",
+    status: "active" as const,
+    roles: [] as number[],
+    direct_permission_ids: [] as number[],
+    company_ids: [] as number[],
+    branch_ids: [] as number[],
+    sector_ids: [] as number[],
+  };
   return mode === "create"
     ? { ...base, password: "", password_confirmation: "" }
     : { ...base, password: undefined, password_confirmation: undefined };

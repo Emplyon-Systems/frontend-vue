@@ -35,7 +35,7 @@ router.beforeEach((to, _from, next) => {
 
   const panelOwner = to.matched.some((r) => r.meta.panel === "owner");
   if (authRequired && auth.isAuthenticated && panelOwner && !auth.hasRole("superadmin")) {
-    return next(getPanelHomeForUser(auth.user) || "/employee");
+    return next(getPanelHomeForUser(auth.user, auth.activeContext) || "/employee");
   }
 
   const permission = to.meta.permission as string | string[] | undefined;

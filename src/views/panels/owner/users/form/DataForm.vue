@@ -8,7 +8,8 @@ const props = withDefaults(
     modelValue: UserFormData;
     errors?: Record<string, string>;
     mode?: "create" | "edit" | "view";
-    roleOptions: { id: number; name: string }[];
+    roleOptions: { id: number; name: string; permission_ids?: number[] }[];
+    permissionOptions?: { id: number; name: string; slug?: string }[];
     companyOptions?: { id: number; name: string }[];
     branchOptions?: { id: number; name: string; company_name?: string }[];
     sectorOptions?: { id: number; branch_id: number; name: string; slug?: string }[];
@@ -19,6 +20,7 @@ const props = withDefaults(
     errors: () => ({}),
     mode: "create",
     companyOptions: () => [],
+    permissionOptions: () => [],
     branchOptions: () => [],
     sectorOptions: () => [],
     fixedBranchId: null,
@@ -46,6 +48,20 @@ let roleSelectr: any = null;
 let companySelectr: any = null;
 let branchSelectr: any = null;
 let sectorSelectr: any = null;
+const permissionSearch = ref("");
+const moduleOpenState = ref<Record<string, boolean>>({});
+const permissionModuleLabels: Record<string, string> = {
+  audits: "Auditoria",
+  branches: "Filiais",
+  companies: "Empresas",
+  modality_types: "Modalidades",
+  permissions: "Permissões",
+  scale_types: "Tipos de escala",
+  roles: "Perfis",
+  sectors: "Setores",
+  shifts: "Turnos",
+  users: "Usuários",
+};
 
 function togglePassword() {
   showUserPassword.value = !showUserPassword.value;
@@ -78,6 +94,10 @@ function updateField<K extends keyof UserFormData>(field: K, value: UserFormData
 
 function clearRoleSelection() {
   updateField("roles", []);
+}
+
+function clearPermissionSelection() {
+  updateField("direct_permission_ids", []);
 }
 
 function clearBranchSelection() {
@@ -113,6 +133,97 @@ function initRoleSelectr() {
     updateField("roles", parseIds(roleSelectr?.getValue()));
   });
   if (ids.length) roleSelectr.setValue(ids);
+}
+
+function getPermissionModuleLabel(moduleName: string): string {
+  return permissionModuleLabels[moduleName] ?? moduleName;
+}
+
+const inheritedPermissionIds = computed(() => {
+  const selectedRoles = new Set(props.modelValue.roles ?? []);
+  const ids = new Set<number>();
+  for (const role of props.roleOptions) {
+    if (!selectedRoles.has(role.id)) continue;
+    for (const permissionId of role.permission_ids ?? []) {
+      if (Number.isFinite(permissionId) && permissionId > 0) ids.add(permissionId);
+    }
+  }
+  return ids;
+});
+
+const effectivePermissionIds = computed(() => {
+  const ids = new Set<number>(inheritedPermissionIds.value);
+  for (const permissionId of props.modelValue.direct_permission_ids ?? []) {
+    if (Number.isFinite(permissionId) && permissionId > 0) ids.add(permissionId);
+  }
+  return ids;
+});
+
+const groupedPermissions = computed(() => {
+  const term = permissionSearch.value.trim().toLowerCase();
+  const groups = new Map<string, { id: number; name: string; slug: string }[]>();
+  for (const permission of props.permissionOptions) {
+    const slug = permission.slug ?? "";
+    const text = `${permission.name} ${slug}`.toLowerCase();
+    if (term && !text.includes(term)) continue;
+    const moduleName = slug.split(".")[0] || "geral";
+    if (!groups.has(moduleName)) groups.set(moduleName, []);
+    groups.get(moduleName)!.push({ id: permission.id, name: permission.name, slug });
+  }
+
+  return [...groups.entries()]
+    .sort(([a], [b]) => getPermissionModuleLabel(a).localeCompare(getPermissionModuleLabel(b)))
+    .map(([moduleName, options]) => {
+      const sorted = options.sort((a, b) => a.name.localeCompare(b.name));
+      const checked = sorted.filter((p) => effectivePermissionIds.value.has(p.id)).length;
+      const extras = sorted.filter((p) => (props.modelValue.direct_permission_ids ?? []).includes(p.id)).length;
+      return {
+        moduleName,
+        moduleLabel: getPermissionModuleLabel(moduleName),
+        options: sorted,
+        total: sorted.length,
+        checked,
+        extras,
+      };
+    });
+});
+
+function isInheritedPermission(permissionId: number): boolean {
+  return inheritedPermissionIds.value.has(permissionId);
+}
+
+function isExtraPermission(permissionId: number): boolean {
+  return (props.modelValue.direct_permission_ids ?? []).includes(permissionId);
+}
+
+function isPermissionChecked(permissionId: number): boolean {
+  return effectivePermissionIds.value.has(permissionId);
+}
+
+function togglePermission(permissionId: number, checked: boolean) {
+  if (isInheritedPermission(permissionId)) return;
+  const current = new Set(props.modelValue.direct_permission_ids ?? []);
+  if (checked) current.add(permissionId);
+  else current.delete(permissionId);
+  updateField("direct_permission_ids", [...current]);
+}
+
+function toggleModule(moduleName: string, checked: boolean) {
+  const group = groupedPermissions.value.find((g) => g.moduleName === moduleName);
+  if (!group) return;
+  const current = new Set(props.modelValue.direct_permission_ids ?? []);
+  for (const permission of group.options) {
+    if (isInheritedPermission(permission.id)) continue;
+    if (checked) current.add(permission.id);
+    else current.delete(permission.id);
+  }
+  updateField("direct_permission_ids", [...current]);
+}
+
+function onModuleToggle(moduleName: string, event: Event) {
+  const element = event.target;
+  if (!(element instanceof HTMLDetailsElement)) return;
+  moduleOpenState.value[moduleName] = element.open;
 }
 
 function initCompanySelectr() {
@@ -261,6 +372,18 @@ onMounted(async () => {
   initSectorSelectr();
 });
 
+watch(
+  () => Array.from(inheritedPermissionIds.value).sort((a, b) => a - b).join(","),
+  () => {
+    const inherited = inheritedPermissionIds.value;
+    const direct = props.modelValue.direct_permission_ids ?? [];
+    const normalized = direct.filter((id) => !inherited.has(id));
+    if (normalized.length !== direct.length) {
+      updateField("direct_permission_ids", normalized);
+    }
+  }
+);
+
 onBeforeUnmount(() => {
   destroySelectrs();
 });
@@ -294,234 +417,380 @@ function generateRandomPassword(length = 12): void {
 </script>
 
 <template>
-  <b-row>
+  <template v-if="!isView">
+    <b-tabs content-class="pt-3">
+      <b-tab title="Informações pessoais" active>
+        <b-row>
+          <b-col md="6">
+            <b-form-group label="Nome" label-for="user-name" class="mb-3">
+              <b-form-input
+                id="user-name"
+                :model-value="modelValue.name"
+                type="text"
+                placeholder="Nome completo"
+                :state="errors.name ? false : null"
+                @update:model-value="updateField('name', $event)"
+              />
+              <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
+            </b-form-group>
+          </b-col>
+          <b-col md="6">
+            <b-form-group label="E-mail" label-for="user-email" class="mb-3">
+              <b-form-input
+                id="user-email"
+                :model-value="modelValue.email"
+                type="email"
+                placeholder="email@exemplo.com"
+                :state="errors.email ? false : null"
+                @update:model-value="updateField('email', $event)"
+              />
+              <b-form-invalid-feedback v-if="errors.email">{{ errors.email }}</b-form-invalid-feedback>
+            </b-form-group>
+          </b-col>
+
+          <b-col md="6">
+            <b-form-group :label="isCreate ? 'Palavra-passe' : 'Nova palavra-passe'" label-for="user-password" class="mb-3">
+              <b-input-group>
+                <b-form-input
+                  id="user-password"
+                  :model-value="modelValue.password ?? ''"
+                  :type="showUserPassword ? 'text' : 'password'"
+                  :placeholder="isCreate ? '••••••••' : 'Deixe em branco para não alterar'"
+                  :state="errors.password ? false : null"
+                  @update:model-value="updateField('password', $event || undefined)"
+                />
+                <b-button
+                  type="button"
+                  variant="outline-secondary"
+                  :title="showUserPassword ? 'Ocultar senha' : 'Mostrar senha'"
+                  @click="togglePassword"
+                >
+                  <i :class="showUserPassword ? 'iconoir-eye-closed' : 'iconoir-eye'"></i>
+                </b-button>
+                <b-button
+                  v-if="isCreate"
+                  type="button"
+                  variant="outline-primary"
+                  @click="generateRandomPassword()"
+                >
+                  Gerar senha
+                </b-button>
+              </b-input-group>
+              <b-form-invalid-feedback v-if="errors.password">{{ errors.password }}</b-form-invalid-feedback>
+            </b-form-group>
+          </b-col>
+          <b-col v-if="isCreate" md="6">
+            <b-form-group label="Confirmar palavra-passe" label-for="user-password-confirmation" class="mb-3">
+              <b-form-input
+                id="user-password-confirmation"
+                :model-value="modelValue.password_confirmation ?? ''"
+                :type="showUserPassword ? 'text' : 'password'"
+                placeholder="••••••••"
+                :state="errors.password_confirmation ? false : null"
+                @update:model-value="updateField('password_confirmation', $event || undefined)"
+              />
+              <b-form-invalid-feedback v-if="errors.password_confirmation">
+                {{ errors.password_confirmation }}
+              </b-form-invalid-feedback>
+            </b-form-group>
+          </b-col>
+
+          <b-col v-if="showCompanySelector && companyOptions.length" md="6">
+            <b-form-group label="Empresa" class="mb-3">
+              <select
+                id="user-companies-select"
+                ref="companySelectRef"
+                class="form-select"
+                multiple
+              >
+                <option
+                  v-for="company in companyOptions"
+                  :key="company.id"
+                  :value="company.id"
+                  :selected="(modelValue.company_ids ?? []).includes(company.id)"
+                >
+                  {{ company.name }}
+                </option>
+              </select>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <small class="text-muted">{{ selectionLabel((modelValue.company_ids ?? []).length, "empresa", "empresas") }}</small>
+                <b-button
+                  v-if="(modelValue.company_ids ?? []).length"
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  class="p-0"
+                  @click="updateField('company_ids', [])"
+                >
+                  Limpar seleção
+                </b-button>
+              </div>
+              <b-form-invalid-feedback v-if="errors.company_ids" class="d-block">{{ errors.company_ids }}</b-form-invalid-feedback>
+            </b-form-group>
+          </b-col>
+          <b-col v-if="showCompanySelector && !companyOptions.length" md="6">
+            <b-form-group label="Empresa" class="mb-3">
+              <span class="text-muted">Nenhuma empresa disponível.</span>
+            </b-form-group>
+          </b-col>
+          <b-col :md="showCompanySelector ? 6 : 12">
+            <b-form-group label="Filial" class="mb-3">
+              <template v-if="branchOptions.length && !fixedBranchId">
+                <select
+                  id="user-branches-select"
+                  ref="branchSelectRef"
+                  class="form-select"
+                  multiple
+                >
+                  <option
+                    v-for="branch in branchOptions"
+                    :key="branch.id"
+                    :value="branch.id"
+                    :selected="(modelValue.branch_ids ?? []).includes(branch.id)"
+                  >
+                    {{ branch.name }}
+                  </option>
+                </select>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                  <small class="text-muted">{{ selectionLabel((modelValue.branch_ids ?? []).length, "filial", "filiais") }}</small>
+                  <b-button
+                    v-if="(modelValue.branch_ids ?? []).length"
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    class="p-0"
+                    @click="clearBranchSelection"
+                  >
+                    Limpar seleção
+                  </b-button>
+                </div>
+                <b-form-invalid-feedback v-if="errors.branch_ids" class="d-block">{{ errors.branch_ids }}</b-form-invalid-feedback>
+              </template>
+              <template v-else-if="fixedBranchId">
+                <div class="form-control bg-light">{{ branchOptions.find((b) => b.id === fixedBranchId)?.name ?? `Filial #${fixedBranchId}` }}</div>
+                <small class="text-muted">Filial definida pelo contexto atual.</small>
+              </template>
+              <span v-else class="text-muted">Nenhuma filial disponível.</span>
+            </b-form-group>
+          </b-col>
+          <b-col v-if="(modelValue.branch_ids ?? []).length && sectorOptions.length" md="12">
+            <b-form-group label="Setores" class="mb-3">
+              <select
+                id="user-sectors-select"
+                ref="sectorSelectRef"
+                class="form-select"
+                multiple
+              >
+                <option
+                  v-for="sector in sectorOptions"
+                  :key="sector.id"
+                  :value="sector.id"
+                  :selected="(modelValue.sector_ids ?? []).includes(sector.id)"
+                >
+                  {{ sector.name }}
+                </option>
+              </select>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <small class="text-muted">{{ selectionLabel((modelValue.sector_ids ?? []).length, "setor", "setores") }}</small>
+                <b-button
+                  v-if="(modelValue.sector_ids ?? []).length"
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  class="p-0"
+                  @click="updateField('sector_ids', [])"
+                >
+                  Limpar seleção
+                </b-button>
+              </div>
+              <small class="text-muted">Setores das filiais selecionadas.</small>
+            </b-form-group>
+          </b-col>
+          <b-col v-else-if="(modelValue.branch_ids ?? []).length && !sectorOptions.length" md="12">
+            <b-form-group label="Setores" class="mb-3">
+              <span class="text-muted">Nenhum setor disponível para as filiais selecionadas.</span>
+            </b-form-group>
+          </b-col>
+
+          <b-col md="12">
+            <b-form-group label="Status" class="mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">Inativo</span>
+                <b-form-checkbox
+                  id="user-status-switch"
+                  switch
+                  :model-value="(modelValue.status ?? 'active') === 'active'"
+                  @update:model-value="updateField('status', $event ? 'active' : 'inactive')"
+                />
+                <span class="text-muted small">Ativo</span>
+              </div>
+              <small class="text-muted d-block mt-1">
+                {{ (modelValue.status ?? "active") === "active" ? "Utilizador ativo" : "Utilizador inativo" }}
+              </small>
+              <b-form-invalid-feedback v-if="errors.status" class="d-block">{{ errors.status }}</b-form-invalid-feedback>
+            </b-form-group>
+          </b-col>
+        </b-row>
+      </b-tab>
+
+      <b-tab title="Permissões">
+        <b-row>
+          <b-col md="12">
+            <b-form-group label="Perfis" class="mb-3">
+              <select
+                id="user-roles-select"
+                ref="roleSelectRef"
+                class="form-select"
+                multiple
+              >
+                <option
+                  v-for="role in roleOptions"
+                  :key="role.id"
+                  :value="role.id"
+                  :selected="(modelValue.roles ?? []).includes(role.id)"
+                >
+                  {{ role.name }}
+                </option>
+              </select>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <small class="text-muted">{{ selectionLabel((modelValue.roles ?? []).length, "perfil", "perfis") }}</small>
+                <b-button
+                  v-if="(modelValue.roles ?? []).length"
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  class="p-0"
+                  @click="clearRoleSelection"
+                >
+                  Limpar seleção
+                </b-button>
+              </div>
+              <b-form-invalid-feedback v-if="errors.roles" class="d-block">{{ errors.roles }}</b-form-invalid-feedback>
+            </b-form-group>
+          </b-col>
+
+          <b-col md="12">
+            <b-form-group label="Permissões individuais" class="mb-3">
+              <template v-if="permissionOptions.length">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <b-form-input
+                    v-model="permissionSearch"
+                    type="text"
+                    placeholder="Pesquisar permissões..."
+                    style="max-width: 360px"
+                  />
+                  <b-button
+                    v-if="(modelValue.direct_permission_ids ?? []).length"
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    class="p-0"
+                    @click="clearPermissionSelection"
+                  >
+                    Limpar extras
+                  </b-button>
+                </div>
+
+                <div v-if="groupedPermissions.length" class="border rounded">
+                  <details
+                    v-for="group in groupedPermissions"
+                    :key="group.moduleName"
+                    :open="moduleOpenState[group.moduleName] ?? (group.extras > 0 || group.checked > 0)"
+                    class="border-bottom"
+                    @toggle="onModuleToggle(group.moduleName, $event)"
+                  >
+                    <summary class="d-flex align-items-center justify-content-between px-3 py-2 cursor-pointer">
+                      <strong>{{ group.moduleLabel }}</strong>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-light text-dark border">{{ group.checked }}/{{ group.total }}</span>
+                        <span v-if="group.extras > 0" class="badge bg-warning text-dark">+{{ group.extras }} EXTRA</span>
+                      </div>
+                    </summary>
+                    <div class="px-3 pb-3">
+                      <b-form-checkbox
+                        class="mb-2 permission-extra-toggle"
+                        :model-value="group.options.filter((p) => !isInheritedPermission(p.id)).every((p) => isExtraPermission(p.id))"
+                        @update:model-value="toggleModule(group.moduleName, Boolean($event))"
+                      >
+                        Marcar extras do módulo
+                      </b-form-checkbox>
+                      <b-row>
+                        <b-col
+                          v-for="permission in group.options"
+                          :key="permission.id"
+                          cols="12"
+                          md="6"
+                          lg="4"
+                          class="mb-1 d-flex align-items-center justify-content-between gap-2 permission-item"
+                          :class="{
+                            'permission-item--inherited': isInheritedPermission(permission.id),
+                            'permission-item--extra': isExtraPermission(permission.id),
+                          }"
+                        >
+                          <b-form-checkbox
+                            :model-value="isPermissionChecked(permission.id)"
+                            :disabled="isInheritedPermission(permission.id)"
+                            @update:model-value="togglePermission(permission.id, Boolean($event))"
+                          >
+                            {{ permission.name }} ({{ permission.slug }})
+                          </b-form-checkbox>
+                          <span v-if="isExtraPermission(permission.id)" class="badge permission-badge permission-badge--extra">+EXTRA</span>
+                          <span v-else-if="isInheritedPermission(permission.id)" class="badge permission-badge permission-badge--inherited">Perfil</span>
+                        </b-col>
+                      </b-row>
+                    </div>
+                  </details>
+                </div>
+                <p v-else class="text-muted mb-0">Nenhuma permissão encontrada com esse filtro.</p>
+
+                <small class="text-muted d-block mt-2">
+                  Permissões herdadas do perfil ficam marcadas como "Perfil". Novas permissões no utilizador são destacadas com "+EXTRA".
+                </small>
+                <b-form-invalid-feedback v-if="errors.direct_permission_ids" class="d-block">
+                  {{ errors.direct_permission_ids }}
+                </b-form-invalid-feedback>
+              </template>
+              <span v-else class="text-muted">Nenhuma permissão disponível para atribuir.</span>
+            </b-form-group>
+          </b-col>
+        </b-row>
+      </b-tab>
+    </b-tabs>
+  </template>
+
+  <b-row v-else>
     <b-col md="6">
-      <b-form-group label="Nome" label-for="user-name" class="mb-3">
-        <b-form-input
-          id="user-name"
-          :model-value="modelValue.name"
-          type="text"
-          placeholder="Nome completo"
-          :readonly="isView"
-          :state="errors.name ? false : null"
-          @update:model-value="updateField('name', $event)"
-        />
-        <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
+      <b-form-group label="Nome" class="mb-3">
+        <div class="form-control bg-light">{{ modelValue.name }}</div>
       </b-form-group>
     </b-col>
     <b-col md="6">
-      <b-form-group label="E-mail" label-for="user-email" class="mb-3">
-        <b-form-input
-          id="user-email"
-          :model-value="modelValue.email"
-          type="email"
-          placeholder="email@exemplo.com"
-          :readonly="isView"
-          :state="errors.email ? false : null"
-          @update:model-value="updateField('email', $event)"
-        />
-        <b-form-invalid-feedback v-if="errors.email">{{ errors.email }}</b-form-invalid-feedback>
-      </b-form-group>
-    </b-col>
-  </b-row>
-  <b-row v-if="!isView">
-    <b-col md="6">
-      <b-form-group :label="isCreate ? 'Palavra-passe' : 'Nova palavra-passe'" label-for="user-password" class="mb-3">
-        <b-input-group>
-          <b-form-input
-            id="user-password"
-            :model-value="modelValue.password ?? ''"
-            :type="showUserPassword ? 'text' : 'password'"
-            :placeholder="isCreate ? '••••••••' : 'Deixe em branco para não alterar'"
-            :state="errors.password ? false : null"
-            @update:model-value="updateField('password', $event || undefined)"
-          />
-          <b-button
-            type="button"
-            variant="outline-secondary"
-            :title="showUserPassword ? 'Ocultar senha' : 'Mostrar senha'"
-            @click="togglePassword"
-          >
-            <i :class="showUserPassword ? 'iconoir-eye-closed' : 'iconoir-eye'"></i>
-          </b-button>
-          <b-button
-            v-if="isCreate"
-            type="button"
-            variant="outline-primary"
-            @click="generateRandomPassword()"
-          >
-            Gerar senha
-          </b-button>
-        </b-input-group>
-        <b-form-invalid-feedback v-if="errors.password">{{ errors.password }}</b-form-invalid-feedback>
-      </b-form-group>
-    </b-col>
-    <b-col v-if="isCreate" md="6">
-      <b-form-group label="Confirmar palavra-passe" label-for="user-password-confirmation" class="mb-3">
-        <b-form-input
-          id="user-password-confirmation"
-          :model-value="modelValue.password_confirmation ?? ''"
-            :type="showUserPassword ? 'text' : 'password'"
-          placeholder="••••••••"
-          :state="errors.password_confirmation ? false : null"
-          @update:model-value="updateField('password_confirmation', $event || undefined)"
-        />
-        <b-form-invalid-feedback v-if="errors.password_confirmation">
-          {{ errors.password_confirmation }}
-        </b-form-invalid-feedback>
-      </b-form-group>
-    </b-col>
-    <b-col v-if="showCompanySelector && companyOptions.length" md="6">
-      <b-form-group label="Empresa" class="mb-3">
-        <select
-          id="user-companies-select"
-          ref="companySelectRef"
-          class="form-select"
-          multiple
-        >
-          <option
-            v-for="company in companyOptions"
-            :key="company.id"
-            :value="company.id"
-            :selected="(modelValue.company_ids ?? []).includes(company.id)"
-          >
-            {{ company.name }}
-          </option>
-        </select>
-        <div class="d-flex justify-content-between align-items-center mt-1">
-          <small class="text-muted">{{ selectionLabel((modelValue.company_ids ?? []).length, "empresa", "empresas") }}</small>
-          <b-button
-            v-if="(modelValue.company_ids ?? []).length"
-            type="button"
-            variant="link"
-            size="sm"
-            class="p-0"
-            @click="updateField('company_ids', [])"
-          >
-            Limpar seleção
-          </b-button>
-        </div>
-        <b-form-invalid-feedback v-if="errors.company_ids" class="d-block">{{ errors.company_ids }}</b-form-invalid-feedback>
-      </b-form-group>
-    </b-col>
-    <b-col v-if="showCompanySelector && !companyOptions.length" md="6">
-      <b-form-group label="Empresa" class="mb-3">
-        <span class="text-muted">Nenhuma empresa disponível.</span>
-      </b-form-group>
-    </b-col>
-    <b-col :md="showCompanySelector ? 6 : 12">
-      <b-form-group label="Filial" class="mb-3">
-        <template v-if="branchOptions.length && !fixedBranchId">
-          <select
-            id="user-branches-select"
-            ref="branchSelectRef"
-            class="form-select"
-            multiple
-          >
-            <option
-              v-for="branch in branchOptions"
-              :key="branch.id"
-              :value="branch.id"
-              :selected="(modelValue.branch_ids ?? []).includes(branch.id)"
-            >
-              {{ branch.name }}
-            </option>
-          </select>
-          <div class="d-flex justify-content-between align-items-center mt-1">
-            <small class="text-muted">{{ selectionLabel((modelValue.branch_ids ?? []).length, "filial", "filiais") }}</small>
-            <b-button
-              v-if="(modelValue.branch_ids ?? []).length"
-              type="button"
-              variant="link"
-              size="sm"
-              class="p-0"
-              @click="clearBranchSelection"
-            >
-              Limpar seleção
-            </b-button>
-          </div>
-          <b-form-invalid-feedback v-if="errors.branch_ids" class="d-block">{{ errors.branch_ids }}</b-form-invalid-feedback>
-        </template>
-        <template v-else-if="fixedBranchId">
-          <div class="form-control bg-light">{{ branchOptions.find((b) => b.id === fixedBranchId)?.name ?? `Filial #${fixedBranchId}` }}</div>
-          <small class="text-muted">Filial definida pelo contexto atual.</small>
-        </template>
-        <span v-else class="text-muted">Nenhuma filial disponível.</span>
-      </b-form-group>
-    </b-col>
-    <b-col v-if="(modelValue.branch_ids ?? []).length && sectorOptions.length" md="12">
-      <b-form-group label="Setores" class="mb-3">
-        <select
-          id="user-sectors-select"
-          ref="sectorSelectRef"
-          class="form-select"
-          multiple
-        >
-          <option
-            v-for="sector in sectorOptions"
-            :key="sector.id"
-            :value="sector.id"
-            :selected="(modelValue.sector_ids ?? []).includes(sector.id)"
-          >
-            {{ sector.name }}
-          </option>
-        </select>
-        <div class="d-flex justify-content-between align-items-center mt-1">
-          <small class="text-muted">{{ selectionLabel((modelValue.sector_ids ?? []).length, "setor", "setores") }}</small>
-          <b-button
-            v-if="(modelValue.sector_ids ?? []).length"
-            type="button"
-            variant="link"
-            size="sm"
-            class="p-0"
-            @click="updateField('sector_ids', [])"
-          >
-            Limpar seleção
-          </b-button>
-        </div>
-        <small class="text-muted">Setores das filiais selecionadas.</small>
-      </b-form-group>
-    </b-col>
-    <b-col v-else-if="(modelValue.branch_ids ?? []).length && !sectorOptions.length" md="12">
-      <b-form-group label="Setores" class="mb-3">
-        <span class="text-muted">Nenhum setor disponível para as filiais selecionadas.</span>
+      <b-form-group label="E-mail" class="mb-3">
+        <div class="form-control bg-light">{{ modelValue.email }}</div>
       </b-form-group>
     </b-col>
     <b-col md="12">
-      <b-form-group label="Perfis" class="mb-3">
-        <select
-          id="user-roles-select"
-          ref="roleSelectRef"
-          class="form-select"
-          multiple
-        >
-          <option
-            v-for="role in roleOptions"
-            :key="role.id"
-            :value="role.id"
-            :selected="(modelValue.roles ?? []).includes(role.id)"
-          >
-            {{ role.name }}
-          </option>
-        </select>
-        <div class="d-flex justify-content-between align-items-center mt-1">
-          <small class="text-muted">{{ selectionLabel((modelValue.roles ?? []).length, "perfil", "perfis") }}</small>
-          <b-button
-            v-if="(modelValue.roles ?? []).length"
-            type="button"
-            variant="link"
-            size="sm"
-            class="p-0"
-            @click="clearRoleSelection"
-          >
-            Limpar seleção
-          </b-button>
-        </div>
-        <b-form-invalid-feedback v-if="errors.roles" class="d-block">{{ errors.roles }}</b-form-invalid-feedback>
+      <b-form-group label="Status" class="mb-3">
+        <b-badge :variant="(modelValue.status ?? 'active') === 'active' ? 'success' : 'danger'">
+          {{ (modelValue.status ?? "active") === "active" ? "Ativo" : "Inativo" }}
+        </b-badge>
       </b-form-group>
     </b-col>
-  </b-row>
-  <b-row v-else>
+    <b-col md="12">
+      <b-form-group label="Permissões individuais" class="mb-3">
+        <div v-if="(modelValue.direct_permission_ids ?? []).length" class="d-flex flex-wrap gap-1">
+          <b-badge
+            v-for="permissionId in (modelValue.direct_permission_ids ?? [])"
+            :key="permissionId"
+            variant="light"
+            class="text-dark"
+          >
+            {{ permissionOptions.find((p) => p.id === permissionId)?.name ?? permissionId }}
+          </b-badge>
+        </div>
+        <span v-else class="text-muted">—</span>
+      </b-form-group>
+    </b-col>
     <b-col md="12">
       <b-form-group label="Perfis" class="mb-3">
         <div v-if="(modelValue.roles ?? []).length" class="d-flex flex-wrap gap-1">
@@ -583,3 +852,38 @@ function generateRandomPassword(length = 12): void {
     </b-col>
   </b-row>
 </template>
+
+<style scoped>
+:deep(.permission-extra-toggle .form-check-input:checked) {
+  background-color: #fd7e14;
+  border-color: #fd7e14;
+}
+
+:deep(.permission-item--extra .form-check-input:checked) {
+  background-color: #fd7e14;
+  border-color: #fd7e14;
+}
+
+:deep(.permission-item--inherited .form-check-input:checked) {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+:deep(.permission-item--inherited .form-check-input:disabled) {
+  opacity: 1;
+}
+
+.permission-badge {
+  font-weight: 600;
+}
+
+.permission-badge--extra {
+  background-color: #fd7e14;
+  color: #1f2328;
+}
+
+.permission-badge--inherited {
+  background-color: #0d6efd;
+  color: #fff;
+}
+</style>

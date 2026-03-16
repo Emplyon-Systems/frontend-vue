@@ -42,7 +42,7 @@
               </b-tab>
               <b-tab title="Permissões">
                 <b-row class="justify-content-center">
-                  <PermissionsTab :permissions="permissions" />
+                  <PermissionsTab :permissions="permissions" :direct-permissions="directPermissions" />
                 </b-row>
               </b-tab>
             </b-tabs>
@@ -72,6 +72,7 @@ withDefaults(
     branches?: UserRecord["branches"];
     sectors?: UserRecord["sectors"];
     permissions?: Array<{ name: string; slug: string }>;
+    directPermissions?: Array<{ name: string; slug: string }>;
     description?: string;
     showSocial?: boolean;
     onEdit?: () => void;
@@ -84,6 +85,7 @@ withDefaults(
     branches: () => [],
     sectors: () => [],
     permissions: () => [],
+    directPermissions: () => [],
     showSocial: false,
   }
 );

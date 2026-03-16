@@ -20,6 +20,7 @@ const users = ref<UserRecord[]>([]);
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
 const initialFilters = () => ({
   search: "",
+  status: "",
   role_id: "",
   company_ids: [] as string[],
   branch_ids: [] as string[],
@@ -40,10 +41,26 @@ const companyOptions = ref<{ value: string; text: string }[]>([]);
 const branchOptions = ref<{ value: string; text: string; company_id?: number }[]>([]);
 const sectorOptions = ref<{ value: string; text: string; branch_id?: number }[]>([]);
 const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
-const hasCompanyLevelAccess = computed(() =>
-  authStore.getContextOptions().some((o) => o.branch_id == null)
+const isCompanyContext = computed(() =>
+  !isSuperadmin.value &&
+  !!authStore.activeContext?.company_id &&
+  authStore.activeContext?.branch_id == null
+);
+const isBranchContext = computed(() =>
+  !isSuperadmin.value &&
+  authStore.activeContext?.branch_id != null
 );
 const filteredBranchOptions = computed(() => {
+  if (isBranchContext.value && authStore.activeContext?.branch_id) {
+    const branchId = Number(authStore.activeContext.branch_id);
+    return branchOptions.value.filter((b) => Number(b.value) === branchId);
+  }
+
+  if (isCompanyContext.value && authStore.activeContext?.company_id) {
+    const companyId = Number(authStore.activeContext.company_id);
+    return branchOptions.value.filter((b) => Number(b.company_id ?? 0) === companyId);
+  }
+
   if (!isSuperadmin.value) return branchOptions.value;
   const companyIds = (filters.value.company_ids ?? []).map((id) => Number(id)).filter((id) => id > 0);
   if (!companyIds.length) return branchOptions.value;
@@ -52,6 +69,7 @@ const filteredBranchOptions = computed(() => {
 const hasActiveFilters = computed(
   () =>
     !!appliedFilters.value.search.trim() ||
+    !!appliedFilters.value.status ||
     !!appliedFilters.value.role_id ||
     (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
     (appliedFilters.value.branch_ids?.length ?? 0) > 0 ||
@@ -64,6 +82,7 @@ const listagemColumns = [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "email", label: "E-mail", sortable: true, align: "start" as const },
+  { key: "status", label: "Status", sortable: false, align: "start" as const },
   { key: "company", label: "Empresa", sortable: false, align: "start" as const },
   { key: "roles", label: "Perfis", sortable: false, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
@@ -92,6 +111,7 @@ function loadList(page = 1) {
       page,
       per_page: pagination.value.per_page,
       search: appliedFilters.value.search.trim() || undefined,
+      status: appliedFilters.value.status || undefined,
       role_id: appliedFilters.value.role_id ? Number(appliedFilters.value.role_id) : undefined,
       company_ids: companyIds.length ? companyIds : undefined,
       branch_ids: branchIds.length ? branchIds : undefined,
@@ -234,6 +254,11 @@ function companiesForDisplay(user: UserRecord) {
   return Array.from(unique.values());
 }
 
+function statusMeta(status?: UserRecord["status"]) {
+  if (status === "inactive") return { label: "Inativo", variant: "danger" as const };
+  return { label: "Ativo", variant: "success" as const };
+}
+
 watch(
   () => filters.value.branch_ids,
   (branchIds) => {
@@ -270,8 +295,8 @@ onMounted(() => {
           v-model="filters"
           :active="hasActiveFilters"
           :show-company-filter="isSuperadmin"
-          :show-branch-filter="isSuperadmin || hasCompanyLevelAccess"
-          :show-sector-filter="isSuperadmin || hasCompanyLevelAccess"
+          :show-branch-filter="isSuperadmin || isCompanyContext"
+          :show-sector-filter="isSuperadmin || isCompanyContext || isBranchContext"
           :role-options="roleOptions"
           :company-options="companyOptions"
           :branch-options="filteredBranchOptions"
@@ -302,6 +327,11 @@ onMounted(() => {
             <b-td>{{ (item as UserRecord).id }}</b-td>
             <b-td>{{ (item as UserRecord).name }}</b-td>
             <b-td>{{ (item as UserRecord).email }}</b-td>
+            <b-td>
+              <b-badge :variant="statusMeta((item as UserRecord).status).variant">
+                {{ statusMeta((item as UserRecord).status).label }}
+              </b-badge>
+            </b-td>
             <b-td>
               <span v-if="companiesForDisplay(item as UserRecord).length">
                 <b-badge

@@ -62,8 +62,9 @@ async function handleLogin() {
         await router.push({ name: "auth.select-context" });
       } else {
         const opts = authStore.getContextOptions();
-        if (opts.length === 1) authStore.selectContext(opts[0]);
-        await router.push(getPanelHomeForUser(data.user) || "/");
+        const selected = opts.length === 1 ? opts[0] : null;
+        if (selected) authStore.selectContext(selected);
+        await router.push(getPanelHomeForUser(data.user, selected) || "/");
       }
     } else {
       error.value = data.msg || "Resposta inválida.";
@@ -89,7 +90,7 @@ async function handleLogin() {
           <img src="/logohorizontal.svg" alt="Emplyon" class="login-form-logo-img" />
         </router-link>
         <p class="login-subtitle">
-          Inicie sessão na sua conta para começar a usar o Emplyon
+          Inicie sessão na sua conta para começar a usar a Emplyon
         </p>
 
         <b-form class="login-form" @submit.prevent="handleLogin">

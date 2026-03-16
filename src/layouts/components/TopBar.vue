@@ -447,16 +447,26 @@ const show = ref("all-tab");
 const authStore = useAuthStore();
 
 const myProfileRoute = computed(() => {
-  const path = getPanelHomeForUser(authStore.user) || "/";
+  const path = getPanelHomeForUser(authStore.user, authStore.activeContext) || "/";
   if (path.startsWith("/company")) return { name: "company.my-profile.view" };
   if (path.startsWith("/branch")) return { name: "branch.my-profile.view" };
   if (path.startsWith("/employee")) return { name: "employee.my-profile.view" };
   return { name: "owner.my-profile.view" };
 });
 const welcomeText = computed(() => {
+  const options = authStore.getContextOptions();
+  const ctx = authStore.activeContext ?? (options.length === 1 ? options[0] : null);
+
+  if (ctx) {
+    const contextName =
+      (ctx.branch_id != null
+        ? (ctx.branch_name ?? "").trim()
+        : (ctx.company_name ?? "").trim()) || ctx.label;
+    return `Bem Vindo, ${contextName}!`;
+  }
+
   const name = authStore.user?.name || authStore.user?.email || "Usuário";
-  const ctxLabel = authStore.getActiveContextLabel();
-  return ctxLabel ? `Bem Vindo, ${name} - ${ctxLabel}!` : `Bem Vindo, ${name}!`;
+  return `Bem Vindo, ${name}!`;
 });
 
 function isActiveContext(ctx: { company_id: number; branch_id?: number | null }) {
@@ -467,7 +477,7 @@ function isActiveContext(ctx: { company_id: number; branch_id?: number | null })
 
 function switchContext(ctx: { company_id: number; branch_id?: number | null; label: string }) {
   authStore.selectContext(ctx);
-  const path = getPanelHomeForUser(authStore.user) || "/";
+  const path = getPanelHomeForUser(authStore.user, ctx) || "/";
   if (window.location.pathname !== path) {
     window.location.href = path;
   }
