@@ -35,17 +35,21 @@ export const PANEL_CONFIG: Record<string, PanelConfig> = {
 };
 
 /** Utilizador mínimo para decidir o painel (roles + vínculos empresa/filial). */
-export type UserPanelInput = Pick<User, "roles"> & {
+export type UserPanelInput = Pick<User, "roles" | "permissions"> & {
   companies?: Array<{ id: number }>;
   branches?: Array<{ id: number }>;
 };
+export type PanelContextInput = {
+  company_id: number;
+  branch_id?: number | null;
+} | null | undefined;
 
 /**
  * Redireciona o utilizador para a home do painel conforme perfis e vínculos (empresa/filial).
  * Regras: superadmin → owner; só colaborador → employee; tem perfil de filial e está atribuído a filial(ais) → branch;
  * tem perfil de empresa e está atribuído a empresa(s) → company; senão → employee.
  */
-export function getPanelHomeForUser(user: UserPanelInput | undefined): string {
+export function getPanelHomeForUser(user: UserPanelInput | undefined, context?: PanelContextInput): string {
   const roles = user?.roles;
   if (!roles?.length) return PANEL_CONFIG.employee.defaultRoute;
 
@@ -64,6 +68,10 @@ export function getPanelHomeForUser(user: UserPanelInput | undefined): string {
 
   if (slugs.includes("superadmin")) return PANEL_CONFIG.owner.defaultRoute;
   if (onlyCollaborator()) return PANEL_CONFIG.employee.defaultRoute;
+  if (context) {
+    if (context.branch_id != null && hasBranchRole()) return PANEL_CONFIG.branch.defaultRoute;
+    if (context.company_id && hasCompanyRole()) return PANEL_CONFIG.company.defaultRoute;
+  }
   if (hasBranchRole() && hasBranches) return PANEL_CONFIG.branch.defaultRoute;
   if (hasCompanyRole() && hasCompanies) return PANEL_CONFIG.company.defaultRoute;
 

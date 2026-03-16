@@ -5,7 +5,7 @@ import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import DataForm from "./form/DataForm.vue";
-import { usersApi, rolesApi, sectorsApi, branchesApi } from "@/api/resources";
+import { usersApi, rolesApi, sectorsApi, branchesApi, permissionsApi } from "@/api/resources";
 import { userInitialForm, validateUserForm, type UserFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
@@ -16,14 +16,15 @@ const authStore = useAuthStore();
 const id = computed(() => Number(route.params.id));
 const loading = ref(false);
 const loadError = ref("");
-const roleOptions = ref<{ id: number; name: string; slug?: string }[]>([]);
+const roleOptions = ref<{ id: number; name: string; slug?: string; permission_ids?: number[] }[]>([]);
+const permissionOptions = ref<{ id: number; name: string; slug?: string }[]>([]);
 const companyOptions = ref<{ id: number; name: string }[]>([]);
 const branchOptions = ref<{ id: number; company_id?: number; name: string; company_name?: string }[]>([]);
 const sectorOptions = ref<{ id: number; branch_id: number; name: string; slug?: string }[]>([]);
 const form = ref<UserFormData>(userInitialForm("edit"));
 const userLoaded = ref(false);
 const formReady = ref(false);
-const userRolesRef = ref<{ id: number; name?: string; slug?: string }[]>([]);
+const userRolesRef = ref<{ id: number; name?: string; slug?: string; permission_ids?: number[] }[]>([]);
 const userSectorsRef = ref<{ id: number; branch_id?: number; name?: string }[]>([]);
 const errors = ref<Record<string, string>>({});
 const isSuperadmin = ref(false);
@@ -84,11 +85,23 @@ function submit() {
   const payload = {
     name: validation.data.name,
     email: validation.data.email,
+    status: validation.data.status,
     roles: validation.data.roles.length ? validation.data.roles : undefined,
+    direct_permission_ids: validation.data.direct_permission_ids?.length ? validation.data.direct_permission_ids : undefined,
     company_ids: validation.data.company_ids.length ? validation.data.company_ids : undefined,
     branch_ids: validation.data.branch_ids.length ? validation.data.branch_ids : undefined,
     sector_ids: validation.data.sector_ids?.length ? validation.data.sector_ids : undefined,
-  } as { name: string; email: string; roles?: number[]; company_ids?: number[]; branch_ids?: number[]; sector_ids?: number[]; password?: string };
+  } as {
+    name: string;
+    email: string;
+    status: "active" | "inactive";
+    roles?: number[];
+    direct_permission_ids?: number[];
+    company_ids?: number[];
+    branch_ids?: number[];
+    sector_ids?: number[];
+    password?: string;
+  };
   if (validation.data.password) payload.password = validation.data.password;
 
   usersApi
@@ -106,17 +119,27 @@ function cancel() {
 }
 
 async function loadRoleOptions(companyIds: number[], branchIds: number[]) {
-  if (branchIds.length === 1) return rolesApi.plucks({ branch_id: branchIds[0] });
-  if (branchIds.length > 1) return rolesApi.plucks({ branch_ids: branchIds });
-  if (companyIds.length) return rolesApi.plucks({ company_ids: companyIds });
-  return rolesApi.plucks();
+  if (branchIds.length === 1) {
+    const res = await rolesApi.list({ branch_id: branchIds[0], per_page: 500 });
+    return res.roles?.data ?? [];
+  }
+  if (branchIds.length > 1) {
+    const res = await rolesApi.list({ branch_ids: branchIds, per_page: 500 });
+    return res.roles?.data ?? [];
+  }
+  if (companyIds.length) {
+    const res = await rolesApi.list({ company_ids: companyIds, per_page: 500 });
+    return res.roles?.data ?? [];
+  }
+  const res = await rolesApi.list({ per_page: 500 });
+  return res.roles?.data ?? [];
 }
 
 let roleRequestSeq = 0;
 
-function formatRoleLabel(role: { name: string; branch_name?: string | null }) {
-  if (!role.branch_name) return role.name;
-  return `${role.name} (${role.branch_name})`;
+function formatRoleLabel(role: { name: string; branch?: { name?: string } | null }) {
+  if (!role.branch?.name) return role.name;
+  return `${role.name} (${role.branch.name})`;
 }
 
 onMounted(() => {
@@ -125,13 +148,14 @@ onMounted(() => {
     loadError.value = "Utilizador inválido.";
     return;
   }
-  Promise.all([usersApi.plucks(), usersApi.getById(id.value)])
-    .then(async ([plucks, userData]) => {
+  Promise.all([usersApi.plucks(), usersApi.getById(id.value), permissionsApi.plucks().catch(() => [])])
+    .then(async ([plucks, userData, permissions]) => {
       const u = userData.user;
       if (!u) {
         loadError.value = "Utilizador não encontrado.";
         return;
       }
+      permissionOptions.value = (permissions ?? []).map((p) => ({ id: p.id, name: p.name, slug: p.slug }));
       isSuperadmin.value = authStore.hasRole("superadmin");
       companyOptions.value = (plucks.companies ?? [])
         .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
@@ -193,7 +217,14 @@ onMounted(() => {
       }
 
       const branchIds = fixedBranchId.value ? [fixedBranchId.value] : (u.branches ?? []).map((b) => b.id);
-      userRolesRef.value = (u.roles ?? []).map((r) => ({ id: r.id, name: r.name, slug: r.slug }));
+      userRolesRef.value = (u.roles ?? []).map((r) => ({
+        id: Number(r.id),
+        name: r.name,
+        slug: r.slug,
+        permission_ids: (r.permissions ?? [])
+          .map((p) => Number(p.id))
+          .filter((pid) => Number.isFinite(pid) && pid > 0),
+      }));
       userSectorsRef.value = (u.sectors ?? []).map((s) => ({
         id: s.id,
         branch_id: s.branch?.id ?? 0,
@@ -202,8 +233,10 @@ onMounted(() => {
       form.value = {
         name: u.name ?? "",
         email: u.email ?? "",
+        status: (u.status === "inactive" ? "inactive" : "active"),
         password: undefined,
         roles: userRolesRef.value.map((r) => r.id),
+        direct_permission_ids: (u.permissions ?? []).map((p) => p.id),
         company_ids: (u.companies ?? []).map((c) => c.id),
         branch_ids: branchIds,
         sector_ids: (u.sectors ?? []).map((s) => s.id),
@@ -229,6 +262,9 @@ watch(
       id: role.id,
       slug: role.slug,
       name: formatRoleLabel(role),
+      permission_ids: (role.permissions ?? [])
+        .map((p) => Number(p.id))
+        .filter((pid) => Number.isFinite(pid) && pid > 0),
     }));
     const existingRoleIds = new Set(fromApi.map((r) => r.id));
     const fromUser = userLoaded.value
@@ -236,7 +272,12 @@ watch(
           .filter((rid) => !existingRoleIds.has(rid))
           .map((rid) => {
             const ur = userRolesRef.value.find((r) => r.id === rid);
-            return { id: rid, name: ur?.name ?? `Perfil #${rid}`, slug: ur?.slug ?? "" };
+            return {
+              id: rid,
+              name: ur?.name ?? `Perfil #${rid}`,
+              slug: ur?.slug ?? "",
+              permission_ids: ur?.permission_ids ?? [],
+            };
           })
       : [];
     roleOptions.value = fromUser.length ? [...fromApi, ...fromUser] : fromApi;
@@ -312,6 +353,7 @@ watch(
             :errors="errors"
             mode="edit"
             :role-options="roleOptions"
+            :permission-options="permissionOptions"
             :company-options="companyOptions"
             :branch-options="filteredBranchOptions"
             :sector-options="sectorOptions"

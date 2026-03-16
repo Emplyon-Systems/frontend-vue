@@ -1,5 +1,6 @@
 import { MENU_ITEMS } from "@/assets/data/menu-items";
 import { getPanelHomeForUser, type UserPanelInput } from "@/config/panels";
+import type { AuthContext } from "@/stores/auth";
 import type { User } from "@/types/auth";
 import type { MenuItemType } from "@/types/menu";
 
@@ -11,13 +12,15 @@ const ownerSlugs = ["superadmin"];
  * Menu com o Dashboard a apontar para o painel do utilizador (owner / company / branch / employee).
  * No painel owner mostra "Sistema" com submenu: Usuários, Perfis, Auditoria.
  */
-export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemType[] {
-  const path = getPanelHomeForUser(user);
+export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: AuthContext | null): MenuItemType[] {
+  const path = getPanelHomeForUser(user, context);
   const roles = user?.roles;
   const isOwner = roles?.some((r) => ownerSlugs.includes(r.slug));
   const isSuperadmin = roles?.some((r) => r.slug === "superadmin");
   const branchRouteName = path === "/company" ? "company.branches" : "owner.branches";
-  const permissionSet = new Set((roles ?? []).flatMap((role) => role.permissions?.map((p) => p.slug) ?? []));
+  const rolePermissionSlugs = (roles ?? []).flatMap((role) => role.permissions?.map((p) => p.slug) ?? []);
+  const directPermissionSlugs = (user as User | undefined)?.permissions?.map((p) => p.slug) ?? [];
+  const permissionSet = new Set([...rolePermissionSlugs, ...directPermissionSlugs]);
   const hasAny = (prefixes: string[]) => prefixes.some((prefix) => permissionSet.has(prefix));
   const canCompaniesList = hasAny(["companies.index"]);
   const canCompanies = hasAny([

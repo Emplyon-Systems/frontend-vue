@@ -12,6 +12,7 @@ export interface UsersListParams {
   page?: number;
   per_page?: number;
   search?: string;
+  status?: "active" | "inactive";
   created_at_from?: string;
   created_at_until?: string;
   role_id?: number;
@@ -27,18 +28,24 @@ export interface UserCreatePayload {
   name: string;
   email: string;
   password: string;
+  status?: "active" | "inactive";
   roles?: number[];
   company_ids?: number[];
   branch_ids?: number[];
+  sector_ids?: number[];
+  direct_permission_ids?: number[];
 }
 
 export interface UserUpdatePayload {
   name?: string;
   email?: string;
   password?: string;
+  status?: "active" | "inactive";
   roles?: number[];
   company_ids?: number[];
   branch_ids?: number[];
+  sector_ids?: number[];
+  direct_permission_ids?: number[];
 }
 
 export async function list(params?: UsersListParams) {

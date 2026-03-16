@@ -26,6 +26,7 @@ const sectorNames = ref<string[]>([]);
 const branches = ref<UserRecord["branches"]>([]);
 const sectors = ref<UserRecord["sectors"]>([]);
 const permissions = ref<PermissionItem[]>([]);
+const directPermissions = ref<PermissionItem[]>([]);
 
 const roleNames = ref<string[]>([]);
 const primaryCompanyName = computed(() => companyNames.value[0] ?? "");
@@ -44,8 +45,13 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
   form.value = {
     name: user.name ?? "",
     email: user.email ?? "",
+    status: (user.status === "inactive" ? "inactive" : "active"),
     password: undefined,
     roles: (user.roles ?? []).map((r) => r.id),
+    direct_permission_ids: (user.permissions ?? []).map((p) => p.id),
+    company_ids: (user.companies ?? []).map((c) => c.id),
+    branch_ids: (user.branches ?? []).map((b) => b.id),
+    sector_ids: (user.sectors ?? []).map((s) => s.id),
   };
 
   roleNames.value = (user.roles ?? []).map((r) => r.name).filter(Boolean);
@@ -58,6 +64,12 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
   const map = new Map<string, PermissionItem>();
   for (const permission of (user.roles ?? []).flatMap((role) => role.permissions ?? [])) {
     if (!permission?.slug || !permission?.name) continue;
+    map.set(permission.slug, { slug: permission.slug, name: permission.name });
+  }
+  directPermissions.value = (user.permissions ?? [])
+    .filter((permission) => !!permission?.slug && !!permission?.name)
+    .map((permission) => ({ slug: permission.slug, name: permission.name }));
+  for (const permission of directPermissions.value) {
     map.set(permission.slug, { slug: permission.slug, name: permission.name });
   }
   permissions.value = [...map.values()];
@@ -124,6 +136,7 @@ onMounted(loadUser);
         :branches="branches"
         :sectors="sectors"
         :permissions="permissions"
+        :direct-permissions="directPermissions"
         :subtitle="primaryCompanyName || form.email"
         :onEdit="goEdit"
       />

@@ -3,9 +3,26 @@
     <b-card no-body class="h-100">
       <b-card-header class="pb-2">
         <b-card-title class="mb-1">Permissões efetivas</b-card-title>
-        <p class="text-muted mb-0 small">Permissões herdadas pelos perfis do utilizador.</p>
+        <p class="text-muted mb-0 small">Permissões herdadas do perfil e permissões individuais do utilizador.</p>
       </b-card-header>
       <b-card-body>
+        <div class="mb-3">
+          <h6 class="mb-1">Permissões individuais</h6>
+          <div v-if="directPermissions.length" class="d-flex flex-wrap gap-1">
+            <b-badge
+              v-for="permission in directPermissions"
+              :key="permission.slug"
+              variant="primary"
+              class="fw-normal"
+            >
+              {{ permission.name }}
+            </b-badge>
+          </div>
+          <p v-else class="text-muted mb-0 small">Sem permissões individuais atribuídas.</p>
+        </div>
+
+        <hr class="my-3" />
+        <h6 class="mb-2">Permissões por perfil</h6>
         <div v-if="groupedPermissions.length" class="border rounded">
           <details
             v-for="group in groupedPermissions"
@@ -77,9 +94,11 @@ function getModuleLabel(moduleName: string): string {
 const props = withDefaults(
   defineProps<{
     permissions?: PermissionItem[];
+    directPermissions?: PermissionItem[];
   }>(),
   {
     permissions: () => [],
+    directPermissions: () => [],
   }
 );
 const groupOpenState = ref<Record<string, boolean>>({});
@@ -95,8 +114,10 @@ function onGroupToggle(moduleName: string, event: Event): void {
 }
 
 const groupedPermissions = computed(() => {
+  const directSlugs = new Set((props.directPermissions ?? []).map((p) => p.slug));
   const groups = new Map<string, PermissionItem[]>();
   for (const permission of props.permissions) {
+    if (directSlugs.has(permission.slug)) continue;
     const moduleName = permission.slug?.split(".")?.[0] || "geral";
     if (!groups.has(moduleName)) groups.set(moduleName, []);
     groups.get(moduleName)!.push(permission);

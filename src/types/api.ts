@@ -47,10 +47,12 @@ export interface UserRecord {
   id: number;
   name: string;
   email: string;
+  status?: "active" | "inactive";
   email_verified_at?: string | null;
   created_at?: string;
   updated_at?: string;
   roles?: UserRole[];
+  permissions?: RolePermission[];
   companies?: UserCompany[];
   branches?: UserBranch[];
   sectors?: Array<{

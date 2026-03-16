@@ -24,6 +24,6 @@ import { getPanelHomeForUser } from "@/config/panels";
 const authStore = useAuthStore();
 
 const dashboardRoute = computed(() => ({
-  path: getPanelHomeForUser(authStore.user ?? undefined) || "/employee",
+  path: getPanelHomeForUser(authStore.user ?? undefined, authStore.activeContext) || "/employee",
 }));
 </script>

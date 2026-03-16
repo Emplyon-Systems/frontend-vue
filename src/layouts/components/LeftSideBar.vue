@@ -21,5 +21,5 @@ import { useAuthStore } from "@/stores/auth";
 import LogoBox from "@/components/LogoBox.vue";
 
 const authStore = useAuthStore();
-const menuItems = computed(() => getMenuItemsForUser(authStore.user ?? undefined));
+const menuItems = computed(() => getMenuItemsForUser(authStore.user ?? undefined, authStore.activeContext));
 </script>

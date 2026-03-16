@@ -48,13 +48,25 @@ const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
 const isCompanyContext = computed(
   () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id == null
 );
+const isBranchContext = computed(
+  () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id != null
+);
 /** Utilizador tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
 const hasCompanyLevelAccess = computed(() =>
   authStore.getContextOptions().some((o) => o.branch_id == null)
 );
+const showCompanyFilter = computed(() => isSuperadmin.value);
+const showBranchFilter = computed(() => isSuperadmin.value || isCompanyContext.value);
 const filteredBranchOptions = computed(() => {
-  if (!isSuperadmin.value && !hasCompanyLevelAccess.value) return [];
-  if (!isSuperadmin.value) return branchOptions.value;
+  if (isCompanyContext.value && authStore.activeContext?.company_id) {
+    const activeCompanyId = Number(authStore.activeContext.company_id);
+    return branchOptions.value.filter((b) => Number(b.company_id ?? 0) === activeCompanyId);
+  }
+  if (isBranchContext.value && authStore.activeContext?.branch_id) {
+    const activeBranchId = Number(authStore.activeContext.branch_id);
+    return branchOptions.value.filter((b) => b.id === activeBranchId);
+  }
+  if (!isSuperadmin.value) return [];
   if (!(filters.value.company_ids?.length ?? 0)) return branchOptions.value;
   const selected = new Set((filters.value.company_ids ?? []).map((id) => Number(id)));
   return branchOptions.value.filter((b) => selected.has(Number(b.company_id ?? 0)));
@@ -84,11 +96,11 @@ function loadList(page = 1) {
       page,
       per_page: pagination.value.per_page,
       search: appliedFilters.value.search.trim() || undefined,
-      company_ids: isSuperadmin.value && (appliedFilters.value.company_ids?.length ?? 0)
+      company_ids: showCompanyFilter.value && (appliedFilters.value.company_ids?.length ?? 0)
         ? appliedFilters.value.company_ids
         : undefined,
       branch_ids:
-        (isSuperadmin.value || hasCompanyLevelAccess.value) &&
+        showBranchFilter.value &&
         (appliedFilters.value.branch_ids?.length ?? 0)
           ? appliedFilters.value.branch_ids
           : undefined,
@@ -172,7 +184,7 @@ function canEditRole(role: RoleRecord): boolean {
 onMounted(() => loadList());
 
 onMounted(async () => {
-  if (!isSuperadmin.value && !hasCompanyLevelAccess.value) return;
+  if (!showCompanyFilter.value && !showBranchFilter.value) return;
   const loadCompanies = isSuperadmin.value
     ? companiesApi.plucks()
     : Promise.resolve([] as { id: number; name?: string }[]);
@@ -209,9 +221,9 @@ onMounted(async () => {
       <UIComponentCard v-if="showFilters" title="Filtros" class="mb-3">
         <RolesFilter
           v-model="filters"
-          :show-tenant-filters="isSuperadmin || hasCompanyLevelAccess"
-          :show-company-filter="isSuperadmin"
-          :show-branch-filter="isSuperadmin || hasCompanyLevelAccess"
+          :show-tenant-filters="showCompanyFilter || showBranchFilter"
+          :show-company-filter="showCompanyFilter"
+          :show-branch-filter="showBranchFilter"
           :company-options="companyOptions"
           :branch-options="filteredBranchOptions"
           @apply="applyFilters"

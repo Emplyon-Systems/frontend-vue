@@ -39,7 +39,8 @@ const emit = defineEmits<{
 }>();
 const companySelectRef = ref<HTMLSelectElement | null>(null);
 const branchSelectRef = ref<HTMLSelectElement | null>(null);
-const suppressNextReinit = ref(false);
+const suppressReinitCompany = ref(false);
+const suppressReinitBranch = ref(false);
 let companySelectr: any = null;
 let branchSelectr: any = null;
 
@@ -55,30 +56,6 @@ function parseNumberList(value: unknown): number[] {
   return arrayValue
     .map((entry) => Number(String(entry).trim()))
     .filter((entry) => Number.isFinite(entry) && entry > 0);
-}
-
-function onCompanyChange(event: Event) {
-  const target = event.target as HTMLSelectElement | null;
-  if (!target) return;
-  suppressNextReinit.value = true;
-  const companyIds = Array.from(target.selectedOptions)
-    .map((option) => Number(option.value))
-    .filter((entry) => Number.isFinite(entry) && entry > 0);
-  emit("update:modelValue", {
-    ...props.modelValue,
-    company_ids: companyIds,
-    branch_ids: [],
-  });
-}
-
-function onBranchChange(event: Event) {
-  const target = event.target as HTMLSelectElement | null;
-  if (!target) return;
-  suppressNextReinit.value = true;
-  const branchIds = Array.from(target.selectedOptions)
-    .map((option) => Number(option.value))
-    .filter((entry) => Number.isFinite(entry) && entry > 0);
-  update("branch_ids", branchIds);
 }
 
 function selectionLabel(count: number, singular: string, plural: string): string {
@@ -126,18 +103,15 @@ function destroySelectrs() {
   branchSelectr = null;
 }
 
-function initSelectrs() {
-  destroySelectrs();
-  if (!effectiveShowCompany.value && !effectiveShowBranch.value) return;
-
-  if (effectiveShowCompany.value && companySelectRef.value) {
+function initCompanySelectr() {
+  if (effectiveShowCompany.value && companySelectRef.value && (props.companyOptions?.length ?? 0) > 0) {
     companySelectr = new Selectr(companySelectRef.value, {
       searchable: true,
       multiple: true,
       placeholder: "Todas",
     });
     companySelectr.on("selectr.change", () => {
-      suppressNextReinit.value = true;
+      suppressReinitCompany.value = true;
       const companyIds = parseNumberList(companySelectr.getValue());
       emit("update:modelValue", {
         ...props.modelValue,
@@ -145,44 +119,75 @@ function initSelectrs() {
         branch_ids: [],
       });
     });
+    if (props.modelValue.company_ids?.length) companySelectr.setValue(props.modelValue.company_ids);
   }
-  if (effectiveShowBranch.value && branchSelectRef.value) {
+}
+
+function initBranchSelectr() {
+  if (effectiveShowBranch.value && branchSelectRef.value && (props.branchOptions?.length ?? 0) > 0) {
     branchSelectr = new Selectr(branchSelectRef.value, {
       searchable: true,
       multiple: true,
       placeholder: "Todas",
     });
     branchSelectr.on("selectr.change", () => {
-      suppressNextReinit.value = true;
+      suppressReinitBranch.value = true;
       const branchIds = parseNumberList(branchSelectr.getValue());
       update("branch_ids", branchIds);
     });
+    if (props.modelValue.branch_ids?.length) branchSelectr.setValue(props.modelValue.branch_ids);
   }
 }
 
-const selectSignature = computed(() =>
+function initSelectrs() {
+  destroySelectrs();
+  if (!effectiveShowCompany.value && !effectiveShowBranch.value) return;
+  initCompanySelectr();
+  initBranchSelectr();
+}
+
+const companySelectSignature = computed(() =>
   JSON.stringify({
     showCompany: effectiveShowCompany.value,
-    showBranch: effectiveShowBranch.value,
     company_ids: props.modelValue.company_ids,
-    branch_ids: props.modelValue.branch_ids,
     companies: props.companyOptions?.map((item) => item.id) ?? [],
+  })
+);
+
+const branchSelectSignature = computed(() =>
+  JSON.stringify({
+    showBranch: effectiveShowBranch.value,
+    branch_ids: props.modelValue.branch_ids,
     branches: props.branchOptions?.map((item) => item.id) ?? [],
   })
 );
 
-watch(selectSignature, async () => {
-  if (suppressNextReinit.value) {
-    suppressNextReinit.value = false;
+watch(companySelectSignature, async () => {
+  if (suppressReinitCompany.value) {
+    suppressReinitCompany.value = false;
     return;
   }
   await nextTick();
-  initSelectrs();
+  companySelectr?.destroy?.();
+  companySelectr = null;
+  initCompanySelectr();
+});
+
+watch(branchSelectSignature, async () => {
+  if (suppressReinitBranch.value) {
+    suppressReinitBranch.value = false;
+    return;
+  }
+  await nextTick();
+  branchSelectr?.destroy?.();
+  branchSelectr = null;
+  initBranchSelectr();
 });
 
 onMounted(async () => {
   await nextTick();
-  initSelectrs();
+  initCompanySelectr();
+  initBranchSelectr();
 });
 
 onBeforeUnmount(() => {
@@ -204,6 +209,38 @@ onBeforeUnmount(() => {
           />
         </b-form-group>
       </b-col>
+      <b-col v-if="effectiveShowCompany" md="6">
+        <b-form-group label="Empresa" label-for="filter-roles-company">
+          <select
+            id="filter-roles-company"
+            ref="companySelectRef"
+            class="form-select"
+            multiple
+          >
+            <option
+              v-for="company in (companyOptions ?? [])"
+              :key="company.id"
+              :value="company.id"
+              :selected="modelValue.company_ids.includes(company.id)"
+            >
+              {{ company.name }}
+            </option>
+          </select>
+          <div class="d-flex justify-content-between align-items-center mt-1">
+            <small class="text-muted">{{ selectionLabel(modelValue.company_ids.length, "empresa", "empresas") }}</small>
+            <b-button
+              v-if="modelValue.company_ids.length"
+              type="button"
+              variant="link"
+              size="sm"
+              class="p-0"
+              @click="clearCompanySelection"
+            >
+              Limpar seleção
+            </b-button>
+          </div>
+        </b-form-group>
+      </b-col>
       <b-col v-if="effectiveShowBranch" md="6">
         <b-form-group label="Filial" label-for="filter-roles-branch">
           <select
@@ -211,7 +248,6 @@ onBeforeUnmount(() => {
             ref="branchSelectRef"
             class="form-select"
             multiple
-            @change="onBranchChange"
           >
             <option
               v-for="branch in (branchOptions ?? [])"
@@ -255,39 +291,6 @@ onBeforeUnmount(() => {
             type="date"
             @update:model-value="update('created_at_until', $event)"
           />
-        </b-form-group>
-      </b-col>
-      <b-col v-if="effectiveShowCompany" md="3">
-        <b-form-group label="Empresa" label-for="filter-roles-company">
-          <select
-            id="filter-roles-company"
-            ref="companySelectRef"
-            class="form-select"
-            multiple
-            @change="onCompanyChange"
-          >
-            <option
-              v-for="company in (companyOptions ?? [])"
-              :key="company.id"
-              :value="company.id"
-              :selected="modelValue.company_ids.includes(company.id)"
-            >
-              {{ company.name }}
-            </option>
-          </select>
-          <div class="d-flex justify-content-between align-items-center mt-1">
-            <small class="text-muted">{{ selectionLabel(modelValue.company_ids.length, "empresa", "empresas") }}</small>
-            <b-button
-              v-if="modelValue.company_ids.length"
-              type="button"
-              variant="link"
-              size="sm"
-              class="p-0"
-              @click="clearCompanySelection"
-            >
-              Limpar seleção
-            </b-button>
-          </div>
         </b-form-group>
       </b-col>
     </b-row>

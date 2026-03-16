@@ -4,6 +4,7 @@ import Selectr from "@/lib/selectr";
 
 export interface UsersFilterModel {
   search: string;
+  status: string;
   role_id: string;
   company_ids: string[];
   branch_ids: string[];
@@ -36,11 +37,18 @@ const emit = defineEmits<{
   (e: "apply"): void;
   (e: "reset"): void;
 }>();
+const filterColumnMd = computed(() => (props.showCompanyFilter ? 4 : 3));
+const statusSelectRef = ref<HTMLSelectElement | null>(null);
 const roleSelectRef = ref<HTMLSelectElement | null>(null);
 const companySelectRef = ref<HTMLSelectElement | null>(null);
 const branchSelectRef = ref<HTMLSelectElement | null>(null);
 const sectorSelectRef = ref<HTMLSelectElement | null>(null);
-const suppressNextReinit = ref(false);
+const suppressReinitStatus = ref(false);
+const suppressReinitRole = ref(false);
+const suppressReinitCompany = ref(false);
+const suppressReinitBranch = ref(false);
+const suppressReinitSector = ref(false);
+let statusSelectr: any = null;
 let roleSelectr: any = null;
 let companySelectr: any = null;
 let branchSelectr: any = null;
@@ -90,6 +98,7 @@ function clearSectorSelection() {
 }
 
 async function applyFilters() {
+  const status = parseSingleString(statusSelectr?.getValue?.() ?? statusSelectRef.value?.value ?? "");
   const roleId = parseSingleString(roleSelectr?.getValue?.() ?? roleSelectRef.value?.value ?? "");
   const companyIds = props.showCompanyFilter
     ? parseStringList(companySelectr?.getValue?.() ?? companySelectRef.value?.value ?? "")
@@ -102,6 +111,7 @@ async function applyFilters() {
     : props.modelValue.sector_ids ?? [];
   emit("update:modelValue", {
     ...props.modelValue,
+    status,
     role_id: roleId,
     company_ids: companyIds,
     branch_ids: branchIds,
@@ -112,6 +122,8 @@ async function applyFilters() {
 }
 
 function destroySelectrs() {
+  statusSelectr?.destroy?.();
+  statusSelectr = null;
   roleSelectr?.destroy?.();
   roleSelectr = null;
   companySelectr?.destroy?.();
@@ -125,6 +137,18 @@ function destroySelectrs() {
 function initSelectrs() {
   destroySelectrs();
 
+  if (statusSelectRef.value) {
+    statusSelectr = new Selectr(statusSelectRef.value, {
+      searchable: false,
+      multiple: false,
+      placeholder: "Todos",
+    });
+    statusSelectr.on("selectr.change", () => {
+      suppressReinitStatus.value = true;
+      update("status", parseSingleString(statusSelectr.getValue()));
+    });
+    if (props.modelValue.status) statusSelectr.setValue(props.modelValue.status);
+  }
   if (roleSelectRef.value) {
     roleSelectr = new Selectr(roleSelectRef.value, {
       searchable: true,
@@ -132,18 +156,19 @@ function initSelectrs() {
       placeholder: "Todos",
     });
     roleSelectr.on("selectr.change", () => {
-      suppressNextReinit.value = true;
+      suppressReinitRole.value = true;
       update("role_id", parseSingleString(roleSelectr.getValue()));
     });
+    if (props.modelValue.role_id) roleSelectr.setValue(props.modelValue.role_id);
   }
-  if (props.showCompanyFilter && companySelectRef.value) {
+  if (props.showCompanyFilter && companySelectRef.value && (props.companyOptions?.length ?? 0) > 0) {
     companySelectr = new Selectr(companySelectRef.value, {
       searchable: true,
       multiple: true,
       placeholder: "Todas",
     });
     companySelectr.on("selectr.change", () => {
-      suppressNextReinit.value = true;
+      suppressReinitCompany.value = true;
       emit("update:modelValue", {
         ...props.modelValue,
         company_ids: parseStringList(companySelectr.getValue()),
@@ -151,57 +176,127 @@ function initSelectrs() {
         sector_ids: [],
       });
     });
+    if (props.modelValue.company_ids?.length) companySelectr.setValue(props.modelValue.company_ids);
   }
-  if (props.showBranchFilter && branchSelectRef.value) {
+  if (props.showBranchFilter && branchSelectRef.value && (props.branchOptions?.length ?? 0) > 0) {
     branchSelectr = new Selectr(branchSelectRef.value, {
       searchable: true,
       multiple: true,
       placeholder: "Todas",
     });
     branchSelectr.on("selectr.change", () => {
-      suppressNextReinit.value = true;
+      suppressReinitBranch.value = true;
       emit("update:modelValue", {
         ...props.modelValue,
         branch_ids: parseStringList(branchSelectr.getValue()),
         sector_ids: [],
       });
     });
+    if (props.modelValue.branch_ids?.length) branchSelectr.setValue(props.modelValue.branch_ids);
   }
-  if (props.showSectorFilter && sectorSelectRef.value) {
+  if (props.showSectorFilter && sectorSelectRef.value && (props.sectorOptions?.length ?? 0) > 0) {
     sectorSelectr = new Selectr(sectorSelectRef.value, {
       searchable: true,
       multiple: true,
       placeholder: "Todos",
     });
     sectorSelectr.on("selectr.change", () => {
-      suppressNextReinit.value = true;
+      suppressReinitSector.value = true;
       update("sector_ids", parseStringList(sectorSelectr.getValue()));
     });
+    if (props.modelValue.sector_ids?.length) sectorSelectr.setValue(props.modelValue.sector_ids);
   }
 }
 
-const selectSignature = computed(() =>
+const statusSelectSignature = computed(() =>
+  JSON.stringify({
+    status: props.modelValue.status,
+  })
+);
+
+const roleSelectSignature = computed(() =>
   JSON.stringify({
     role_id: props.modelValue.role_id,
-    company_ids: props.modelValue.company_ids,
-    branch_ids: props.modelValue.branch_ids,
-    sector_ids: props.modelValue.sector_ids,
-    showCompany: props.showCompanyFilter,
-    showBranch: props.showBranchFilter,
-    showSector: props.showSectorFilter,
     role_options: props.roleOptions?.map((o) => o.value) ?? [],
+  })
+);
+
+const companySelectSignature = computed(() =>
+  JSON.stringify({
+    showCompany: props.showCompanyFilter,
+    company_ids: props.modelValue.company_ids,
     company_options: props.companyOptions?.map((o) => o.value) ?? [],
+  })
+);
+
+const branchSelectSignature = computed(() =>
+  JSON.stringify({
+    showBranch: props.showBranchFilter,
+    branch_ids: props.modelValue.branch_ids,
     branch_options: props.branchOptions?.map((o) => o.value) ?? [],
+  })
+);
+
+const sectorSelectSignature = computed(() =>
+  JSON.stringify({
+    showSector: props.showSectorFilter,
+    sector_ids: props.modelValue.sector_ids,
     sector_options: props.sectorOptions?.map((o) => o.value) ?? [],
   })
 );
 
-watch(selectSignature, async () => {
-  if (suppressNextReinit.value) {
-    suppressNextReinit.value = false;
+watch(statusSelectSignature, async () => {
+  if (suppressReinitStatus.value) {
+    suppressReinitStatus.value = false;
     return;
   }
   await nextTick();
+  statusSelectr?.destroy?.();
+  statusSelectr = null;
+  initSelectrs();
+});
+
+watch(roleSelectSignature, async () => {
+  if (suppressReinitRole.value) {
+    suppressReinitRole.value = false;
+    return;
+  }
+  await nextTick();
+  roleSelectr?.destroy?.();
+  roleSelectr = null;
+  initSelectrs();
+});
+
+watch(companySelectSignature, async () => {
+  if (suppressReinitCompany.value) {
+    suppressReinitCompany.value = false;
+    return;
+  }
+  await nextTick();
+  companySelectr?.destroy?.();
+  companySelectr = null;
+  initSelectrs();
+});
+
+watch(branchSelectSignature, async () => {
+  if (suppressReinitBranch.value) {
+    suppressReinitBranch.value = false;
+    return;
+  }
+  await nextTick();
+  branchSelectr?.destroy?.();
+  branchSelectr = null;
+  initSelectrs();
+});
+
+watch(sectorSelectSignature, async () => {
+  if (suppressReinitSector.value) {
+    suppressReinitSector.value = false;
+    return;
+  }
+  await nextTick();
+  sectorSelectr?.destroy?.();
+  sectorSelectr = null;
   initSelectrs();
 });
 
@@ -218,7 +313,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="p-0">
     <b-row class="g-3">
-      <b-col md="3">
+      <b-col :md="filterColumnMd">
         <b-form-group label="Pesquisar" label-for="filter-users-search">
           <b-form-input
             id="filter-users-search"
@@ -229,13 +324,25 @@ onBeforeUnmount(() => {
           />
         </b-form-group>
       </b-col>
-      <b-col md="3">
+      <b-col :md="filterColumnMd">
+        <b-form-group label="Status" label-for="filter-users-status">
+          <select
+            id="filter-users-status"
+            ref="statusSelectRef"
+            class="form-select"
+          >
+            <option value="" :selected="modelValue.status === ''">Todos</option>
+            <option value="active" :selected="modelValue.status === 'active'">Ativo</option>
+            <option value="inactive" :selected="modelValue.status === 'inactive'">Inativo</option>
+          </select>
+        </b-form-group>
+      </b-col>
+      <b-col :md="filterColumnMd">
         <b-form-group label="Perfil" label-for="filter-users-role">
           <select
             id="filter-users-role"
             ref="roleSelectRef"
             class="form-select"
-            @change="update('role_id', String(($event.target as HTMLSelectElement)?.value ?? ''))"
           >
             <option value="" :selected="modelValue.role_id === ''">Todos</option>
             <option
@@ -249,14 +356,14 @@ onBeforeUnmount(() => {
           </select>
         </b-form-group>
       </b-col>
-      <b-col v-if="showCompanyFilter" md="3">
+      <b-col v-if="showCompanyFilter" :md="filterColumnMd">
         <b-form-group label="Empresa" label-for="filter-users-company">
           <select
+            v-if="(companyOptions?.length ?? 0) > 0"
             id="filter-users-company"
             ref="companySelectRef"
             class="form-select"
             multiple
-            @change="update('company_ids', Array.from(($event.target as HTMLSelectElement)?.selectedOptions ?? []).map((o) => String(o.value)).filter((v) => !!v))"
           >
             <option
               v-for="company in (companyOptions ?? [])"
@@ -267,6 +374,7 @@ onBeforeUnmount(() => {
               {{ company.text }}
             </option>
           </select>
+          <span v-else class="text-muted">Nenhuma empresa disponível.</span>
           <div class="d-flex justify-content-between align-items-center mt-1">
             <small class="text-muted">{{ selectionLabel(modelValue.company_ids.length, "empresa", "empresas") }}</small>
             <b-button
@@ -282,14 +390,14 @@ onBeforeUnmount(() => {
           </div>
         </b-form-group>
       </b-col>
-      <b-col v-if="showBranchFilter" md="3">
+      <b-col v-if="showBranchFilter" :md="filterColumnMd">
         <b-form-group label="Filial" label-for="filter-users-branch">
           <select
+            v-if="(branchOptions?.length ?? 0) > 0"
             id="filter-users-branch"
             ref="branchSelectRef"
             class="form-select"
             multiple
-            @change="update('branch_ids', Array.from(($event.target as HTMLSelectElement)?.selectedOptions ?? []).map((o) => String(o.value)).filter((v) => !!v))"
           >
             <option
               v-for="branch in (branchOptions ?? [])"
@@ -300,6 +408,7 @@ onBeforeUnmount(() => {
               {{ branch.text }}
             </option>
           </select>
+          <span v-else class="text-muted">Nenhuma filial disponível.</span>
           <div class="d-flex justify-content-between align-items-center mt-1">
             <small class="text-muted">{{ selectionLabel(modelValue.branch_ids.length, "filial", "filiais") }}</small>
             <b-button
@@ -315,14 +424,14 @@ onBeforeUnmount(() => {
           </div>
         </b-form-group>
       </b-col>
-      <b-col v-if="showSectorFilter" md="3">
+      <b-col v-if="showSectorFilter" :md="filterColumnMd">
         <b-form-group label="Setor" label-for="filter-users-sector">
           <select
+            v-if="(sectorOptions?.length ?? 0) > 0"
             id="filter-users-sector"
             ref="sectorSelectRef"
             class="form-select"
             multiple
-            @change="update('sector_ids', Array.from(($event.target as HTMLSelectElement)?.selectedOptions ?? []).map((o) => String(o.value)).filter((v) => !!v))"
           >
             <option
               v-for="sector in (sectorOptions ?? [])"
@@ -333,6 +442,7 @@ onBeforeUnmount(() => {
               {{ sector.text }}
             </option>
           </select>
+          <span v-else class="text-muted">Nenhum setor disponível.</span>
           <div class="d-flex justify-content-between align-items-center mt-1">
             <small class="text-muted">{{ selectionLabel(modelValue.sector_ids.length, "setor", "setores") }}</small>
             <b-button

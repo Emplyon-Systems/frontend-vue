@@ -15,6 +15,8 @@ export interface Role {
   name: string;
   slug: string;
   description?: string;
+  company_id?: number | null;
+  branch_id?: number | null;
   permissions?: Permission[];
 }
 
@@ -22,10 +24,12 @@ export interface User {
   id: number;
   email: string;
   name?: string;
+  status?: "active" | "inactive";
   email_verified_at?: string | null;
   created_at?: string;
   updated_at?: string;
   roles?: Role[];
+  permissions?: Permission[];
   companies?: Array<{
     id: number;
     name: string;
