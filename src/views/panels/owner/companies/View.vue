@@ -4,9 +4,9 @@ import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import ProfilePage from "./profile/index.vue";
-import { companiesApi } from "@/api/resources";
+import { companiesApi, usersApi } from "@/api/resources";
 import { companyInitialForm, type CompanyFormData } from "@/core/schemas";
-import type { CompanyRecord } from "@/types/api";
+import type { CompanyRecord, UserRecord } from "@/types/api";
 import { useAuthStore } from "@/stores/auth";
 
 type CompanyWithStats = CompanyRecord & {
@@ -35,7 +35,11 @@ const companyUsers = ref<CompanyRecord["users"]>([]);
 const companyBranches = ref<CompanyRecord["branches"]>([]);
 const usersCount = ref(0);
 const sectorsCount = ref(0);
-const branchesCount = ref(1);
+const branchesCount = ref(0);
+const branchesUsed = ref(0);
+const usersUsed = ref(0);
+const branchLimit = ref(10);
+const userLimit = ref(50);
 const canEditCompany = computed(() => authStore.hasPermission("companies.update") || companyScoped.value);
 
 function back() {
@@ -68,23 +72,37 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
     phone: company.phone ?? "",
   };
   next.street_number = company.street_number ?? "";
+  next.branch_limit = Number(company.branch_limit ?? 10);
+  next.user_limit = Number(company.user_limit ?? 50);
   form.value = next;
-  companyUsers.value = company.users ?? [];
   companyBranches.value = company.branches ?? [];
-  usersCount.value = company.users?.length ?? 0;
+  branchLimit.value = next.branch_limit;
+  userLimit.value = next.user_limit;
+  branchesUsed.value = Number(company.branches_used ?? company.branches?.length ?? 0);
+  usersUsed.value = Number(company.users_used ?? company.users?.length ?? 0);
+  usersCount.value = usersUsed.value;
+  branchesCount.value = branchesUsed.value;
 
   const rawSectorsCount = company.sectors_count ?? company.departments_count ?? null;
   sectorsCount.value = Number.isFinite(rawSectorsCount)
     ? Math.max(0, Number(rawSectorsCount))
-    : Math.max(1, Math.ceil(usersCount.value / 10));
-
-  const rawBranchesCount = company.branches_count ?? company.filiais_count ?? null;
-  branchesCount.value = Number.isFinite(rawBranchesCount)
-    ? Math.max(1, Number(rawBranchesCount))
-    : 1;
+    : Math.max(0, Math.ceil(usersUsed.value / 10));
 }
 
-function loadCompany() {
+function mapCompanyTabUsers(users: UserRecord[], cid: number): NonNullable<CompanyRecord["users"]> {
+  return users.map((u) => {
+    const link = u.companies?.find((c) => c.id === cid) as { pivot?: { is_primary?: boolean } } | undefined;
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      roles: u.roles,
+      pivot: link?.pivot,
+    };
+  });
+}
+
+async function loadCompany() {
   loadError.value = "";
   loadingCompany.value = true;
 
@@ -94,11 +112,24 @@ function loadCompany() {
     return;
   }
 
-  companiesApi
-    .getById(companyId.value)
-    .then(fillFormFromCompany)
-    .catch(() => (loadError.value = "Empresa não encontrada."))
-    .finally(() => (loadingCompany.value = false));
+  const cid = companyId.value;
+  try {
+    const [companyData, usersData] = await Promise.all([
+      companiesApi.getById(cid),
+      usersApi.list({
+        company_ids: [cid],
+        per_page: 500,
+        order_by: "name",
+        order_dir: "asc",
+      }),
+    ]);
+    fillFormFromCompany(companyData);
+    companyUsers.value = mapCompanyTabUsers(usersData.users?.data ?? [], cid);
+  } catch {
+    loadError.value = "Empresa não encontrada.";
+  } finally {
+    loadingCompany.value = false;
+  }
 }
 
 onMounted(loadCompany);
@@ -137,6 +168,10 @@ onMounted(loadCompany);
         :usersCount="usersCount"
         :sectorsCount="sectorsCount"
         :branchesCount="branchesCount"
+        :branchesUsed="branchesUsed"
+        :usersUsed="usersUsed"
+        :branchLimit="branchLimit"
+        :userLimit="userLimit"
         :onEdit="canEditCompany ? goEdit : undefined"
       />
     </div>

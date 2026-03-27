@@ -82,7 +82,7 @@ export const useAuthStore = defineStore("auth", () => {
     sessionStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
   }
 
-  /** Opções de contexto (empresas e filiais) para o utilizador. */
+  /** Opções de contexto (empresas e filiais) para o usuário. */
   function getContextOptions(): AuthContext[] {
     const u = user.value;
     if (!u) return [];
@@ -196,13 +196,13 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!token.value && !!user.value);
 
-  /** Verifica se o utilizador tem o role (por slug). Alinhado ao backend: hasRole(string) */
+  /** Verifica se o usuário tem o role (por slug). Alinhado ao backend: hasRole(string) */
   function hasRole(roleSlug: string): boolean {
     if (!user.value?.roles?.length) return false;
     return user.value.roles.some((r) => r.slug === roleSlug);
   }
 
-  /** Verifica se o utilizador tem a permissão (por slug), via algum dos seus roles. Alinhado ao backend: hasPermissionTo(string) */
+  /** Verifica se o usuário tem a permissão (por slug), via algum dos seus roles. Alinhado ao backend: hasPermissionTo(string) */
   function hasPermission(permissionSlug: string): boolean {
     const hasDirect = (user.value?.permissions ?? []).some((p) => p.slug === permissionSlug);
     if (hasDirect) return true;

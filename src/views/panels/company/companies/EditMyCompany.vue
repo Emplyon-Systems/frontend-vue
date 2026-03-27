@@ -7,6 +7,7 @@ import DataForm from "@/views/panels/owner/companies/form/DataForm.vue";
 import { companiesApi } from "@/api/resources";
 import { companyInitialForm, validateCompanyForm, type CompanyFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
@@ -16,7 +17,11 @@ const loading = ref(false);
 const loadingCompany = ref(true);
 const loadError = ref("");
 const form = ref<CompanyFormData>(companyInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 
 const companyId = computed(() => {
   const fromContext = Number(authStore.activeContext?.company_id ?? 0);
@@ -26,19 +31,6 @@ const companyId = computed(() => {
   const fromBranches = Number(authStore.user?.branches?.[0]?.company_id ?? 0);
   return fromBranches > 0 ? fromBranches : 0;
 });
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
 
 function cancel() {
   router.push({ name: "panels.company.dashboard" });
@@ -82,7 +74,7 @@ function loadCompany() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateCompanyForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -101,7 +93,7 @@ function submit() {
       notifySuccess("Empresa atualizada com sucesso.");
       router.push({ name: "panels.company.dashboard" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 

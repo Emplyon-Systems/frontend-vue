@@ -7,6 +7,13 @@ const requiredText = (label: string, max: number) =>
     .min(1, `${label} é obrigatório.`)
     .max(max, `${label} deve ter no máximo ${max} caracteres.`);
 
+const limitInt = (label: string) =>
+  z.coerce
+    .number({ invalid_type_error: `${label}: informe um número válido.` })
+    .int(`${label} deve ser um número inteiro.`)
+    .min(1, `${label} deve ser pelo menos 1.`)
+    .max(999_999, `${label} é demasiado alto.`);
+
 const companyBaseSchema = z.object({
   name: requiredText("Nome", 255),
   cnpj: requiredText("CNPJ", 18),
@@ -18,20 +25,22 @@ const companyBaseSchema = z.object({
   state: requiredText("Estado", 2),
   email: z.string().trim().min(1, "E-mail é obrigatório.").email("E-mail inválido.").max(255),
   phone: requiredText("Telefone", 20),
+  branch_limit: limitInt("Limite de filiais"),
+  user_limit: limitInt("Limite de usuários"),
 });
 
 export const companyCreateSchema = companyBaseSchema.extend({
-  user_name: requiredText("Nome do utilizador", 255),
+  user_name: requiredText("Nome do usuário", 255),
   user_email: z
     .string()
     .trim()
-    .min(1, "E-mail do utilizador é obrigatório.")
-    .email("E-mail do utilizador inválido.")
+    .min(1, "E-mail do usuário é obrigatório.")
+    .email("E-mail do usuário inválido.")
     .max(255),
   user_password: z
     .string()
-    .min(1, "Palavra-passe do utilizador é obrigatória.")
-    .min(6, "Palavra-passe do utilizador deve ter no mínimo 6 caracteres."),
+    .min(1, "Palavra-passe do usuário é obrigatória.")
+    .min(6, "Palavra-passe do usuário deve ter no mínimo 6 caracteres."),
   user_password_confirmation: z
     .string()
     .min(1, "Confirmação da palavra-passe é obrigatória.")
@@ -65,6 +74,8 @@ export const companyInitialForm = (): CompanyFormData => ({
   state: "",
   email: "",
   phone: "",
+  branch_limit: 10,
+  user_limit: 50,
   user_name: "",
   user_email: "",
   user_password: "",

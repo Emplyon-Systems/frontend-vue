@@ -6,6 +6,7 @@ import DataForm from "./form/DataForm.vue";
 import { sectorsApi, branchesApi } from "@/api/resources";
 import { sectorInitialForm, validateSectorForm, type SectorFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -23,21 +24,12 @@ const currentBranchId = computed(() => {
 const scopedBranchIds = ref<number[]>([]);
 const loading = ref(false);
 const form = ref<SectorFormData>(sectorInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 const branchOptions = ref<Array<{ id: number; name: string }>>([]);
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
 
 function sectorsListRoute() {
   return branchScoped.value ? "branch.sectors" : companyScoped.value ? "company.sectors" : "owner.sectors";
@@ -48,7 +40,7 @@ function cancel() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateSectorForm(form.value, "create");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -62,7 +54,7 @@ function submit() {
       notifySuccess("Setor criado com sucesso.");
       router.push({ name: sectorsListRoute() });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 

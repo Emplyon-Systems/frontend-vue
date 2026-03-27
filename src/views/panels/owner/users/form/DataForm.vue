@@ -7,6 +7,8 @@ const props = withDefaults(
   defineProps<{
     modelValue: UserFormData;
     errors?: Record<string, string>;
+    /** Incrementado após erro de validação (cliente ou API) para abrir o separador certo. */
+    submitAttempt?: number;
     mode?: "create" | "edit" | "view";
     roleOptions: { id: number; name: string; permission_ids?: number[] }[];
     permissionOptions?: { id: number; name: string; slug?: string }[];
@@ -18,6 +20,7 @@ const props = withDefaults(
   }>(),
   {
     errors: () => ({}),
+    submitAttempt: 0,
     mode: "create",
     companyOptions: () => [],
     permissionOptions: () => [],
@@ -50,6 +53,37 @@ let branchSelectr: any = null;
 let sectorSelectr: any = null;
 const permissionSearch = ref("");
 const moduleOpenState = ref<Record<string, boolean>>({});
+/** Separador 0: dados pessoais / contexto; 1: perfis e permissões */
+const activeTabIndex = ref(0);
+
+const TAB0_FIELDS = new Set([
+  "name",
+  "email",
+  "password",
+  "password_confirmation",
+  "company_ids",
+  "branch_ids",
+  "sector_ids",
+  "status",
+]);
+
+watch(
+  () => props.submitAttempt,
+  async () => {
+    const errs = props.errors ?? {};
+    const keys = Object.keys(errs);
+    if (!keys.length) return;
+    await nextTick();
+    const hasTab0 = keys.some((k) => TAB0_FIELDS.has(k));
+    activeTabIndex.value = hasTab0 ? 0 : 1;
+    await nextTick();
+    const first = document.querySelector<HTMLElement>(
+      "#user-name.is-invalid, #user-email.is-invalid, .user-selectr-field--invalid .selectr-selected"
+    );
+    first?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+);
+
 const permissionModuleLabels: Record<string, string> = {
   audits: "Auditoria",
   branches: "Filiais",
@@ -73,13 +107,28 @@ const localForm = computed({
 });
 
 function parseIds(value: unknown): number[] {
+  if (value == null) return [];
   if (Array.isArray(value)) {
     return value
       .map((entry) => Number(String(entry).trim()))
       .filter((id) => Number.isFinite(id) && id > 0);
   }
-  const n = Number(String(value ?? "").trim());
+  const s = String(value ?? "").trim();
+  if (!s) return [];
+  if (s.includes(",")) {
+    return s
+      .split(",")
+      .map((part) => Number(part.trim()))
+      .filter((id) => Number.isFinite(id) && id > 0);
+  }
+  const n = Number(s);
   return Number.isFinite(n) && n > 0 ? [n] : [];
+}
+
+function sameSortedIds(a: number[], b: number[]): boolean {
+  const sa = [...a].sort((x, y) => x - y).join(",");
+  const sb = [...b].sort((x, y) => x - y).join(",");
+  return sa === sb;
 }
 
 function selectionLabel(count: number, singular: string, plural: string): string {
@@ -129,8 +178,11 @@ function initRoleSelectr() {
     selectedValue: ids.length ? ids : undefined,
   });
   roleSelectr.on("selectr.change", () => {
+    const next = parseIds(roleSelectr?.getValue());
+    const prev = props.modelValue.roles ?? [];
+    if (sameSortedIds(next, prev)) return;
     suppressReinitRole.value = true;
-    updateField("roles", parseIds(roleSelectr?.getValue()));
+    updateField("roles", next);
   });
   if (ids.length) roleSelectr.setValue(ids);
 }
@@ -240,8 +292,11 @@ function initCompanySelectr() {
     selectedValue: ids.length ? ids : undefined,
   });
   companySelectr.on("selectr.change", () => {
+    const next = parseIds(companySelectr?.getValue());
+    const prev = props.modelValue.company_ids ?? [];
+    if (sameSortedIds(next, prev)) return;
     suppressReinitCompany.value = true;
-    updateField("company_ids", parseIds(companySelectr?.getValue()));
+    updateField("company_ids", next);
   });
   if (ids.length) companySelectr.setValue(ids);
 }
@@ -260,8 +315,11 @@ function initBranchSelectr() {
     selectedValue: ids.length ? ids : undefined,
   });
   branchSelectr.on("selectr.change", () => {
+    const next = parseIds(branchSelectr?.getValue());
+    const prev = props.modelValue.branch_ids ?? [];
+    if (sameSortedIds(next, prev)) return;
     suppressReinitBranch.value = true;
-    updateField("branch_ids", parseIds(branchSelectr?.getValue()));
+    updateField("branch_ids", next);
   });
   if (ids.length) branchSelectr.setValue(ids);
 }
@@ -280,23 +338,23 @@ function initSectorSelectr() {
     selectedValue: ids.length ? ids : undefined,
   });
   sectorSelectr.on("selectr.change", () => {
+    const next = parseIds(sectorSelectr?.getValue());
+    const prev = props.modelValue.sector_ids ?? [];
+    if (sameSortedIds(next, prev)) return;
     suppressReinitSector.value = true;
-    updateField("sector_ids", parseIds(sectorSelectr?.getValue()));
+    updateField("sector_ids", next);
   });
   if (ids.length) sectorSelectr.setValue(ids);
 }
 
+/** Só lista de opções (não valores escolhidos) — evita destroy/reinit a cada clique no multiselect. */
 const roleSelectSignature = computed(() =>
-  JSON.stringify({
-    roles: props.modelValue.roles,
-    options: props.roleOptions.map((r) => r.id),
-  })
+  JSON.stringify(props.roleOptions.map((r) => r.id))
 );
 
 const companySelectSignature = computed(() =>
   JSON.stringify({
     show: props.showCompanySelector,
-    company_ids: props.modelValue.company_ids,
     options: props.companyOptions.map((c) => c.id),
   })
 );
@@ -304,17 +362,11 @@ const companySelectSignature = computed(() =>
 const branchSelectSignature = computed(() =>
   JSON.stringify({
     fixed: props.fixedBranchId,
-    branch_ids: props.modelValue.branch_ids,
     options: props.branchOptions.map((b) => b.id),
   })
 );
 
-const sectorSelectSignature = computed(() =>
-  JSON.stringify({
-    sector_ids: props.modelValue.sector_ids,
-    options: props.sectorOptions.map((s) => s.id),
-  })
-);
+const sectorSelectSignature = computed(() => JSON.stringify(props.sectorOptions.map((s) => s.id)));
 
 watch(roleSelectSignature, async () => {
   if (suppressReinitRole.value) {
@@ -361,6 +413,55 @@ watch(sectorSelectSignature, async () => {
   sectorSelectr = null;
   initSectorSelectr();
 });
+
+/** Quando o pai altera os IDs sem mudar a lista de opções — só sincroniza o plugin (sem destroy). */
+watch(
+  () => [...(props.modelValue.roles ?? [])].sort((a, b) => a - b).join(","),
+  async () => {
+    await nextTick();
+    if (!roleSelectr) return;
+    const want = (props.modelValue.roles ?? []).filter((id) => Number.isFinite(id) && id > 0);
+    const have = parseIds(roleSelectr.getValue());
+    if (sameSortedIds(want, have)) return;
+    roleSelectr.setValue(want.map(String));
+  }
+);
+
+watch(
+  () => [...(props.modelValue.company_ids ?? [])].sort((a, b) => a - b).join(","),
+  async () => {
+    await nextTick();
+    if (!companySelectr) return;
+    const want = (props.modelValue.company_ids ?? []).filter((id) => Number.isFinite(id) && id > 0);
+    const have = parseIds(companySelectr.getValue());
+    if (sameSortedIds(want, have)) return;
+    companySelectr.setValue(want.map(String));
+  }
+);
+
+watch(
+  () => [...(props.modelValue.branch_ids ?? [])].sort((a, b) => a - b).join(","),
+  async () => {
+    await nextTick();
+    if (!branchSelectr) return;
+    const want = (props.modelValue.branch_ids ?? []).filter((id) => Number.isFinite(id) && id > 0);
+    const have = parseIds(branchSelectr.getValue());
+    if (sameSortedIds(want, have)) return;
+    branchSelectr.setValue(want.map(String));
+  }
+);
+
+watch(
+  () => [...(props.modelValue.sector_ids ?? [])].sort((a, b) => a - b).join(","),
+  async () => {
+    await nextTick();
+    if (!sectorSelectr) return;
+    const want = (props.modelValue.sector_ids ?? []).filter((id) => Number.isFinite(id) && id > 0);
+    const have = parseIds(sectorSelectr.getValue());
+    if (sameSortedIds(want, have)) return;
+    sectorSelectr.setValue(want.map(String));
+  }
+);
 
 onMounted(async () => {
   if (isView) return;
@@ -418,8 +519,8 @@ function generateRandomPassword(length = 12): void {
 
 <template>
   <template v-if="!isView">
-    <b-tabs content-class="pt-3">
-      <b-tab title="Informações pessoais" active>
+    <b-tabs v-model="activeTabIndex" content-class="pt-3">
+      <b-tab title="Informações pessoais">
         <b-row>
           <b-col md="6">
             <b-form-group label="Nome" label-for="user-name" class="mb-3">
@@ -497,6 +598,10 @@ function generateRandomPassword(length = 12): void {
 
           <b-col v-if="showCompanySelector && companyOptions.length" md="6">
             <b-form-group label="Empresa" class="mb-3">
+              <div
+                class="user-selectr-field"
+                :class="{ 'user-selectr-field--invalid': Boolean(errors.company_ids) }"
+              >
               <select
                 id="user-companies-select"
                 ref="companySelectRef"
@@ -512,8 +617,11 @@ function generateRandomPassword(length = 12): void {
                   {{ company.name }}
                 </option>
               </select>
+              </div>
               <div class="d-flex justify-content-between align-items-center mt-1">
-                <small class="text-muted">{{ selectionLabel((modelValue.company_ids ?? []).length, "empresa", "empresas") }}</small>
+                <small v-if="!errors.company_ids" class="text-muted">{{
+                  selectionLabel((modelValue.company_ids ?? []).length, "empresa", "empresas")
+                }}</small>
                 <b-button
                   v-if="(modelValue.company_ids ?? []).length"
                   type="button"
@@ -536,6 +644,10 @@ function generateRandomPassword(length = 12): void {
           <b-col :md="showCompanySelector ? 6 : 12">
             <b-form-group label="Filial" class="mb-3">
               <template v-if="branchOptions.length && !fixedBranchId">
+                <div
+                  class="user-selectr-field"
+                  :class="{ 'user-selectr-field--invalid': Boolean(errors.branch_ids) }"
+                >
                 <select
                   id="user-branches-select"
                   ref="branchSelectRef"
@@ -551,8 +663,11 @@ function generateRandomPassword(length = 12): void {
                     {{ branch.name }}
                   </option>
                 </select>
+                </div>
                 <div class="d-flex justify-content-between align-items-center mt-1">
-                  <small class="text-muted">{{ selectionLabel((modelValue.branch_ids ?? []).length, "filial", "filiais") }}</small>
+                  <small v-if="!errors.branch_ids" class="text-muted">{{
+                    selectionLabel((modelValue.branch_ids ?? []).length, "filial", "filiais")
+                  }}</small>
                   <b-button
                     v-if="(modelValue.branch_ids ?? []).length"
                     type="button"
@@ -575,6 +690,10 @@ function generateRandomPassword(length = 12): void {
           </b-col>
           <b-col v-if="(modelValue.branch_ids ?? []).length && sectorOptions.length" md="12">
             <b-form-group label="Setores" class="mb-3">
+              <div
+                class="user-selectr-field"
+                :class="{ 'user-selectr-field--invalid': Boolean(errors.sector_ids) }"
+              >
               <select
                 id="user-sectors-select"
                 ref="sectorSelectRef"
@@ -590,8 +709,11 @@ function generateRandomPassword(length = 12): void {
                   {{ sector.name }}
                 </option>
               </select>
+              </div>
               <div class="d-flex justify-content-between align-items-center mt-1">
-                <small class="text-muted">{{ selectionLabel((modelValue.sector_ids ?? []).length, "setor", "setores") }}</small>
+                <small v-if="!errors.sector_ids" class="text-muted">{{
+                  selectionLabel((modelValue.sector_ids ?? []).length, "setor", "setores")
+                }}</small>
                 <b-button
                   v-if="(modelValue.sector_ids ?? []).length"
                   type="button"
@@ -625,7 +747,7 @@ function generateRandomPassword(length = 12): void {
                 <span class="text-muted small">Ativo</span>
               </div>
               <small class="text-muted d-block mt-1">
-                {{ (modelValue.status ?? "active") === "active" ? "Utilizador ativo" : "Utilizador inativo" }}
+                {{ (modelValue.status ?? "active") === "active" ? "Usuário ativo" : "Usuário inativo" }}
               </small>
               <b-form-invalid-feedback v-if="errors.status" class="d-block">{{ errors.status }}</b-form-invalid-feedback>
             </b-form-group>
@@ -637,6 +759,10 @@ function generateRandomPassword(length = 12): void {
         <b-row>
           <b-col md="12">
             <b-form-group label="Perfis" class="mb-3">
+              <div
+                class="user-selectr-field"
+                :class="{ 'user-selectr-field--invalid': Boolean(errors.roles) }"
+              >
               <select
                 id="user-roles-select"
                 ref="roleSelectRef"
@@ -652,8 +778,11 @@ function generateRandomPassword(length = 12): void {
                   {{ role.name }}
                 </option>
               </select>
+              </div>
               <div class="d-flex justify-content-between align-items-center mt-1">
-                <small class="text-muted">{{ selectionLabel((modelValue.roles ?? []).length, "perfil", "perfis") }}</small>
+                <small v-if="!errors.roles" class="text-muted">{{
+                  selectionLabel((modelValue.roles ?? []).length, "perfil", "perfis")
+                }}</small>
                 <b-button
                   v-if="(modelValue.roles ?? []).length"
                   type="button"
@@ -744,7 +873,7 @@ function generateRandomPassword(length = 12): void {
                 <p v-else class="text-muted mb-0">Nenhuma permissão encontrada com esse filtro.</p>
 
                 <small class="text-muted d-block mt-2">
-                  Permissões herdadas do perfil ficam marcadas como "Perfil". Novas permissões no utilizador são destacadas com "+EXTRA".
+                  Permissões herdadas do perfil ficam marcadas como "Perfil". Novas permissões no usuário são destacadas com "+EXTRA".
                 </small>
                 <b-form-invalid-feedback v-if="errors.direct_permission_ids" class="d-block">
                   {{ errors.direct_permission_ids }}
@@ -854,6 +983,14 @@ function generateRandomPassword(length = 12): void {
 </template>
 
 <style scoped>
+/* Selectr: não usar is-invalid no <select> — o BS desenha borda/sombra no elemento nativo e o plugin deixa-o minúsculo; o erro ficava a “abraçar” tags como uma caixa. Só marcamos .selectr-selected. */
+.user-selectr-field--invalid :deep(.selectr-selected) {
+  border-color: var(--bs-danger) !important;
+}
+.user-selectr-field--invalid :deep(.selectr-container.open .selectr-selected) {
+  border-color: var(--bs-danger) !important;
+}
+
 :deep(.permission-extra-toggle .form-check-input:checked) {
   background-color: #fd7e14;
   border-color: #fd7e14;

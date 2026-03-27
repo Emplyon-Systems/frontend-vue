@@ -26,6 +26,13 @@
                 <p class="text-muted mb-0 fw-medium">Usuários</p>
               </div>
               <div class="border-dashed rounded border-theme-color p-2 me-2 flex-grow-1 flex-basis-0">
+                <h5 class="fw-semibold fs-22 mb-1">
+                  <span>{{ usersCount }}</span>
+                  <span class="text-muted fs-16 fw-normal"> / {{ userLimit != null ? userLimit : '∞' }}</span>
+                </h5>
+                <p class="text-muted mb-0 fw-medium">Limite de usuários</p>
+              </div>
+              <div class="border-dashed rounded border-theme-color p-2 me-2 flex-grow-1 flex-basis-0">
                 <h5 class="fw-semibold fs-22 mb-1">{{ zipCode || "—" }}</h5>
                 <p class="text-muted mb-0 fw-medium">CEP</p>
               </div>
@@ -47,6 +54,7 @@ defineProps<{
   cnpj?: string;
   subtitle?: string;
   usersCount?: number;
+  userLimit?: number | null;
   zipCode?: string;
   state?: string;
 }>();

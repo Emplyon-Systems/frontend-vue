@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import Selectr from "@/lib/selectr";
 import UIComponentCard from "@/components/UIComponentCard.vue";
+import AppAlert from "@/components/AppAlert.vue";
 import type { ShiftFormData } from "@/core/schemas";
 
 const props = withDefaults(
@@ -107,6 +108,11 @@ onBeforeUnmount(() => {
 
 <template>
   <UIComponentCard title="Dados do turno">
+    <b-row v-if="errors?.general" class="g-3 mb-2">
+      <b-col md="12">
+        <AppAlert variant="danger">{{ errors.general }}</AppAlert>
+      </b-col>
+    </b-row>
     <b-row class="g-3">
       <b-col md="12">
         <b-form-group label="Filial" label-for="shift-branch_id">

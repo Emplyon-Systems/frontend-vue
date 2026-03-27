@@ -8,7 +8,7 @@ const router = createRouter({
   routes: allRoute,
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const title = to.meta.title;
   if (title) {
     document.title = title.toString();
@@ -63,7 +63,49 @@ router.beforeEach((to, _from, next) => {
     }
   }
 
-  next();
+  // Criação de filial no painel empresa: bloquear rota se o limite já foi atingido
+  if (to.name === "company.branches.create" && auth.isAuthenticated) {
+    const companyId = Number(auth.user?.companies?.[0]?.id ?? 0);
+    if (companyId > 0) {
+      try {
+        const { companiesApi } = await import("@/api/resources");
+        const res = await companiesApi.getById(companyId);
+        const c = res.company;
+        if (c) {
+          const used = c.branches_used ?? c.branches?.length ?? 0;
+          const limit = c.branch_limit ?? 0;
+          if (limit > 0 && used >= limit) {
+            return next({ name: "company.branches", replace: true });
+          }
+        }
+      } catch {
+        // falha de rede: o backend valida na mesma
+      }
+    }
+  }
+
+  // Novo usuário (contexto empresa ou filial): mesmo limite da empresa — inclui quem só está ligado a filiais
+  if (to.name === "owner.users.create" && auth.isAuthenticated && !auth.hasRole("superadmin")) {
+    const companyId = Number(auth.activeContext?.company_id ?? 0);
+    if (companyId > 0) {
+      try {
+        const { companiesApi } = await import("@/api/resources");
+        const res = await companiesApi.getById(companyId);
+        const c = res.company;
+        if (c) {
+          const used = c.users_used ?? c.users?.length ?? 0;
+          const limit = c.user_limit ?? 0;
+          if (limit > 0 && used >= limit) {
+            return next({ name: "owner.users", replace: true });
+          }
+        }
+      } catch {
+        //
+      }
+    }
+  }
+
+  return next();
 });
 
 export default router;

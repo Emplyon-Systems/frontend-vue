@@ -92,7 +92,7 @@ function loadUser() {
   loadingUser.value = true;
 
   if (Number.isNaN(userId.value)) {
-    loadError.value = "Utilizador inválido.";
+    loadError.value = "Usuário inválido.";
     loadingUser.value = false;
     return;
   }
@@ -105,7 +105,7 @@ function loadUser() {
         await hydratePermissionsByRoles(form.value.roles);
       }
     })
-    .catch(() => (loadError.value = "Utilizador não encontrado."))
+    .catch(() => (loadError.value = "Usuário não encontrado."))
     .finally(() => (loadingUser.value = false));
 }
 
@@ -117,14 +117,14 @@ onMounted(loadUser);
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Visualizar utilizador</h1>
-          <p class="text-muted mb-0 small">Consulta dos dados do utilizador.</p>
+          <h1 class="h4 mb-1">Visualizar usuário</h1>
+          <p class="text-muted mb-0 small">Consulta dos dados do usuário.</p>
         </div>
         <b-button variant="outline-secondary" @click="back">Voltar</b-button>
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingUser" class="text-muted">A carregar utilizador...</div>
+      <div v-else-if="loadingUser" class="text-muted">A carregar usuário...</div>
       <ProfilePage
         v-else
         :name="form.name"

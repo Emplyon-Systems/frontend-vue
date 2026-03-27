@@ -7,6 +7,7 @@ import DataForm from "./form/DataForm.vue";
 import { companiesApi } from "@/api/resources";
 import { companyInitialForm, validateCompanyForm, type CompanyFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 
 const route = useRoute();
 const router = useRouter();
@@ -16,20 +17,11 @@ const loading = ref(false);
 const loadingCompany = ref(true);
 const loadError = ref("");
 const form = ref<CompanyFormData>(companyInitialForm());
-const errors = ref<Record<string, string>>({});
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 
 function cancel() {
   router.push({ name: "owner.companies" });
@@ -52,6 +44,8 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
     phone: company.phone ?? "",
   };
   next.street_number = company.street_number ?? "";
+  next.branch_limit = Number(company.branch_limit ?? 10);
+  next.user_limit = Number(company.user_limit ?? 50);
   form.value = next;
 }
 
@@ -73,7 +67,7 @@ function loadCompany() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateCompanyForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -87,7 +81,7 @@ function submit() {
       notifySuccess("Empresa atualizada com sucesso.");
       router.push({ name: "owner.companies" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 

@@ -9,6 +9,10 @@
         :usersCount="usersCount"
         :sectorsCount="sectorsCount"
         :branchesCount="branchesCount"
+        :branchesUsed="branchesUsed"
+        :usersUsed="usersUsed"
+        :branchLimit="branchLimit"
+        :userLimit="userLimit"
       />
     </b-row>
 
@@ -30,6 +34,10 @@
                     :neighborhood="neighborhood"
                     :city="city"
                     :state="state"
+                    :branchesUsed="branchesUsed"
+                    :usersUsed="usersUsed"
+                    :branchLimit="branchLimit"
+                    :userLimit="userLimit"
                     :onEdit="onEdit"
                     full-width
                   />
@@ -71,6 +79,10 @@ defineProps<{
   usersCount?: number;
   sectorsCount?: number;
   branchesCount?: number;
+  branchesUsed?: number;
+  usersUsed?: number;
+  branchLimit?: number;
+  userLimit?: number;
   subtitle?: string;
   logoSrc?: string;
   onEdit?: () => void;

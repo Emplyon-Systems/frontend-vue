@@ -1,5 +1,5 @@
 /**
- * Recurso API: utilizadores.
+ * Recurso API: usuários.
  * list, getById, create, update, delete, plucks.
  */
 

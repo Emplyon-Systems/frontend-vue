@@ -31,6 +31,8 @@ const form = ref<BranchFormData>(branchInitialForm());
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 const users = ref<BranchRecord["users"]>([]);
 const usersCount = ref(0);
+const branchUserLimit = ref<number | null>(null);
+const branchUsersUsedDisplay = ref<number | null>(null);
 const sectors = ref<BranchRecord["sectors"]>([]);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
 
@@ -73,9 +75,13 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
     store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
     store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
+    user_limit: Number(branch.user_limit) > 0 ? Number(branch.user_limit) : 1,
   };
   users.value = branch.users ?? [];
-  usersCount.value = branch.users?.length ?? 0;
+  branchUserLimit.value = branch.user_limit != null ? Number(branch.user_limit) : null;
+  branchUsersUsedDisplay.value =
+    branch.users_used != null ? Number(branch.users_used) : (branch.users?.length ?? 0);
+  usersCount.value = branchUsersUsedDisplay.value;
   sectors.value = branch.sectors ?? [];
 }
 
@@ -139,6 +145,8 @@ onMounted(async () => {
         :state="form.state"
         :users="users"
         :usersCount="usersCount"
+        :userLimit="branchUserLimit"
+        :usersUsedDisplay="branchUsersUsedDisplay"
         :sectors="sectors"
         :subtitle="companyOptions.find((c) => c.id === form.company_id)?.name || ''"
         :onEdit="canEditBranch ? goEdit : undefined"

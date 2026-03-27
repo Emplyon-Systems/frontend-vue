@@ -6,6 +6,7 @@ import AppAlert from "@/components/AppAlert.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import { usersApi } from "@/api/resources";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -30,22 +31,11 @@ const form = ref({
   password: "",
   password_confirmation: "",
 });
-const errors = ref<Record<string, string>>({});
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  const next = { ...errors.value };
-  delete next[field];
-  errors.value = next;
-}
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 
 function cancel() {
   router.push({ name: profileViewRoute.value });
@@ -77,7 +67,7 @@ function loadUser() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   if (!form.value.name.trim()) {
     errors.value.name = "Nome é obrigatório.";
     return;
@@ -102,7 +92,7 @@ function submit() {
       notifySuccess("Perfil atualizado com sucesso.");
       router.push({ name: profileViewRoute.value });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 

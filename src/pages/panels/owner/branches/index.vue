@@ -63,9 +63,31 @@ const resultLabel = computed(() => {
   return `${n} resultados encontrados`;
 });
 const canCreate = computed(() => authStore.hasPermission("branches.create"));
+/** Painel empresa: limite de filiais já atingido (botão desativado). */
+const branchLimitReached = ref(false);
 const canRead = computed(() => authStore.hasPermission("branches.read"));
 const canUpdate = computed(() => authStore.hasPermission("branches.update"));
 const canDelete = computed(() => authStore.hasPermission("branches.delete"));
+
+async function loadCompanyBranchQuota() {
+  if (!companyScoped.value || scopedCompanyId.value <= 0) {
+    branchLimitReached.value = false;
+    return;
+  }
+  try {
+    const res = await companiesApi.getById(scopedCompanyId.value);
+    const c = res.company;
+    if (!c) {
+      branchLimitReached.value = false;
+      return;
+    }
+    const used = c.branches_used ?? c.branches?.length ?? 0;
+    const limit = c.branch_limit ?? 0;
+    branchLimitReached.value = limit > 0 && used >= limit;
+  } catch {
+    branchLimitReached.value = false;
+  }
+}
 
 async function loadPlucks() {
   if (companyScoped.value && scopedCompanyId.value > 0) {
@@ -130,6 +152,7 @@ function doDelete() {
     deleteModal.value = false;
     deleteId.value = null;
     notifySuccess("Filial eliminada com sucesso.");
+    void loadCompanyBranchQuota();
     loadList(pagination.value.current_page);
   });
 }
@@ -162,12 +185,13 @@ function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir
   loadList(1);
 }
 
-onMounted(async () => {
+onMounted(() => {
   if (companyScoped.value && scopedCompanyId.value > 0) {
     filters.value.company_ids = [scopedCompanyId.value];
     appliedFilters.value.company_ids = [scopedCompanyId.value];
   }
-  await loadPlucks();
+  void loadPlucks();
+  void loadCompanyBranchQuota();
   loadList();
 });
 </script>
@@ -184,10 +208,13 @@ onMounted(async () => {
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" />
-          <b-button v-if="canCreate" variant="primary" @click="goCreate">
-            <i class="iconoir-plus me-1"></i>
-            Nova filial
-          </b-button>
+          <template v-if="canCreate">
+            <b-button v-if="!branchLimitReached" variant="primary" @click="goCreate">
+              <i class="iconoir-plus me-1"></i>
+              Nova filial
+            </b-button>
+            <span v-else class="text-muted small">Limite de filiais atingido</span>
+          </template>
         </div>
       </div>
 

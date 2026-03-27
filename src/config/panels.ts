@@ -34,7 +34,7 @@ export const PANEL_CONFIG: Record<string, PanelConfig> = {
   },
 };
 
-/** Utilizador mínimo para decidir o painel (roles + vínculos empresa/filial). */
+/** Usuário mínimo para decidir o painel (roles + vínculos empresa/filial). */
 export type UserPanelInput = Pick<User, "roles" | "permissions"> & {
   companies?: Array<{ id: number }>;
   branches?: Array<{ id: number }>;
@@ -45,7 +45,7 @@ export type PanelContextInput = {
 } | null | undefined;
 
 /**
- * Redireciona o utilizador para a home do painel conforme perfis e vínculos (empresa/filial).
+ * Redireciona o usuário para a home do painel conforme perfis e vínculos (empresa/filial).
  * Regras: superadmin → owner; só colaborador → employee; tem perfil de filial e está atribuído a filial(ais) → branch;
  * tem perfil de empresa e está atribuído a empresa(s) → company; senão → employee.
  */

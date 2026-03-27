@@ -7,6 +7,7 @@ import DataForm from "@/views/panels/owner/modality-types/form/DataForm.vue";
 import { modalityTypesApi, branchesApi } from "@/api/resources";
 import { modalityTypeInitialForm, validateModalityTypeForm, type ModalityTypeFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -35,21 +36,12 @@ const loading = ref(false);
 const loadingModalityType = ref(true);
 const loadError = ref("");
 const form = ref<ModalityTypeFormData>(modalityTypeInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 const branchOptions = ref<Array<{ id: number; name: string; company_name?: string }>>([]);
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
 
 function cancel() {
   router.push({ name: modalityTypesListRoute() });
@@ -83,7 +75,7 @@ function loadModalityType() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateModalityTypeForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -100,7 +92,7 @@ function submit() {
       notifySuccess("Modalidade atualizada com sucesso.");
       router.push({ name: modalityTypesListRoute() });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 

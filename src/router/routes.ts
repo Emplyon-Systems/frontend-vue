@@ -91,7 +91,7 @@ const panelRoutes = [
     path: "/users/create",
     name: "owner.users.create",
     meta: {
-      title: setTitle("Novo utilizador"),
+      title: setTitle("Novo usuário"),
       authRequired: true,
       permission: "users.create",
     },
@@ -101,7 +101,7 @@ const panelRoutes = [
     path: "/users/:id/edit",
     name: "owner.users.edit",
     meta: {
-      title: setTitle("Editar utilizador"),
+      title: setTitle("Editar usuário"),
       authRequired: true,
       permission: "users.update",
     },
@@ -111,7 +111,7 @@ const panelRoutes = [
     path: "/users/:id",
     name: "owner.users.view",
     meta: {
-      title: setTitle("Visualizar utilizador"),
+      title: setTitle("Visualizar usuário"),
       authRequired: true,
       permission: "users.read",
     },

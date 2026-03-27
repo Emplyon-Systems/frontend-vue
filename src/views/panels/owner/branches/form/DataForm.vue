@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import Selectr from "@/lib/selectr";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import InputMask from "@/components/InputMask.vue";
-import type { BranchFormData } from "@/core/schemas";
+import type { BranchFormData, BranchUserLimitQuota } from "@/core/schemas";
 import { notifyError } from "@/helpers/notify";
 
 const props = withDefaults(
@@ -13,12 +13,18 @@ const props = withDefaults(
     mode?: "create" | "edit" | "view";
     companyOptions?: Array<{ id: number; name: string }>;
     lockCompanyId?: number | null;
+    /** Soma dos limites das outras filiais + teto da empresa (para texto de ajuda e validação no cliente) */
+    branchQuota?: BranchUserLimitQuota | null;
+    /** Usuários atualmente na filial (modo visualização) */
+    branchUsersUsed?: number | null;
   }>(),
   {
     errors: () => ({}),
     mode: "create",
     companyOptions: () => [],
     lockCompanyId: null,
+    branchQuota: null,
+    branchUsersUsed: null,
   }
 );
 
@@ -36,6 +42,53 @@ const selectedCompanyName = computed(() => {
   const id = Number(props.modelValue.company_id ?? 0);
   if (!id) return "";
   return props.companyOptions.find((company) => company.id === id)?.name ?? "";
+});
+
+/** Repartição: teto − soma dos limites das outras filiais. */
+const maxUserLimitForBranch = computed(() => {
+  const q = props.branchQuota;
+  if (!q || q.companyCap <= 0) return null;
+  return Math.max(0, q.companyCap - q.sumOtherBranches);
+});
+
+const usersOnThisBranch = computed(() => props.branchQuota?.usersOnThisBranch ?? 0);
+
+/**
+ * Capacidade já consumida: o maior entre usuários reais e slots reservados pelas outras filiais.
+ * Evita dupla contagem de usuários que já estão dentro de alguma filial.
+ */
+function consumedSlots(q: typeof props.branchQuota, extraLimit = 0): number {
+  if (!q || q.companyCap <= 0) return 0;
+  const realUsers = q.companyUsersUsed ?? 0;
+  const reserved  = q.sumOtherBranches + extraLimit;
+  return Math.max(realUsers, reserved);
+}
+
+/**
+ * Máximo para o campo: teto menos o que já está consumido (sem contar o limite desta filial).
+ * Nunca abaixo dos usuários já vinculados a esta filial.
+ */
+const effectiveMaxUserLimit = computed(() => {
+  const q = props.branchQuota;
+  if (!q || q.companyCap <= 0) return null;
+  return Math.max(usersOnThisBranch.value, q.companyCap - consumedSlots(q));
+});
+
+/**
+ * Disponíveis no plano — reativo conforme o campo é preenchido.
+ * Considera tanto usuários reais quanto reservas de filiais.
+ */
+const remainingPlanSlots = computed(() => {
+  const q = props.branchQuota;
+  if (!q || q.companyCap <= 0) return null;
+  const currentLimit = Number(props.modelValue.user_limit ?? 0);
+  return Math.max(0, q.companyCap - consumedSlots(q, currentLimit));
+});
+
+const isUserLimitOverMax = computed(() => {
+  const max = effectiveMaxUserLimit.value;
+  if (max == null || !props.branchQuota || props.branchQuota.companyCap <= 0) return false;
+  return Number(props.modelValue.user_limit ?? 0) > max;
 });
 
 const localForm = computed({
@@ -208,6 +261,18 @@ onBeforeUnmount(() => {
               <div>
                 <p class="text-muted mb-0 small">Empresa vinculada</p>
                 <p class="mb-0 fw-medium">{{ selectedCompanyName || "—" }}</p>
+              </div>
+            </div>
+            <div class="d-flex align-items-start mt-3">
+              <i class="iconoir-community me-2 text-secondary fs-18"></i>
+              <div>
+                <p class="text-muted mb-0 small">Limite de usuários (filial)</p>
+                <p class="mb-0 fw-medium">
+                  {{ localForm.user_limit ?? "—" }}
+                  <span v-if="branchUsersUsed != null" class="text-muted small">
+                    ({{ branchUsersUsed }} em uso)
+                  </span>
+                </p>
               </div>
             </div>
           </div>
@@ -472,6 +537,49 @@ onBeforeUnmount(() => {
             @update:model-value="updateField('store_close_time', String($event ?? ''))"
           />
           <b-form-invalid-feedback v-if="errors.store_close_time">{{ errors.store_close_time }}</b-form-invalid-feedback>
+        </b-form-group>
+      </b-col>
+    </b-row>
+
+    <b-row>
+      <b-col md="6">
+        <b-form-group label-for="branch-user-limit" class="mb-3">
+          <template #label>Limite de usuários desta filial <span class="text-danger">*</span></template>
+          <b-input-group>
+            <b-form-input
+              id="branch-user-limit"
+              :model-value="localForm.user_limit"
+              type="number"
+              :min="branchQuota && branchQuota.companyCap > 0 ? usersOnThisBranch : 0"
+              :max="effectiveMaxUserLimit != null ? effectiveMaxUserLimit : undefined"
+              :disabled="isView"
+              :state="errors.user_limit || isUserLimitOverMax ? false : null"
+              @update:model-value="updateField('user_limit', Number($event ?? 0) || 0)"
+            />
+            <span
+              id="user-limit-help-btn"
+              tabindex="0"
+              class="d-flex align-items-center px-3"
+              style="cursor: pointer; border: 1px solid #dee2e6; border-left: none; border-radius: 0 0.375rem 0.375rem 0; background: #fff; color: #0d6efd;"
+            >
+              <i class="iconoir-info-circle fs-18"></i>
+            </span>
+            <b-tooltip target="user-limit-help-btn" placement="top" triggers="hover focus" noninteractive>
+              <div class="text-start" style="max-width: 280px">
+                <strong>Como funciona o limite?</strong><br>
+                Define quantos usuários podem ser vinculados a esta filial.<br><br>
+                O valor não pode ultrapassar as <strong>vagas disponíveis no plano</strong> da empresa.<br><br>
+                Usuários já existentes na empresa podem ser atribuídos livremente — apenas a <strong>criação de novos usuários</strong> consome vaga.
+              </div>
+            </b-tooltip>
+          </b-input-group>
+          <p v-if="branchQuota && branchQuota.companyCap > 0" class="text-muted small mb-0 mt-1">
+            Disponíveis no plano: <strong>{{ remainingPlanSlots ?? 0 }}</strong>
+          </p>
+          <b-form-invalid-feedback v-if="errors.user_limit">{{ errors.user_limit }}</b-form-invalid-feedback>
+          <b-form-invalid-feedback v-else-if="isUserLimitOverMax && effectiveMaxUserLimit != null">
+            O valor máximo permitido para esta filial é {{ effectiveMaxUserLimit }}.
+          </b-form-invalid-feedback>
         </b-form-group>
       </b-col>
     </b-row>

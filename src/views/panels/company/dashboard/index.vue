@@ -60,7 +60,7 @@ const contextsCount = computed(() => authStore.getContextOptions().length);
               </div>
               <h6 class="text-muted mb-0 small">Perfis ativos</h6>
               <span class="h4 mb-0 fw-bold d-block">{{ roles.length }}</span>
-              <small class="text-muted">neste utilizador</small>
+              <small class="text-muted">neste usuário</small>
             </b-card-body>
           </b-card>
         </b-col>
@@ -94,7 +94,7 @@ const contextsCount = computed(() => authStore.getContextOptions().length);
         </b-col>
         <b-col lg="6">
           <b-card class="border-0 shadow-sm h-100">
-            <b-card-title class="mb-3">Perfis deste utilizador</b-card-title>
+            <b-card-title class="mb-3">Perfis deste usuário</b-card-title>
             <div v-if="roles.length" class="d-flex flex-wrap gap-2">
               <b-badge v-for="role in roles" :key="role.id" variant="light" class="text-dark">
                 {{ role.name }}
