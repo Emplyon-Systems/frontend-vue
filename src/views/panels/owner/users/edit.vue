@@ -7,7 +7,8 @@ import UIComponentCard from "@/components/UIComponentCard.vue";
 import DataForm from "./form/DataForm.vue";
 import { usersApi, rolesApi, sectorsApi, branchesApi, permissionsApi } from "@/api/resources";
 import { userInitialForm, validateUserForm, type UserFormData } from "@/core/schemas";
-import { notifySuccess } from "@/helpers/notify";
+import { notifySuccess, notifyError } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -26,7 +27,19 @@ const userLoaded = ref(false);
 const formReady = ref(false);
 const userRolesRef = ref<{ id: number; name?: string; slug?: string; permission_ids?: number[] }[]>([]);
 const userSectorsRef = ref<{ id: number; branch_id?: number; name?: string }[]>([]);
-const errors = ref<Record<string, string>>({});
+const {
+  errors,
+  submitAttempt,
+  clearError,
+  resetErrors,
+  bumpSubmitAttempt,
+  onClientValidationFailed,
+  onApiError,
+} = useFormValidationErrors({
+  toastFieldPriority: ["roles", "company_ids", "general"],
+  bumpSubmitAttemptOnApiError: true,
+  bumpSubmitAttemptOnClientValidation: true,
+});
 const isSuperadmin = ref(false);
 /** Em contexto filial, a filial vem fixa (pré-selecionada e bloqueada). */
 const fixedBranchId = computed(() => authStore.activeContext?.branch_id ?? null);
@@ -46,26 +59,11 @@ const filteredBranchOptions = computed(() => {
   );
 });
 
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  const next = { ...errors.value };
-  delete next[field];
-  errors.value = next;
-}
-
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateUserForm(form.value, "edit");
   if (!validation.success) {
-    errors.value = validation.errors;
+    onClientValidationFailed(validation.errors);
     return;
   }
 
@@ -76,8 +74,10 @@ function submit() {
   if (hasManager && hasCollaborator) {
     errors.value = {
       ...errors.value,
-      roles: "Não é permitido combinar perfis de Gerente de Filial com Colaborador no mesmo utilizador.",
+      roles: "Não é permitido combinar perfis de Gerente de Filial com Colaborador no mesmo usuário.",
     };
+    bumpSubmitAttempt();
+    notifyError(errors.value.roles);
     return;
   }
 
@@ -107,10 +107,10 @@ function submit() {
   usersApi
     .update(id.value, payload)
     .then(() => {
-      notifySuccess("Utilizador atualizado com sucesso.");
+      notifySuccess("Usuário atualizado com sucesso.");
       router.push({ name: "owner.users" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -145,14 +145,14 @@ function formatRoleLabel(role: { name: string; branch?: { name?: string } | null
 onMounted(() => {
   loadError.value = "";
   if (Number.isNaN(id.value)) {
-    loadError.value = "Utilizador inválido.";
+    loadError.value = "Usuário inválido.";
     return;
   }
   Promise.all([usersApi.plucks(), usersApi.getById(id.value), permissionsApi.plucks().catch(() => [])])
     .then(async ([plucks, userData, permissions]) => {
       const u = userData.user;
       if (!u) {
-        loadError.value = "Utilizador não encontrado.";
+        loadError.value = "Usuário não encontrado.";
         return;
       }
       permissionOptions.value = (permissions ?? []).map((p) => ({ id: p.id, name: p.name, slug: p.slug }));
@@ -243,7 +243,7 @@ onMounted(() => {
       };
       userLoaded.value = true;
     })
-    .catch(() => (loadError.value = "Utilizador não encontrado."));
+    .catch(() => (loadError.value = "Usuário não encontrado."));
 });
 
 watch(
@@ -332,25 +332,26 @@ watch(
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Editar utilizador</h1>
-          <p class="text-muted mb-0 small">Alterar dados e perfis do utilizador.</p>
+          <h1 class="h4 mb-1">Editar usuário</h1>
+          <p class="text-muted mb-0 small">Alterar dados e perfis do usuário.</p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
 
-      <UIComponentCard v-else title="Dados do utilizador">
+      <UIComponentCard v-else title="Dados do usuário">
         <b-form @submit.prevent="submit">
           <div v-if="!formReady" class="py-4 text-center text-muted">
             <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-            A carregar dados do utilizador...
+            A carregar dados do usuário...
           </div>
           <DataForm
             v-else
             :key="id"
             v-model="form"
             :errors="errors"
+            :submit-attempt="submitAttempt"
             mode="edit"
             :role-options="roleOptions"
             :permission-options="permissionOptions"

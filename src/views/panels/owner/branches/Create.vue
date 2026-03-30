@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import { computed } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import DataForm from "./form/DataForm.vue";
 import { branchesApi, companiesApi } from "@/api/resources";
-import { branchInitialForm, validateBranchForm, type BranchFormData } from "@/core/schemas";
-import { notifySuccess } from "@/helpers/notify";
+import type { BranchCreatePayload } from "@/api/resources/branches";
+import {
+  branchInitialForm,
+  validateBranchForm,
+  type BranchFormData,
+  type BranchUserLimitQuota,
+} from "@/core/schemas";
+import { notifySuccess, notifyError } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -16,29 +22,52 @@ const companyScoped = computed(() => String(route.name ?? "").startsWith("compan
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
 const loading = ref(false);
 const form = ref<BranchFormData>(branchInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  toastFieldPriority: ["company_id", "general"],
+});
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
+const branchQuota = ref<BranchUserLimitQuota | null>(null);
 
 function cancel() {
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
 }
 
+async function refreshBranchQuota(companyId: number) {
+  if (!companyId) {
+    branchQuota.value = null;
+    return;
+  }
+  try {
+    const [companyRes, branchesRes] = await Promise.all([
+      companiesApi.getById(companyId),
+      branchesApi.list({ company_id: companyId, per_page: 500, order_by: "id", order_dir: "asc" }),
+    ]);
+    const cap = companyRes.company?.user_limit ?? 0;
+    const used = Number(companyRes.company?.users_used ?? 0);
+    const rows = branchesRes.branches?.data ?? [];
+    const sum = rows.reduce((s, b) => s + (Number(b.user_limit) || 0), 0);
+    branchQuota.value = {
+      companyCap: cap,
+      sumOtherBranches: sum,
+      companyUsersUsed: used,
+      usersOnThisBranch: 0,
+    };
+  } catch {
+    branchQuota.value = null;
+  }
+}
+
+watch(
+  () => form.value.company_id,
+  (id) => {
+    void refreshBranchQuota(Number(id));
+  },
+  { immediate: true }
+);
+
 function submit() {
-  errors.value = {};
-  const validation = validateBranchForm(form.value, "create");
+  resetErrors();
+  const validation = validateBranchForm(form.value, "create", branchQuota.value);
   if (!validation.success) {
     errors.value = validation.errors;
     return;
@@ -46,12 +75,12 @@ function submit() {
 
   loading.value = true;
   branchesApi
-    .create(validation.data as branchesApi.BranchCreatePayload)
+    .create(validation.data as BranchCreatePayload)
     .then(() => {
       notifySuccess("Filial criada com sucesso.");
       router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -63,6 +92,19 @@ onMounted(async () => {
   if (companyScoped.value && scopedCompanyId.value > 0) {
     const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
     companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
+    try {
+      const res = await companiesApi.getById(scopedCompanyId.value);
+      const c = res.company;
+      const used = c?.branches_used ?? c?.branches?.length ?? 0;
+      const limit = c?.branch_limit ?? 0;
+      if (limit > 0 && used >= limit) {
+        notifyError("Limite de filiais atingido.");
+        router.replace({ name: "company.branches" });
+        return;
+      }
+    } catch {
+      /* guard de rota e API validam na mesma */
+    }
     return;
   }
 
@@ -90,6 +132,7 @@ onMounted(async () => {
           :errors="errors"
           :company-options="companyOptions"
           :lock-company-id="companyScoped ? scopedCompanyId : null"
+          :branch-quota="branchQuota"
           mode="create"
           @clear-error="clearError"
         >

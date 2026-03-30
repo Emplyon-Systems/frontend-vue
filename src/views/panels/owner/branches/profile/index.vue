@@ -6,6 +6,7 @@
         :cnpj="cnpj"
         :subtitle="subtitle"
         :usersCount="usersCount"
+        :userLimit="userLimit"
         :zipCode="zipCode"
         :state="state"
       />
@@ -28,6 +29,8 @@
                     :neighborhood="neighborhood"
                     :city="city"
                     :state="state"
+                    :user-limit="userLimit"
+                    :users-used="usersUsedDisplay"
                     :onEdit="onEdit"
                     full-width
                   />
@@ -70,11 +73,15 @@ withDefaults(
     sectors?: BranchRecord["sectors"];
     subtitle?: string;
     onEdit?: () => void;
+    userLimit?: number | null;
+    usersUsedDisplay?: number | null;
   }>(),
   {
     users: () => [],
     usersCount: 0,
     sectors: () => [],
+    userLimit: null,
+    usersUsedDisplay: null,
   }
 );
 </script>

@@ -6,7 +6,8 @@ import UIComponentCard from "@/components/UIComponentCard.vue";
 import DataForm from "./form/DataForm.vue";
 import { usersApi, rolesApi, sectorsApi, branchesApi, permissionsApi } from "@/api/resources";
 import { userInitialForm, validateUserForm, type UserFormData } from "@/core/schemas";
-import { notifySuccess } from "@/helpers/notify";
+import { notifySuccess, notifyError } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
@@ -18,7 +19,19 @@ const companyOptions = ref<{ id: number; name: string }[]>([]);
 const branchOptions = ref<{ id: number; company_id?: number; name: string; company_name?: string }[]>([]);
 const sectorOptions = ref<{ id: number; branch_id: number; name: string; slug?: string }[]>([]);
 const form = ref<UserFormData>(userInitialForm("create"));
-const errors = ref<Record<string, string>>({});
+const {
+  errors,
+  submitAttempt,
+  clearError,
+  resetErrors,
+  bumpSubmitAttempt,
+  onClientValidationFailed,
+  onApiError,
+} = useFormValidationErrors({
+  toastFieldPriority: ["roles", "company_ids", "general"],
+  bumpSubmitAttemptOnApiError: true,
+  bumpSubmitAttemptOnClientValidation: true,
+});
 const isSuperadmin = ref(false);
 /** Em contexto filial, a filial vem fixa (pré-selecionada e bloqueada). */
 const fixedBranchId = computed(() => authStore.activeContext?.branch_id ?? null);
@@ -38,30 +51,15 @@ const filteredBranchOptions = computed(() => {
   );
 });
 
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  const next = { ...errors.value };
-  delete next[field];
-  errors.value = next;
-}
-
 function cancel() {
   router.push({ name: "owner.users" });
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateUserForm(form.value, "create");
   if (!validation.success) {
-    errors.value = validation.errors;
+    onClientValidationFailed(validation.errors);
     return;
   }
 
@@ -72,8 +70,10 @@ function submit() {
   if (hasManager && hasCollaborator) {
     errors.value = {
       ...errors.value,
-      roles: "Não é permitido combinar perfis de Gerente de Filial com Colaborador no mesmo utilizador.",
+      roles: "Não é permitido combinar perfis de Gerente de Filial com Colaborador no mesmo usuário.",
     };
+    bumpSubmitAttempt();
+    notifyError(errors.value.roles);
     return;
   }
 
@@ -91,10 +91,10 @@ function submit() {
       sector_ids: validation.data.sector_ids?.length ? validation.data.sector_ids : undefined,
     })
     .then(() => {
-      notifySuccess("Utilizador criado com sucesso.");
+      notifySuccess("Usuário criado com sucesso.");
       router.push({ name: "owner.users" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -171,6 +171,25 @@ onMounted(() => {
       await ensureFixedBranchName(fixedBranchId.value);
       form.value = { ...form.value, branch_ids: [fixedBranchId.value] };
     }
+
+    if (!authStore.hasRole("superadmin") && authStore.activeContext?.company_id) {
+      const cid = Number(authStore.activeContext.company_id);
+      if (cid > 0) {
+        try {
+          const { companiesApi } = await import("@/api/resources");
+          const res = await companiesApi.getById(cid);
+          const c = res.company;
+          const used = c?.users_used ?? c?.users?.length ?? 0;
+          const limit = c?.user_limit ?? 0;
+          if (limit > 0 && used >= limit) {
+            notifyError("Limite de usuários atingido para esta empresa (inclui vínculos por filiais).");
+            router.replace({ name: "owner.users" });
+          }
+        } catch {
+          //
+        }
+      }
+    }
   });
 });
 
@@ -233,17 +252,18 @@ watch(
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Novo utilizador</h1>
-          <p class="text-muted mb-0 small">Criar utilizador e vincular perfis.</p>
+          <h1 class="h4 mb-1">Novo usuário</h1>
+          <p class="text-muted mb-0 small">Criar usuário e vincular perfis.</p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
       </div>
 
-      <UIComponentCard title="Dados do utilizador">
+      <UIComponentCard title="Dados do usuário">
         <b-form @submit.prevent="submit">
           <DataForm
             v-model="form"
             :errors="errors"
+            :submit-attempt="submitAttempt"
             mode="create"
             :role-options="roleOptions"
             :permission-options="permissionOptions"

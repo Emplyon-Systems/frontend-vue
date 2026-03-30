@@ -5,7 +5,7 @@
         <b-row class="align-items-center">
           <div class="col">
             <b-card-title class="mb-1">Informação da empresa</b-card-title>
-            <p class="text-muted mb-0 small">Dados principais, contacto e localização.</p>
+            <p class="text-muted mb-0 small">Dados principais, contacto, localização e utilização do plano.</p>
           </div>
           <div v-if="onEdit" class="col-auto">
             <a
@@ -60,6 +60,46 @@
             </div>
           </b-col>
 
+          <b-col v-if="showUsage" cols="12">
+            <div class="border rounded p-3">
+              <h6 class="mb-3">Utilização do plano</h6>
+              <b-row class="g-3">
+                <b-col cols="12" md="6">
+                  <div class="d-flex justify-content-between align-items-baseline mb-1">
+                    <span class="small text-muted">Filiais</span>
+                    <span class="small fw-medium">{{ branchesUsed }} / {{ branchLimit }}</span>
+                  </div>
+                  <div class="progress" style="height: 8px">
+                    <div
+                      class="progress-bar bg-primary"
+                      role="progressbar"
+                      :style="{ width: branchBarWidth }"
+                      :aria-valuenow="branchesUsed"
+                      :aria-valuemin="0"
+                      :aria-valuemax="branchLimit"
+                    />
+                  </div>
+                </b-col>
+                <b-col cols="12" md="6">
+                  <div class="d-flex justify-content-between align-items-baseline mb-1">
+                    <span class="small text-muted">Usuários/Funcionários</span>
+                    <span class="small fw-medium">{{ usersUsed }} / {{ userLimit }}</span>
+                  </div>
+                  <div class="progress" style="height: 8px">
+                    <div
+                      class="progress-bar bg-coral"
+                      role="progressbar"
+                      :style="{ width: userBarWidth }"
+                      :aria-valuenow="usersUsed"
+                      :aria-valuemin="0"
+                      :aria-valuemax="userLimit"
+                    />
+                  </div>
+                </b-col>
+              </b-row>
+            </div>
+          </b-col>
+
           <b-col cols="12">
             <div class="border rounded p-3">
               <h6 class="mb-3">Endereço</h6>
@@ -97,7 +137,9 @@
   </b-col>
 </template>
 <script setup lang="ts">
-withDefaults(
+import { computed } from "vue";
+
+const props = withDefaults(
   defineProps<{
     name?: string;
     cnpj?: string;
@@ -109,6 +151,10 @@ withDefaults(
     neighborhood?: string;
     city?: string;
     state?: string;
+    branchesUsed?: number;
+    usersUsed?: number;
+    branchLimit?: number;
+    userLimit?: number;
     fullWidth?: boolean;
     onEdit?: () => void;
   }>(),
@@ -116,4 +162,21 @@ withDefaults(
     fullWidth: false,
   }
 );
+
+const showUsage = computed(
+  () =>
+    props.branchLimit != null &&
+    props.userLimit != null &&
+    props.branchesUsed != null &&
+    props.usersUsed != null
+);
+
+function pct(used: number | undefined, limit: number | undefined): string {
+  const u = Math.max(0, used ?? 0);
+  const l = Math.max(1, limit ?? 1);
+  return `${Math.min(100, Math.round((u / l) * 100))}%`;
+}
+
+const branchBarWidth = computed(() => pct(props.branchesUsed, props.branchLimit));
+const userBarWidth = computed(() => pct(props.usersUsed, props.userLimit));
 </script>

@@ -22,12 +22,12 @@ const isSystemBranchRole = computed(() => (form.value.slug ?? "").startsWith("fi
 const isCompanyContext = computed(
   () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id == null
 );
-/** Utilizador tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
+/** Usuário tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
 const hasCompanyLevelAccess = computed(() =>
   authStore.getContextOptions().some((o) => o.branch_id == null)
 );
 const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
-/** Bloqueado só quando é perfil-filial e o utilizador não é empresa nem superadmin. */
+/** Bloqueado só quando é perfil-filial e o usuário não é empresa nem superadmin. */
 const isRoleLocked = computed(
   () =>
     isSystemBranchRole.value &&

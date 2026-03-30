@@ -38,8 +38,9 @@
               <div
                 class="border-dashed rounded border-theme-color p-2 me-2 flex-grow-1 flex-basis-0"
               >
-                <h5 class="fw-semibold fs-22 mb-1">{{ usersCount }}</h5>
-                <p class="text-muted mb-0 fw-medium">Usuários</p>
+                <h5 class="fw-semibold fs-22 mb-1">{{ usersDisplay }}</h5>
+                <p class="text-muted mb-0 fw-medium">Usuários/Funcionários</p>
+                <p v-if="userLimit != null" class="text-muted mb-0 small">em uso / limite</p>
               </div>
               <div
                 class="border-dashed rounded border-theme-color p-2 me-2 flex-grow-1 flex-basis-0"
@@ -50,8 +51,9 @@
               <div
                 class="border-dashed rounded border-theme-color p-2 flex-grow-1 flex-basis-0"
               >
-                <h5 class="fw-semibold fs-22 mb-1">{{ branchesCount }}</h5>
+                <h5 class="fw-semibold fs-22 mb-1">{{ branchesDisplay }}</h5>
                 <p class="text-muted mb-0 fw-medium">Filiais</p>
+                <p v-if="branchLimit != null" class="text-muted mb-0 small">em uso / limite</p>
               </div>
             </div>
           </b-col>
@@ -61,7 +63,9 @@
   </b-col>
 </template>
 <script setup lang="ts">
-defineProps<{
+import { computed } from "vue";
+
+const props = defineProps<{
   name?: string;
   email?: string;
   subtitle?: string;
@@ -69,5 +73,23 @@ defineProps<{
   usersCount?: number;
   sectorsCount?: number;
   branchesCount?: number;
+  branchesUsed?: number;
+  usersUsed?: number;
+  branchLimit?: number;
+  userLimit?: number;
 }>();
+
+const usersDisplay = computed(() => {
+  if (props.userLimit != null && props.usersUsed != null) {
+    return `${props.usersUsed} / ${props.userLimit}`;
+  }
+  return String(props.usersCount ?? 0);
+});
+
+const branchesDisplay = computed(() => {
+  if (props.branchLimit != null && props.branchesUsed != null) {
+    return `${props.branchesUsed} / ${props.branchLimit}`;
+  }
+  return String(props.branchesCount ?? 0);
+});
 </script>

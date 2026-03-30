@@ -36,6 +36,7 @@ export interface BranchCreatePayload {
   expedient_end_time: string;
   store_open_time: string;
   store_close_time: string;
+  user_limit: number;
 }
 
 export interface BranchUpdatePayload {
@@ -52,6 +53,7 @@ export interface BranchUpdatePayload {
   expedient_end_time?: string;
   store_open_time?: string;
   store_close_time?: string;
+  user_limit?: number;
 }
 
 export async function list(params?: BranchesListParams) {

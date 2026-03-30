@@ -44,6 +44,7 @@ declare module 'vue' {
     BTd: typeof import('bootstrap-vue-next')['BTd']
     BTh: typeof import('bootstrap-vue-next')['BTh']
     BThead: typeof import('bootstrap-vue-next')['BThead']
+    BTooltip: typeof import('bootstrap-vue-next')['BTooltip']
     BTr: typeof import('bootstrap-vue-next')['BTr']
     ChartJs: typeof import('./src/components/ChartJs.vue')['default']
     ConfirmDeleteModal: typeof import('./src/components/ConfirmDeleteModal.vue')['default']

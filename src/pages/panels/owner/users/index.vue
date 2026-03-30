@@ -8,7 +8,7 @@ import ListagemCard from "@/components/ListagemCard.vue";
 import TableActionButtons from "@/components/TableActionButtons.vue";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal.vue";
 import UsersFilter from "@/views/panels/owner/users/Filter.vue";
-import { usersApi, sectorsApi } from "@/api/resources";
+import { usersApi, sectorsApi, companiesApi } from "@/api/resources";
 import type { UserRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
@@ -50,6 +50,12 @@ const isBranchContext = computed(() =>
   !isSuperadmin.value &&
   authStore.activeContext?.branch_id != null
 );
+const scopedCompanyId = computed(() =>
+  isCompanyContext.value ? Number(authStore.activeContext?.company_id ?? 0) : 0
+);
+const canCreate = computed(() => authStore.hasPermission("users.create"));
+/** Contexto empresa: limite de usuários já atingido. */
+const userLimitReached = ref(false);
 const filteredBranchOptions = computed(() => {
   if (isBranchContext.value && authStore.activeContext?.branch_id) {
     const branchId = Number(authStore.activeContext.branch_id);
@@ -94,6 +100,31 @@ const resultLabel = computed(() => {
   if (n === 1) return "1 resultado encontrado";
   return `${n} resultados encontrados`;
 });
+
+async function loadCompanyUserQuota() {
+  if (isSuperadmin.value) {
+    userLimitReached.value = false;
+    return;
+  }
+  const quotaCompanyId = Number(authStore.activeContext?.company_id ?? 0);
+  if (quotaCompanyId <= 0) {
+    userLimitReached.value = false;
+    return;
+  }
+  try {
+    const res = await companiesApi.getById(quotaCompanyId);
+    const c = res.company;
+    if (!c) {
+      userLimitReached.value = false;
+      return;
+    }
+    const used = c.users_used ?? c.users?.length ?? 0;
+    const limit = c.user_limit ?? 0;
+    userLimitReached.value = limit > 0 && used >= limit;
+  } catch {
+    userLimitReached.value = false;
+  }
+}
 
 function loadList(page = 1) {
   loading.value = true;
@@ -216,12 +247,14 @@ function doDelete() {
   usersApi.remove(deleteId.value).then(() => {
     deleteModal.value = false;
     deleteId.value = null;
-    notifySuccess("Utilizador eliminado com sucesso.");
+    notifySuccess("Usuário eliminado com sucesso.");
+    void loadCompanyUserQuota();
     loadList(pagination.value.current_page);
   });
 }
 
 function goCreate() {
+  if (!canCreate.value) return;
   router.push({ name: "owner.users.create" });
 }
 
@@ -267,8 +300,16 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => [authStore.activeContext?.company_id, authStore.activeContext?.branch_id],
+  () => {
+    void loadCompanyUserQuota();
+  }
+);
+
 onMounted(() => {
   loadPlucks();
+  void loadCompanyUserQuota();
   loadList();
 });
 </script>
@@ -283,10 +324,13 @@ onMounted(() => {
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" label="Filtros" />
-          <b-button variant="primary" @click="goCreate">
-            <i class="iconoir-plus me-1"></i>
-            Novo utilizador
-          </b-button>
+          <template v-if="canCreate">
+            <b-button v-if="!userLimitReached" variant="primary" @click="goCreate">
+              <i class="iconoir-plus me-1"></i>
+              Novo usuário
+            </b-button>
+            <span v-else class="text-muted small">Limite de usuários atingido</span>
+          </template>
         </div>
       </div>
 
@@ -316,7 +360,7 @@ onMounted(() => {
         :order-dir="orderDir"
         :result-label="resultLabel"
         :has-active-filters="hasActiveFilters"
-        empty-message="Nenhum utilizador encontrado."
+        empty-message="Nenhum usuário encontrado."
         result-badge-class="result-badge-default"
         @update:per-page="onPerPageChange"
         @update:sort="onSortChange"
@@ -376,8 +420,8 @@ onMounted(() => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar utilizador"
-      message="Tem a certeza que deseja eliminar este utilizador?"
+      title="Eliminar usuário"
+      message="Tem a certeza que deseja eliminar este usuário?"
       @confirm="doDelete"
     />
   </DefaultLayout>

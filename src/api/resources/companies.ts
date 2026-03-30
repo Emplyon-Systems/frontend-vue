@@ -31,6 +31,8 @@ export interface CompanyCreatePayload {
   state: string;
   email: string;
   phone: string;
+  branch_limit: number;
+  user_limit: number;
   user_name: string;
   user_email: string;
   user_password: string;
@@ -48,6 +50,8 @@ export interface CompanyUpdatePayload {
   state?: string;
   email?: string;
   phone?: string;
+  branch_limit?: number;
+  user_limit?: number;
 }
 
 export async function list(params?: CompaniesListParams) {

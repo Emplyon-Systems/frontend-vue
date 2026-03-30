@@ -11,7 +11,7 @@ const userBaseSchema = z.object({
   name: requiredText("Nome", 255),
   email: z.string().trim().min(1, "E-mail é obrigatório.").email("E-mail inválido.").max(255),
   status: z.enum(["active", "inactive"]).default("active"),
-  roles: z.array(z.number()).default([]),
+  roles: z.array(z.number()).min(1, "Selecione pelo menos um perfil."),
   direct_permission_ids: z.array(z.number()).default([]),
   company_ids: z.array(z.number()).default([]),
   branch_ids: z.array(z.number()).default([]),
@@ -69,8 +69,9 @@ function toFieldErrors(error: z.ZodError): UserFieldErrors {
   const fields: UserFieldErrors = {};
   for (const issue of error.issues) {
     const field = issue.path[0];
-    if (typeof field !== "string" || fields[field as keyof UserFormData]) continue;
-    fields[field as keyof UserFormData] = issue.message;
+    if (typeof field !== "string") continue;
+    const key = field as keyof UserFormData;
+    if (!fields[key]) fields[key] = issue.message;
   }
   return fields;
 }

@@ -25,6 +25,7 @@ const showUserPassword = ref(false);
 
 const isView = computed(() => props.mode === "view");
 const showUserSection = computed(() => props.mode === "create");
+const showLimitsSection = computed(() => !isView.value);
 
 const localForm = computed({
   get: () => props.modelValue,
@@ -37,6 +38,11 @@ function updateField<K extends keyof CompanyFormData>(field: K, value: CompanyFo
     [field]: value,
   };
   emit("clear-error", field);
+}
+
+function onLimitNumber(field: "branch_limit" | "user_limit", raw: unknown) {
+  const n = typeof raw === "number" ? raw : Number.parseInt(String(raw ?? ""), 10);
+  updateField(field, (Number.isFinite(n) ? n : 0) as CompanyFormData[typeof field]);
 }
 
 watch(
@@ -303,6 +309,43 @@ function generateRandomPassword(length = 12): void {
         </b-col>
       </b-row>
 
+      <b-row v-if="showLimitsSection">
+        <b-col md="6">
+          <b-form-group label-for="branch_limit" class="mb-3">
+            <template #label>Limite de filiais <span class="text-danger">*</span></template>
+            <b-form-input
+              id="branch_limit"
+              type="number"
+              min="1"
+              step="1"
+              :model-value="localForm.branch_limit"
+              :disabled="isView"
+              :state="errors.branch_limit ? false : null"
+              @update:model-value="onLimitNumber('branch_limit', $event)"
+            />
+            <small class="text-muted d-block mt-1">Máximo de filiais permitidas para esta empresa.</small>
+            <b-form-invalid-feedback v-if="errors.branch_limit">{{ errors.branch_limit }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+        <b-col md="6">
+          <b-form-group label-for="user_limit" class="mb-3">
+            <template #label>Limite de usuários <span class="text-danger">*</span></template>
+            <b-form-input
+              id="user_limit"
+              type="number"
+              min="1"
+              step="1"
+              :model-value="localForm.user_limit"
+              :disabled="isView"
+              :state="errors.user_limit ? false : null"
+              @update:model-value="onLimitNumber('user_limit', $event)"
+            />
+            <small class="text-muted d-block mt-1">Máximo de usuários (inclui vínculos por empresa ou filial).</small>
+            <b-form-invalid-feedback v-if="errors.user_limit">{{ errors.user_limit }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+      </b-row>
+
       <div v-if="!showUserSection" class="d-flex gap-2">
         <slot name="actions" />
       </div>
@@ -310,17 +353,17 @@ function generateRandomPassword(length = 12): void {
 
     <b-card v-if="showUserSection" no-body class="mb-3">
       <b-card-header>
-        <b-card-title class="mb-0">Utilizador principal da empresa</b-card-title>
+        <b-card-title class="mb-0">Usuário principal da empresa</b-card-title>
       </b-card-header>
       <b-card-body class="pt-3">
         <b-form-checkbox v-model="useCompanyEmail" class="mb-3" :disabled="isView">
-          Usar e-mail da empresa no utilizador
+          Usar e-mail da empresa no usuário
         </b-form-checkbox>
 
         <b-row>
           <b-col md="4">
             <b-form-group label-for="user_name" class="mb-3">
-              <template #label>Nome do utilizador <span class="text-danger">*</span></template>
+              <template #label>Nome do usuário <span class="text-danger">*</span></template>
               <b-form-input
                 id="user_name"
                 :model-value="localForm.user_name"
@@ -334,7 +377,7 @@ function generateRandomPassword(length = 12): void {
           </b-col>
           <b-col md="4">
             <b-form-group label-for="user_email" class="mb-3">
-              <template #label>E-mail do utilizador <span class="text-danger">*</span></template>
+              <template #label>E-mail do usuário <span class="text-danger">*</span></template>
               <b-form-input
                 id="user_email"
                 :model-value="localForm.user_email"
@@ -348,7 +391,7 @@ function generateRandomPassword(length = 12): void {
           </b-col>
           <b-col md="4">
             <b-form-group label-for="user_password" class="mb-3">
-              <template #label>Palavra-passe do utilizador <span class="text-danger">*</span></template>
+              <template #label>Palavra-passe do usuário <span class="text-danger">*</span></template>
               <b-input-group>
                 <b-form-input
                   id="user_password"

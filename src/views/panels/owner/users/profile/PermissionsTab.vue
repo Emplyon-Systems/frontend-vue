@@ -3,7 +3,7 @@
     <b-card no-body class="h-100">
       <b-card-header class="pb-2">
         <b-card-title class="mb-1">Permissões efetivas</b-card-title>
-        <p class="text-muted mb-0 small">Permissões herdadas do perfil e permissões individuais do utilizador.</p>
+        <p class="text-muted mb-0 small">Permissões herdadas do perfil e permissões individuais do usuário.</p>
       </b-card-header>
       <b-card-body>
         <div class="mb-3">
@@ -63,7 +63,7 @@
             </div>
           </details>
         </div>
-        <p v-else class="text-muted mb-0">Nenhuma permissão encontrada para este utilizador.</p>
+        <p v-else class="text-muted mb-0">Nenhuma permissão encontrada para este usuário.</p>
       </b-card-body>
     </b-card>
   </b-col>

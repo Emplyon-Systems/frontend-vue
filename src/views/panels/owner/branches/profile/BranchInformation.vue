@@ -50,6 +50,16 @@
                   <p class="mb-0 fw-medium">{{ companyName || "—" }}</p>
                 </div>
               </div>
+              <div class="d-flex align-items-start mt-3">
+                <i class="iconoir-community me-2 text-secondary fs-18"></i>
+                <div>
+                  <p class="text-muted mb-0 small">Limite de usuários (filial)</p>
+                  <p class="mb-0 fw-medium">
+                    {{ userLimit != null && userLimit !== "" ? userLimit : "—" }}
+                    <span v-if="usersUsed != null" class="text-muted small">({{ usersUsed }} em uso)</span>
+                  </p>
+                </div>
+              </div>
             </div>
           </b-col>
 
@@ -104,9 +114,13 @@ withDefaults(
     state?: string;
     fullWidth?: boolean;
     onEdit?: () => void;
+    userLimit?: number | string | null;
+    usersUsed?: number | null;
   }>(),
   {
     fullWidth: false,
+    userLimit: null,
+    usersUsed: null,
   }
 );
 </script>

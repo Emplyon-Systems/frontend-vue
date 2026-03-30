@@ -9,7 +9,7 @@ export { MENU_ITEMS };
 const ownerSlugs = ["superadmin"];
 
 /**
- * Menu com o Dashboard a apontar para o painel do utilizador (owner / company / branch / employee).
+ * Menu com o Dashboard a apontar para o painel do usuário (owner / company / branch / employee).
  * No painel owner mostra "Sistema" com submenu: Usuários, Perfis, Auditoria.
  */
 export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: AuthContext | null): MenuItemType[] {
@@ -189,7 +189,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     { key: "main", label: "Menu", isTitle: true },
     { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name } },
   ];
-  // Perfil removido do sidebar — acessível apenas pelo dropdown do utilizador (TopBar)
+  // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
   if (path !== "/employee" && (canBranches || canCompanies || canSectors || canShifts || canModalityTypes || canScaleTypes)) {
     const isBranchPanel = path === "/branch";

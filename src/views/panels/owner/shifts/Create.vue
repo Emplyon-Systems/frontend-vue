@@ -7,6 +7,7 @@ import DataForm from "./form/DataForm.vue";
 import { shiftsApi, branchesApi } from "@/api/resources";
 import { shiftInitialForm, validateShiftForm, type ShiftFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -23,25 +24,12 @@ const currentBranchId = computed(() => {
 });
 const loading = ref(false);
 const form = ref<ShiftFormData>(shiftInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 const branchOptions = ref<Array<{ id: number; name: string; company_name?: string }>>([]);
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> | string } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  if (typeof data === "string") {
-    map["name"] = data;
-  } else {
-    for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  }
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
 
 function shiftsListRoute() {
   return branchScoped.value ? "branch.shifts" : companyScoped.value ? "company.shifts" : "owner.shifts";
@@ -52,7 +40,7 @@ function cancel() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateShiftForm(form.value, "create");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -66,7 +54,7 @@ function submit() {
       notifySuccess("Turno criado com sucesso.");
       router.push({ name: shiftsListRoute() });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
