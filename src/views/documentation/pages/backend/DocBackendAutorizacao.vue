@@ -2,29 +2,45 @@
   <article class="doc-article">
     <h1>Autorização (backend)</h1>
     <p class="doc-lead">
-      Papéis (<code>roles</code>) e permissões (<code>permissions</code>) no banco de dados, vinculados
-      ao usuário via tabelas pivô.
+      Papéis (<code>roles</code>) e permissões (<code>permissions</code>) na base de dados, ligados ao
+      utilizador; em cima disso, <strong>Policies</strong> por model e um
+      <strong>Gate::before</strong> para atalhos <code>permission:</code> e <code>role:</code>.
     </p>
 
     <h2>Gate::before</h2>
     <p>
-      Em <code>AppServiceProvider</code>, abilities no formato <code>permission:slug</code> e
-      <code>role:slug</code> delegam para <code>hasPermissionTo</code> / <code>hasRole</code> no
-      model <code>User</code>.
+      Em <code>AppServiceProvider</code>, abilities <code>permission:slug</code> e
+      <code>role:slug</code> delegam em <code>hasPermissionTo</code> / <code>hasRole</code> no model
+      <code>User</code>. Útil para middleware em rotas sem modelo concreto, por exemplo
+      <code>can:permission:audits.index</code> em <code>routes/api.php</code>.
     </p>
 
-    <h2>Rotas</h2>
+    <h2>Policies + controllers API</h2>
     <p>
-      Exemplo: <code>middleware('can:permission:audits.index')</code> em
-      <code>routes/api.php</code>. Para decisões que dependem do registro específico (ex.: “pode editar
-      esta empresa?”), o alvo é <strong>Policy</strong> por modelo.
+      Para recursos CRUD (e variantes <code>plucks</code>), a decisão “pode ou não” está nas classes em
+      <code>app/Policies</code>, registadas com <code>Gate::policy</code>. Os controllers usam
+      <code>apiDenyUnless</code> / <code>apiAllows</code> do trait
+      <code>AuthorizesApiResources</code> para obter 403 no formato JSON já padronizado
+      (<code>ResponseHelper</code>).
+    </p>
+    <p>
+      Documentação detalhada:
+      <code>backend/docs/padroes/autorizacao-policy-gate.md</code> — menu
+      <strong>Backend → Policies</strong> (visão / padrão / regras).
     </p>
 
     <h2>ScopeService</h2>
     <p>
       Complementa a autorização: define <strong>que IDs</strong> entram em listagens e leituras
-      (empresas/filiais acessíveis). Policy responde “pode tentar a operação”; o service aplica o
-      filtro de dados.
+      (empresas/filiais acessíveis). A policy responde “pode tentar a operação”; o service aplica o
+      filtro de dados e asserts de escopo.
+    </p>
+
+    <h2>Testes</h2>
+    <p>
+      Cobertura via testes Feature HTTP:
+      <router-link :to="{ name: 'documentation.backend.testes' }">Testes (API e front)</router-link>
+      — e ficheiro <code>backend/docs/padroes/testes-feature-api.md</code>.
     </p>
   </article>
 </template>

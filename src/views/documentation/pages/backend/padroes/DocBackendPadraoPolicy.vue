@@ -2,53 +2,57 @@
   <article class="doc-article">
     <h1>Padrão Policy (backend)</h1>
     <p class="doc-lead">
-      <strong>Responsabilidade:</strong> autorização <strong>por modelo</strong> —
-      <code>viewAny</code>, <code>view</code>, <code>create</code>, <code>update</code>,
-      <code>delete</code>, etc.
+      Uma policy por model exposto na API; métodos espelham as abilities do <code>Gate</code>
+      (<code>viewAny</code>, <code>view</code>, <code>create</code>, …) e métodos extra quando preciso
+      (<code>plucks</code>, <code>syncPermissions</code>).
     </p>
 
+    <h2>Trait partilhado</h2>
     <p>
-      <strong>Estado atual:</strong> muitos módulos ainda não têm Policy; a direção é migrar a lógica
-      dos controllers para cá.
+      Ficheiro: <code>app/Policies/Concerns/ChecksTenantPermissions.php</code>. Exemplo de uso no corpo
+      da policy:
     </p>
-
-    <h2>Exemplo esqueleto (alvo)</h2>
-    <pre class="doc-pre"><code>&lt;?php
-
-namespace App\Policies;
-
-use App\Models\Company;
-use App\Models\User;
+    <pre class="doc-pre"><code>use App\Policies\Concerns\ChecksTenantPermissions;
 
 class CompanyPolicy
 {
-    public function viewAny(User $user): bool
+    use ChecksTenantPermissions;
+
+    public function viewAny(User $auth): bool
     {
-        return $user->hasRole('superadmin')
-            || $user->hasRole('owner')
-            || $user->hasPermissionTo('companies.index');
+        return $this-&gt;allowsWithGlobal($auth, 'companies.index');
     }
 
-    public function view(User $user, Company $company): bool
+    public function view(User $auth, Company $company): bool
     {
-        if ($user->hasRole('superadmin') || $user->hasRole('owner')) {
-            return true;
-        }
-        // … combinar permissão com escopo (empresa permitida)
-        return $user->hasPermissionTo('companies.read')
-            && $user->companies()->whereKey($company->id)->exists();
-    }
-
-    public function update(User $user, Company $company): bool
-    {
-        // …
-        return false;
+        return $this-&gt;allowsWithGlobal($auth, 'companies.read');
     }
 }</code></pre>
 
+    <h2>Exceção: utilizador a si próprio</h2>
     <p>
-      Registar em <code>AuthServiceProvider</code> / <code>AppServiceProvider</code>:
-      <code>Gate::policy(Company::class, CompanyPolicy::class);</code>
+      Em <code>UserPolicy</code>, <code>view</code> e <code>update</code> devolvem
+      <code>true</code> quando <code>$auth-&gt;id === $target-&gt;id</code>, sem exigir
+      <code>users.read</code> / <code>users.update</code>. O filtro de campos no update do próprio perfil
+      continua no <code>UsersController</code>.
+    </p>
+
+    <h2>Controller</h2>
+    <p>Ficheiro base: <code>app/Http/Controllers/Concerns/AuthorizesApiResources.php</code>.</p>
+    <pre class="doc-pre"><code>// Listagem
+if ($r = $this-&gt;apiDenyUnless('list', 'viewAny', Company::class)) {
+    return $r;
+}
+
+// Leitura após findOrFail
+if ($r = $this-&gt;apiDenyUnless('read', 'view', $company)) {
+    return $r;
+}</code></pre>
+
+    <h2>Referência completa</h2>
+    <p>
+      <code>backend/docs/padroes/autorizacao-policy-gate.md</code> — registo das policies, tabela por
+      model, <code>Gate::before</code> e relação com <code>ScopeService</code>.
     </p>
   </article>
 </template>

@@ -8,6 +8,14 @@ import {
   type DocNavSubgroup,
 } from "./docNav";
 
+withDefaults(
+  defineProps<{
+    /** Quando true, esconde o cabeçalho público e adapta altura ao layout do painel (DefaultLayout). */
+    embedded?: boolean;
+  }>(),
+  { embedded: false }
+);
+
 const route = useRoute();
 const navOpen = ref(false);
 /** Submenus abertos (id do subgroup); inicia fechado e abre se a rota atual for filha */
@@ -62,8 +70,8 @@ onUnmounted(() => document.removeEventListener("keydown", onKeyEscape));
 </script>
 
 <template>
-  <div class="doc-app">
-    <header class="doc-app-header">
+  <div class="doc-app" :class="{ 'doc-app--embedded': embedded }">
+    <header v-if="!embedded" class="doc-app-header">
       <div class="doc-app-header-inner">
         <router-link to="/auth/sign-in" class="doc-app-brand">
           <img src="/logohorizontal.svg" alt="Emplyon" class="doc-app-brand-img" />
@@ -187,6 +195,16 @@ onUnmounted(() => document.removeEventListener("keydown", onKeyEscape));
   --doc-sidebar-bg: #f6f8fa;
   --doc-active-bg: #ddf4ff;
   --doc-active-border: #0969da;
+}
+
+.doc-app.doc-app--embedded {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.doc-app.doc-app--embedded .doc-app-body {
+  min-height: min(78vh, 920px);
 }
 
 .doc-app-header {

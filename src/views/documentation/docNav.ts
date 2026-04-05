@@ -93,6 +93,7 @@ export const docNavGroups: DocNavGroup[] = [
       { name: "documentation.backend.modelo-dados", label: "Modelo de dados" },
       { name: "documentation.backend.exemplo-users", label: "Exemplo: Users" },
       { name: "documentation.backend.api", label: "API HTTP" },
+      { name: "documentation.backend.testes", label: "Testes (API e front)" },
     ],
   },
   {
@@ -175,6 +176,7 @@ export const docBreadcrumbLabels: Record<string, string> = {
   "documentation.backend.modelo-dados": "Modelo de dados",
   "documentation.backend.exemplo-users": "Exemplo Users",
   "documentation.backend.api": "API HTTP",
+  "documentation.backend.testes": "Testes",
   "documentation.frontend.index": "Frontend",
   "documentation.frontend.architecture": "Arquitetura",
   "documentation.frontend.moduloCompleto": "Módulo completo",

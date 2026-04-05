@@ -13,11 +13,12 @@
     </ul>
     <p>Caminhos relativos à pasta <code>backend/</code>:</p>
     <ul>
-      <li><code>docs/padroes/README.md</code> — índice dos padrões</li>
-      <li><code>docs/padroes/camadas-controller-service.md</code> — controller, service, fluxo</li>
-      <li><code>docs/padroes/repositorios.md</code> — padrão repository</li>
-      <li><code>docs/padroes/autorizacao-policy-gate.md</code> — policies e gates</li>
-      <li><code>docs/padroes/observers-efeitos-colaterais.md</code> — observers</li>
+      <li><code>backend/docs/padroes/README.md</code> — índice dos padrões</li>
+      <li><code>backend/docs/padroes/camadas-controller-service.md</code> — controller, service, fluxo</li>
+      <li><code>backend/docs/padroes/repositorios.md</code> — padrão repository</li>
+      <li><code>backend/docs/padroes/autorizacao-policy-gate.md</code> — policies, Gate, controllers</li>
+      <li><code>backend/docs/padroes/testes-feature-api.md</code> — testes Feature API e Vitest</li>
+      <li><code>backend/docs/padroes/observers-efeitos-colaterais.md</code> — observers</li>
     </ul>
     <div class="doc-callout">
       Neste site, cada camada (Controllers, Services, …) tem <strong>Visão</strong>,

@@ -65,11 +65,32 @@ const authRoutes = [
   },
 ];
 
-/** Documentação do projeto (pública, sem auth) — rotas filhas, uma vista por secção */
+/** URLs antigas /documentation → versão no painel (autenticada) */
+const documentationLegacyRedirects = [
+  { path: "/documentation", redirect: "/documentation-v1" },
+  {
+    path: "/documentation/:pathMatch(.*)*",
+    redirect: (to: { params: { pathMatch?: string | string[] } }) => {
+      const raw = to.params.pathMatch;
+      const suffix = Array.isArray(raw) ? raw.filter(Boolean).join("/") : raw ? String(raw) : "";
+      return suffix ? `/documentation-v1/${suffix}` : "/documentation-v1";
+    },
+  },
+];
+
+/** Documentação v1 — sessão obrigatória; painel owner (superadmin) */
 const documentationRoutes = {
-  path: "/documentation",
-  component: () => import("@/views/documentation/DocumentationLayout.vue"),
+  path: "/documentation-v1",
+  meta: {
+    authRequired: true,
+    panel: "owner",
+  },
+  component: () => import("@/views/documentation/DocumentationPanelShell.vue"),
   children: [
+    {
+      path: "",
+      component: () => import("@/views/documentation/DocumentationLayoutPanel.vue"),
+      children: [
     {
       path: "",
       name: "documentation.home",
@@ -257,6 +278,12 @@ const documentationRoutes = {
       component: () => import("@/views/documentation/pages/backend/DocBackendApi.vue"),
     },
     {
+      path: "backend/testes",
+      name: "documentation.backend.testes",
+      meta: { title: setTitle("Backend — Testes") },
+      component: () => import("@/views/documentation/pages/backend/DocBackendTestes.vue"),
+    },
+    {
       path: "backend/padroes",
       redirect: { name: "documentation.backend.architecture" },
     },
@@ -413,6 +440,8 @@ const documentationRoutes = {
     {
       path: "frontend/padrao-api",
       redirect: { name: "documentation.frontend.api.padrao" },
+    },
+      ],
     },
   ],
 };
@@ -1391,6 +1420,7 @@ const errorRoutes = [
 
 export const allRoute = [
   ...authRoutes,
+  ...documentationLegacyRedirects,
   documentationRoutes,
   ...panelRoutes,
   ...errorRoutes,

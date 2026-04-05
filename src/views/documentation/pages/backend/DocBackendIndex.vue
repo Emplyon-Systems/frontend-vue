@@ -27,7 +27,8 @@
         <router-link :to="{ name: 'documentation.backend.migrations' }">Migrations</router-link>,
         <router-link :to="{ name: 'documentation.backend.modelo-dados' }">Modelo de dados</router-link>,
         <router-link :to="{ name: 'documentation.backend.exemplo-users' }">Exemplo Users</router-link>,
-        <router-link :to="{ name: 'documentation.backend.api' }">API HTTP</router-link>.
+        <router-link :to="{ name: 'documentation.backend.api' }">API HTTP</router-link>,
+        <router-link :to="{ name: 'documentation.backend.testes' }">Testes (API e front)</router-link>.
       </li>
     </ul>
   </article>
