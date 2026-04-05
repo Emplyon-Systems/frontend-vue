@@ -16,6 +16,9 @@ const companyId = computed(() => Number(route.params.id));
 const loading = ref(false);
 const loadingCompany = ref(true);
 const loadError = ref("");
+/** Contagem atual (API) — não pode guardar limite abaixo disto. */
+const usersUsed = ref(0);
+const branchesUsed = ref(0);
 const form = ref<CompanyFormData>(companyInitialForm());
 const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
   notifyOnApiFieldErrors: false,
@@ -46,6 +49,8 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
   next.street_number = company.street_number ?? "";
   next.branch_limit = Number(company.branch_limit ?? 10);
   next.user_limit = Number(company.user_limit ?? 50);
+  usersUsed.value = Number(company.users_used ?? 0);
+  branchesUsed.value = Number(company.branches_used ?? 0);
   form.value = next;
 }
 
@@ -71,6 +76,19 @@ function submit() {
   const validation = validateCompanyForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
+    return;
+  }
+
+  if (usersUsed.value > 0 && validation.data.user_limit < usersUsed.value) {
+    errors.value = {
+      user_limit: `Esta empresa tem ${usersUsed.value} usuário(s) cadastrado(s). Não pode definir o limite abaixo de ${usersUsed.value} para evitar conflitos.`,
+    };
+    return;
+  }
+  if (branchesUsed.value > 0 && validation.data.branch_limit < branchesUsed.value) {
+    errors.value = {
+      branch_limit: `Esta empresa tem ${branchesUsed.value} filial(is) cadastrada(s). Não pode definir o limite abaixo de ${branchesUsed.value} para evitar conflitos.`,
+    };
     return;
   }
 
@@ -102,7 +120,14 @@ onMounted(loadCompany);
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
       <div v-else-if="loadingCompany" class="text-muted">A carregar empresa...</div>
       <b-form v-else @submit.prevent="submit">
-        <DataForm v-model="form" :errors="errors" mode="edit" @clear-error="clearError">
+        <DataForm
+          v-model="form"
+          :errors="errors"
+          mode="edit"
+          :users-used="usersUsed"
+          :branches-used="branchesUsed"
+          @clear-error="clearError"
+        >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
               {{ loading ? "A guardar..." : "Guardar" }}

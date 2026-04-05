@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
@@ -9,7 +9,6 @@ import {
   branchInitialForm,
   validateBranchForm,
   type BranchFormData,
-  type BranchUserLimitQuota,
 } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
@@ -28,8 +27,6 @@ const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors(
   notifyOnEmptyResponse: false,
 });
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
-const branchQuota = ref<BranchUserLimitQuota | null>(null);
-const usersOnThisBranchRef = ref(0);
 
 const branchId = computed(() => {
   const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
@@ -49,33 +46,6 @@ const companyName = computed(() => {
   if (authStore.activeContext?.company_name) return authStore.activeContext.company_name;
   return authStore.user?.branches?.[0]?.company?.name ?? "Minha empresa";
 });
-
-async function refreshBranchQuota(companyId: number, excludeBranchId: number, usersOnThisBranch = 0) {
-  if (!companyId || !excludeBranchId) {
-    branchQuota.value = null;
-    return;
-  }
-  try {
-    const [companyRes, branchesRes] = await Promise.all([
-      companiesApi.getById(companyId),
-      branchesApi.list({ company_id: companyId, per_page: 500, order_by: "id", order_dir: "asc" }),
-    ]);
-    const cap = companyRes.company?.user_limit ?? 0;
-    const used = Number(companyRes.company?.users_used ?? 0);
-    const rows = branchesRes.branches?.data ?? [];
-    const sum = rows
-      .filter((b) => b.id !== excludeBranchId)
-      .reduce((s, b) => s + (Number(b.user_limit) || 0), 0);
-    branchQuota.value = {
-      companyCap: cap,
-      sumOtherBranches: sum,
-      companyUsersUsed: used,
-      usersOnThisBranch,
-    };
-  } catch {
-    branchQuota.value = null;
-  }
-}
 
 function cancel() {
   router.push({ name: "panels.branch.dashboard" });
@@ -103,10 +73,7 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
     store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
     store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
-    user_limit: Number(branch.user_limit) >= 0 ? Number(branch.user_limit) : 0,
   };
-  usersOnThisBranchRef.value = Number(branch.users_used ?? 0);
-  void refreshBranchQuota(branch.company_id ?? 0, branch.id, usersOnThisBranchRef.value);
 }
 
 function loadBranch() {
@@ -126,18 +93,9 @@ function loadBranch() {
     .finally(() => (loadingBranch.value = false));
 }
 
-watch(
-  () => form.value.company_id,
-  (id) => {
-    if (branchId.value && id) {
-      void refreshBranchQuota(Number(id), branchId.value, usersOnThisBranchRef.value);
-    }
-  }
-);
-
 function submit() {
   resetErrors();
-  const validation = validateBranchForm(form.value, "edit", branchQuota.value);
+  const validation = validateBranchForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
     return;
@@ -186,7 +144,6 @@ onMounted(() => {
           :errors="errors"
           :company-options="companyOptions"
           :lock-company-id="companyId || null"
-          :branch-quota="branchQuota"
           mode="edit"
           @clear-error="clearError"
         >

@@ -33,20 +33,25 @@ const appliedFilters = ref(initialFilters());
 const orderBy = ref("id");
 const orderDir = ref<"asc" | "desc">("desc");
 
-const listagemColumns = [
-  { key: "id", label: "ID", sortable: true, align: "start" as const },
-  { key: "name", label: "Nome", sortable: true, align: "start" as const },
-  { key: "cnpj", label: "CNPJ", sortable: true, align: "start" as const },
-  { key: "company", label: "Empresa", sortable: false, align: "start" as const },
-  { key: "city", label: "Município", sortable: true, align: "start" as const },
-  { key: "state", label: "Estado", sortable: true, align: "start" as const },
-  { key: "actions", label: "Ações", sortable: false, align: "end" as const },
-];
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
 const showFilters = ref(false);
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
+const isOwnerWorkspace = computed(() => String(route.name ?? "").startsWith("owner.company.workspace"));
+const workspaceCompanyId = computed(() => isOwnerWorkspace.value ? Number(route.params.id ?? 0) : 0);
+const isCompanyFixed = computed(() => isOwnerWorkspace.value || companyScoped.value);
+const effectiveCompanyId = computed(() => isOwnerWorkspace.value ? workspaceCompanyId.value : scopedCompanyId.value);
+
+const listagemColumns = computed(() => [
+  { key: "id", label: "ID", sortable: true, align: "start" as const },
+  { key: "name", label: "Nome", sortable: true, align: "start" as const },
+  { key: "cnpj", label: "CNPJ", sortable: true, align: "start" as const },
+  ...(!isCompanyFixed.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
+  { key: "city", label: "Município", sortable: true, align: "start" as const },
+  { key: "state", label: "Estado", sortable: true, align: "start" as const },
+  { key: "actions", label: "Ações", sortable: false, align: "end" as const },
+]);
 const hasActiveFilters = computed(
   () =>
     !!appliedFilters.value.name.trim() ||
@@ -70,12 +75,12 @@ const canUpdate = computed(() => authStore.hasPermission("branches.update"));
 const canDelete = computed(() => authStore.hasPermission("branches.delete"));
 
 async function loadCompanyBranchQuota() {
-  if (!companyScoped.value || scopedCompanyId.value <= 0) {
+  if (!isCompanyFixed.value || effectiveCompanyId.value <= 0) {
     branchLimitReached.value = false;
     return;
   }
   try {
-    const res = await companiesApi.getById(scopedCompanyId.value);
+    const res = await companiesApi.getById(effectiveCompanyId.value);
     const c = res.company;
     if (!c) {
       branchLimitReached.value = false;
@@ -90,6 +95,16 @@ async function loadCompanyBranchQuota() {
 }
 
 async function loadPlucks() {
+  if (isOwnerWorkspace.value && workspaceCompanyId.value > 0) {
+    try {
+      const res = await companiesApi.getById(workspaceCompanyId.value);
+      const name = res.company?.name ?? `Empresa #${workspaceCompanyId.value}`;
+      companyOptions.value = [{ id: workspaceCompanyId.value, name }];
+    } catch {
+      companyOptions.value = [{ id: workspaceCompanyId.value, name: `Empresa #${workspaceCompanyId.value}` }];
+    }
+    return;
+  }
   if (companyScoped.value && scopedCompanyId.value > 0) {
     const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
     companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
@@ -109,8 +124,8 @@ function loadList(page = 1) {
       per_page: appliedFilters.value.per_page,
       name: appliedFilters.value.name.trim() || undefined,
       cnpj: appliedFilters.value.cnpj.trim() || undefined,
-      company_id: companyScoped.value ? scopedCompanyId.value : undefined,
-      company_ids: !companyScoped.value && (appliedFilters.value.company_ids?.length ?? 0)
+      company_id: isCompanyFixed.value ? effectiveCompanyId.value : undefined,
+      company_ids: !isCompanyFixed.value && (appliedFilters.value.company_ids?.length ?? 0)
         ? appliedFilters.value.company_ids
         : undefined,
       created_at_from: appliedFilters.value.created_at_from || undefined,
@@ -159,16 +174,28 @@ function doDelete() {
 
 function goCreate() {
   if (!canCreate.value) return;
+  if (isOwnerWorkspace.value) {
+    router.push({ name: "owner.branches.create", query: { company_id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches.create" : "owner.branches.create" });
 }
 
 function goView(id: number) {
   if (!canRead.value) return;
+  if (isOwnerWorkspace.value) {
+    router.push({ name: "owner.branches.view", params: { id: String(id) }, query: { company_id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches.view" : "owner.branches.view", params: { id: String(id) } });
 }
 
 function goEdit(id: number) {
   if (!canUpdate.value) return;
+  if (isOwnerWorkspace.value) {
+    router.push({ name: "owner.branches.edit", params: { id: String(id) }, query: { company_id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches.edit" : "owner.branches.edit", params: { id: String(id) } });
 }
 
@@ -186,9 +213,9 @@ function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir
 }
 
 onMounted(() => {
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    filters.value.company_ids = [scopedCompanyId.value];
-    appliedFilters.value.company_ids = [scopedCompanyId.value];
+  if (isCompanyFixed.value && effectiveCompanyId.value > 0) {
+    filters.value.company_ids = [effectiveCompanyId.value];
+    appliedFilters.value.company_ids = [effectiveCompanyId.value];
   }
   void loadPlucks();
   void loadCompanyBranchQuota();
@@ -197,13 +224,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
+  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+    <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Filiais</h1>
           <p class="text-muted mb-0 small">
-            {{ companyScoped ? "Listar e criar filiais da sua empresa." : "Listar e criar filiais vinculadas às empresas." }}
+            {{ isCompanyFixed ? "Listar e criar filiais desta empresa." : "Listar e criar filiais vinculadas às empresas." }}
           </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -223,7 +250,7 @@ onMounted(() => {
           v-model="filters"
           :active="hasActiveFilters"
           :company-options="companyOptions"
-          :hide-company-selector="companyScoped"
+          :hide-company-selector="isCompanyFixed"
           @apply="applyFilters"
           @reset="resetFilters"
         />
@@ -250,7 +277,7 @@ onMounted(() => {
             <b-td>{{ (item as BranchRecord).id }}</b-td>
             <b-td>{{ (item as BranchRecord).name }}</b-td>
             <b-td>{{ (item as BranchRecord).cnpj }}</b-td>
-            <b-td>{{ (item as BranchRecord).company?.name ?? "—" }}</b-td>
+            <b-td v-if="!isCompanyFixed">{{ (item as BranchRecord).company?.name ?? "—" }}</b-td>
             <b-td>{{ (item as BranchRecord).city }}</b-td>
             <b-td>{{ (item as BranchRecord).state }}</b-td>
             <b-td class="text-end">
@@ -278,5 +305,5 @@ onMounted(() => {
       message="Tem a certeza que deseja eliminar esta filial?"
       @confirm="doDelete"
     />
-  </DefaultLayout>
+  </component>
 </template>

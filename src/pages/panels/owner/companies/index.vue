@@ -120,7 +120,7 @@ function goCreate() {
 
 function goView(id: number) {
   if (!canRead.value) return;
-  router.push({ name: "owner.companies.view", params: { id: String(id) } });
+  router.push({ name: "owner.company.workspace.overview", params: { id: String(id) } });
 }
 
 function goEdit(id: number) {

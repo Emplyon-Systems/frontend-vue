@@ -105,7 +105,7 @@ export interface CompanyRecord {
   user_limit: number;
   /** Filiais existentes (contagem). */
   branches_used?: number;
-  /** Utilizadores com acesso à empresa (vínculo direto ou filial). */
+  /** Usuarios com acesso à empresa (vínculo direto ou filial). */
   users_used?: number;
   created_at?: string;
   updated_at?: string;
@@ -143,7 +143,6 @@ export interface BranchRecord {
   expedient_end_time?: string;
   store_open_time?: string;
   store_close_time?: string;
-  user_limit?: number;
   users_used?: number;
   created_at?: string;
   updated_at?: string;

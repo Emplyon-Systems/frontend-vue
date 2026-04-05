@@ -18,9 +18,12 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const routeName = computed(() => String(route.name ?? ""));
-const isOwnerScaleTypes = computed(() => routeName.value.startsWith("owner."));
+const isOwnerScaleTypes = computed(() => routeName.value.startsWith("owner.") && !routeName.value.startsWith("owner.company.workspace"));
+const isOwnerWorkspace = computed(() => routeName.value.startsWith("owner.company.workspace"));
+const workspaceCompanyId = computed(() => isOwnerWorkspace.value ? Number(route.params.id ?? 0) : 0);
 const companyScoped = computed(() => routeName.value.startsWith("company."));
 const branchScoped = computed(() => routeName.value.startsWith("branch."));
+const isCompanyFixed = computed(() => isOwnerWorkspace.value || companyScoped.value);
 const currentBranchId = computed(() => {
   if (!branchScoped.value) return 0;
   const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
@@ -49,7 +52,7 @@ const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "slug", label: "Slug", sortable: true, align: "start" as const },
-  ...(isOwnerScaleTypes.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
+  ...(isOwnerScaleTypes.value && !isCompanyFixed.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
   { key: "branch", label: "Filial", sortable: false, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
@@ -102,6 +105,14 @@ async function loadPlucks() {
     }];
     return;
   }
+  if (isOwnerWorkspace.value && workspaceCompanyId.value > 0) {
+    const branches = await branchesApi.plucks();
+    branchOptions.value = (branches as { id: number; name?: string; company_id?: number; company_name?: string }[])
+      .filter((b) => b.company_id === workspaceCompanyId.value)
+      .map((b) => ({ id: b.id, name: b.name ?? `Filial #${b.id}`, company_id: b.company_id, company_name: "" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return;
+  }
   if (isOwnerScaleTypes.value) {
     const [companies, branches] = await Promise.all([
       companiesApi.plucks(),
@@ -137,6 +148,11 @@ async function loadPlucks() {
 
 function getEffectiveBranchIds(): number[] | undefined {
   if (branchScoped.value && currentBranchId.value > 0) return [currentBranchId.value];
+  if (isOwnerWorkspace.value && branchOptions.value.length > 0) {
+    const af = appliedFilters.value;
+    if ((af.branch_ids?.length ?? 0) > 0) return af.branch_ids;
+    return branchOptions.value.map((b) => b.id);
+  }
   const af = appliedFilters.value;
   const branchIds = af.branch_ids ?? [];
   const companyIds = af.company_ids ?? [];
@@ -249,13 +265,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
+  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+    <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Tipos de escala</h1>
           <p class="text-muted mb-0 small">
-            {{ branchScoped ? "Tipos de escala da sua filial." : companyScoped ? "Listar e criar tipos de escala das filiais da sua empresa." : "Listar e criar tipos de escala vinculados às filiais." }}
+            {{ branchScoped ? "Tipos de escala da sua filial." : isCompanyFixed ? "Listar e criar tipos de escala das filiais desta empresa." : "Listar e criar tipos de escala vinculados às filiais." }}
           </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -273,7 +289,7 @@ onMounted(async () => {
           :active="hasActiveFilters"
           :company-options="companyOptions"
           :branch-options="branchOptions"
-          :show-company-filter="isOwnerScaleTypes"
+          :show-company-filter="isOwnerScaleTypes && !isCompanyFixed"
           :hide-branch-selector="branchScoped"
           @apply="applyFilters"
           @reset="resetFilters"
@@ -301,7 +317,7 @@ onMounted(async () => {
             <b-td>{{ (item as ScaleTypeRecord).id }}</b-td>
             <b-td>{{ (item as ScaleTypeRecord).name }}</b-td>
             <b-td><code>{{ (item as ScaleTypeRecord).slug }}</code></b-td>
-            <b-td v-if="isOwnerScaleTypes">
+            <b-td v-if="isOwnerScaleTypes && !isCompanyFixed">
               {{ companyOptions.find((c) => c.id === (item as ScaleTypeRecord).branch?.company_id)?.name ?? (item as ScaleTypeRecord).branch?.company?.name ?? "—" }}
             </b-td>
             <b-td>{{ (item as ScaleTypeRecord).branch?.name ?? "—" }}</b-td>
@@ -330,5 +346,5 @@ onMounted(async () => {
       message="Tem a certeza que deseja eliminar este tipo de escala?"
       @confirm="doDelete"
     />
-  </DefaultLayout>
+  </component>
 </template>

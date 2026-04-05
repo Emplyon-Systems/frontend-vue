@@ -347,6 +347,12 @@ function initSectorSelectr() {
   if (ids.length) sectorSelectr.setValue(ids);
 }
 
+/** Já existe empresa no contexto (workspace ou seleção) — lista vazia de perfis é explicada em termos da empresa. */
+const hasCompanyContextForRoles = computed(() => {
+  if (!props.showCompanySelector) return true;
+  return (props.modelValue.company_ids?.length ?? 0) > 0 || props.fixedBranchId != null;
+});
+
 /** Só lista de opções (não valores escolhidos) — evita destroy/reinit a cada clique no multiselect. */
 const roleSelectSignature = computed(() =>
   JSON.stringify(props.roleOptions.map((r) => r.id))
@@ -759,41 +765,50 @@ function generateRandomPassword(length = 12): void {
         <b-row>
           <b-col md="12">
             <b-form-group label="Perfis" class="mb-3">
-              <div
-                class="user-selectr-field"
-                :class="{ 'user-selectr-field--invalid': Boolean(errors.roles) }"
-              >
-              <select
-                id="user-roles-select"
-                ref="roleSelectRef"
-                class="form-select"
-                multiple
-              >
-                <option
-                  v-for="role in roleOptions"
-                  :key="role.id"
-                  :value="role.id"
-                  :selected="(modelValue.roles ?? []).includes(role.id)"
+              <template v-if="roleOptions.length">
+                <div
+                  class="user-selectr-field"
+                  :class="{ 'user-selectr-field--invalid': Boolean(errors.roles) }"
                 >
-                  {{ role.name }}
-                </option>
-              </select>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <small v-if="!errors.roles" class="text-muted">{{
-                  selectionLabel((modelValue.roles ?? []).length, "perfil", "perfis")
-                }}</small>
-                <b-button
-                  v-if="(modelValue.roles ?? []).length"
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  class="p-0"
-                  @click="clearRoleSelection"
-                >
-                  Limpar seleção
-                </b-button>
-              </div>
+                  <select
+                    id="user-roles-select"
+                    ref="roleSelectRef"
+                    class="form-select"
+                    multiple
+                  >
+                    <option
+                      v-for="role in roleOptions"
+                      :key="role.id"
+                      :value="role.id"
+                      :selected="(modelValue.roles ?? []).includes(role.id)"
+                    >
+                      {{ role.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                  <small v-if="!errors.roles" class="text-muted">{{
+                    selectionLabel((modelValue.roles ?? []).length, "perfil", "perfis")
+                  }}</small>
+                  <b-button
+                    v-if="(modelValue.roles ?? []).length"
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    class="p-0"
+                    @click="clearRoleSelection"
+                  >
+                    Limpar seleção
+                  </b-button>
+                </div>
+              </template>
+              <p v-else class="text-muted mb-0">
+                {{
+                  hasCompanyContextForRoles
+                    ? "Não existem perfis cadastrados nesta empresa."
+                    : "Selecione uma empresa para ver os perfis disponíveis."
+                }}
+              </p>
               <b-form-invalid-feedback v-if="errors.roles" class="d-block">{{ errors.roles }}</b-form-invalid-feedback>
             </b-form-group>
           </b-col>

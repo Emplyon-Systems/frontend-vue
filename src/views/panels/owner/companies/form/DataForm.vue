@@ -9,9 +9,15 @@ const props = withDefaults(defineProps<{
   modelValue: CompanyFormData;
   errors?: Record<string, string>;
   mode?: "create" | "edit" | "view";
+  /** Em edição: quantos usuários já têm acesso (empresa/filial); limite não pode ser menor. */
+  usersUsed?: number;
+  /** Em edição: quantas filiais existem; limite não pode ser menor. */
+  branchesUsed?: number;
 }>(), {
   errors: () => ({}),
   mode: "create",
+  usersUsed: 0,
+  branchesUsed: 0,
 });
 
 const emit = defineEmits<{
@@ -26,6 +32,9 @@ const showUserPassword = ref(false);
 const isView = computed(() => props.mode === "view");
 const showUserSection = computed(() => props.mode === "create");
 const showLimitsSection = computed(() => !isView.value);
+
+const userLimitMin = computed(() => Math.max(1, props.usersUsed));
+const branchLimitMin = computed(() => Math.max(1, props.branchesUsed));
 
 const localForm = computed({
   get: () => props.modelValue,
@@ -316,7 +325,7 @@ function generateRandomPassword(length = 12): void {
             <b-form-input
               id="branch_limit"
               type="number"
-              min="1"
+              :min="branchLimitMin"
               step="1"
               :model-value="localForm.branch_limit"
               :disabled="isView"
@@ -324,6 +333,9 @@ function generateRandomPassword(length = 12): void {
               @update:model-value="onLimitNumber('branch_limit', $event)"
             />
             <small class="text-muted d-block mt-1">Máximo de filiais permitidas para esta empresa.</small>
+            <small v-if="branchesUsed > 0" class="text-muted d-block mt-1">
+              Atualmente há {{ branchesUsed }} filial(is) cadastrada(s); o limite não pode ser inferior a {{ branchesUsed }}.
+            </small>
             <b-form-invalid-feedback v-if="errors.branch_limit">{{ errors.branch_limit }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
@@ -333,7 +345,7 @@ function generateRandomPassword(length = 12): void {
             <b-form-input
               id="user_limit"
               type="number"
-              min="1"
+              :min="userLimitMin"
               step="1"
               :model-value="localForm.user_limit"
               :disabled="isView"
@@ -341,6 +353,9 @@ function generateRandomPassword(length = 12): void {
               @update:model-value="onLimitNumber('user_limit', $event)"
             />
             <small class="text-muted d-block mt-1">Máximo de usuários (inclui vínculos por empresa ou filial).</small>
+            <small v-if="usersUsed > 0" class="text-muted d-block mt-1">
+              Atualmente há {{ usersUsed }} usuário(s) com acesso; o limite não pode ser inferior a {{ usersUsed }}.
+            </small>
             <b-form-invalid-feedback v-if="errors.user_limit">{{ errors.user_limit }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>

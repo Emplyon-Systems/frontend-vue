@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import FilterTriggerButton from "@/components/filters/FilterTriggerButton.vue";
@@ -13,8 +13,12 @@ import type { UserRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const routeName = computed(() => String(route.name ?? ""));
+const isOwnerWorkspace = computed(() => routeName.value.startsWith("owner.company.workspace"));
+const workspaceCompanyId = computed(() => isOwnerWorkspace.value ? Number(route.params.id ?? 0) : 0);
 const loading = ref(true);
 const users = ref<UserRecord[]>([]);
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
@@ -53,7 +57,14 @@ const isBranchContext = computed(() =>
 const scopedCompanyId = computed(() =>
   isCompanyContext.value ? Number(authStore.activeContext?.company_id ?? 0) : 0
 );
-const canCreate = computed(() => authStore.hasPermission("users.create"));
+/** Alinhado ao meta das rotas `owner.users.*`: permissão OU perfis empresa/filial por slug. */
+const canCreate = computed(() => {
+  if (authStore.hasPermission("users.create")) return true;
+  const slugs = (authStore.user?.roles ?? []).map((r) => r.slug ?? "");
+  const exact = new Set(["branch_manager", "branch", "filial", "admin", "empresa"]);
+  const prefixes = ["gerente-filial", "gerente-c", "empresa-c"];
+  return slugs.some((s) => exact.has(s) || prefixes.some((p) => s.startsWith(p)));
+});
 /** Contexto empresa: limite de usuários já atingido. */
 const userLimitReached = ref(false);
 const filteredBranchOptions = computed(() => {
@@ -128,9 +139,11 @@ async function loadCompanyUserQuota() {
 
 function loadList(page = 1) {
   loading.value = true;
-  const companyIds = (appliedFilters.value.company_ids ?? [])
-    .map((id) => Number(id))
-    .filter((id) => Number.isFinite(id) && id > 0);
+  const companyIds = isOwnerWorkspace.value && workspaceCompanyId.value > 0
+    ? [workspaceCompanyId.value]
+    : (appliedFilters.value.company_ids ?? [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0);
   const branchIds = (appliedFilters.value.branch_ids ?? [])
     .map((id) => Number(id))
     .filter((id) => Number.isFinite(id) && id > 0);
@@ -142,7 +155,7 @@ function loadList(page = 1) {
       page,
       per_page: pagination.value.per_page,
       search: appliedFilters.value.search.trim() || undefined,
-      status: appliedFilters.value.status || undefined,
+      status: (appliedFilters.value.status || undefined) as "active" | "inactive" | undefined,
       role_id: appliedFilters.value.role_id ? Number(appliedFilters.value.role_id) : undefined,
       company_ids: companyIds.length ? companyIds : undefined,
       branch_ids: branchIds.length ? branchIds : undefined,
@@ -255,7 +268,23 @@ function doDelete() {
 
 function goCreate() {
   if (!canCreate.value) return;
-  router.push({ name: "owner.users.create" });
+  const q: Record<string, string> = {};
+  if (isOwnerWorkspace.value && workspaceCompanyId.value > 0) {
+    q.company_id = String(workspaceCompanyId.value);
+  } else if (isBranchContext.value) {
+    const cid = Number(authStore.activeContext?.company_id ?? 0);
+    const bid = Number(authStore.activeContext?.branch_id ?? 0);
+    if (cid > 0) q.company_id = String(cid);
+    if (bid > 0) q.branch_id = String(bid);
+  } else if (isCompanyContext.value) {
+    const cid = Number(authStore.activeContext?.company_id ?? 0);
+    if (cid > 0) q.company_id = String(cid);
+  }
+  void router
+    .push({ name: "owner.users.create", query: Object.keys(q).length ? q : undefined })
+    .catch(() => {
+      /* navegação duplicada ou interrompida */
+    });
 }
 
 function goView(id: number) {
@@ -315,17 +344,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
+  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+    <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Usuários</h1>
-          <p class="text-muted mb-0 small">Listar, criar e editar usuários do sistema.</p>
+          <h1 class="h4 mb-1">Usuarios</h1>
+          <p class="text-muted mb-0 small">
+            {{ isOwnerWorkspace ? "Listar e criar Usuarios desta empresa." : "Listar, criar e editar usuários do sistema." }}
+          </p>
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" label="Filtros" />
           <template v-if="canCreate">
-            <b-button v-if="!userLimitReached" variant="primary" @click="goCreate">
+            <b-button v-if="!userLimitReached" type="button" variant="primary" @click="goCreate">
               <i class="iconoir-plus me-1"></i>
               Novo usuário
             </b-button>
@@ -338,7 +369,7 @@ onMounted(() => {
         <UsersFilter
           v-model="filters"
           :active="hasActiveFilters"
-          :show-company-filter="isSuperadmin"
+          :show-company-filter="isSuperadmin && !isOwnerWorkspace"
           :show-branch-filter="isSuperadmin || isCompanyContext"
           :show-sector-filter="isSuperadmin || isCompanyContext || isBranchContext"
           :role-options="roleOptions"
@@ -424,5 +455,5 @@ onMounted(() => {
       message="Tem a certeza que deseja eliminar este usuário?"
       @confirm="doDelete"
     />
-  </DefaultLayout>
+  </component>
 </template>

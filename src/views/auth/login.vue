@@ -188,6 +188,10 @@ async function handleLogin() {
           <router-link to="/auth/register" class="login-link">Registe-se</router-link>
         </p>
         -->
+
+        <p class="login-doc-link mt-4 mb-0 text-center">
+          <router-link to="/documentation" class="login-link">Documentação do projeto</router-link>
+        </p>
       </div>
     </div>
 
@@ -332,6 +336,11 @@ async function handleLogin() {
 
 .login-register {
   font-size: 0.95rem;
+  color: #6c757d;
+}
+
+.login-doc-link {
+  font-size: 0.875rem;
   color: #6c757d;
 }
 

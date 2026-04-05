@@ -89,77 +89,13 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     return [
       { key: "main", label: "Menu", isTitle: true },
       { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name: "panels.owner.dashboard" } },
-      ...((isSuperadmin || canCompanies || canBranches || canSectors || canShifts || canModalityTypes || canScaleTypes)
+      ...((isSuperadmin || canCompanies)
         ? [
             {
               key: "companies",
               icon: "iconoir-building",
               label: "Empresas",
-              route: { name: companiesRouteName },
-              children: [
-                ...(canCompaniesList || isSuperadmin
-                  ? [
-                      {
-                        key: "companies-list",
-                        icon: "iconoir-building",
-                        label: "Empresas",
-                        route: { name: "owner.companies" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(canBranches
-                  ? [
-                      {
-                        key: "branches-list",
-                        icon: "iconoir-git-branch",
-                        label: "Filiais",
-                        route: { name: branchRouteName },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canShifts
-                  ? [
-                      {
-                        key: "shifts-list",
-                        icon: "iconoir-clock",
-                        label: "Turnos",
-                        route: { name: "owner.shifts" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canModalityTypes
-                  ? [
-                      {
-                        key: "modality-types-list",
-                        icon: "iconoir-book",
-                        label: "Modalidades",
-                        route: { name: "owner.modality-types" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canScaleTypes
-                  ? [
-                      {
-                        key: "scale-types-list",
-                        icon: "iconoir-calendar",
-                        label: "Tipos de escala",
-                        route: { name: "owner.scale-types" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canSectors
-                  ? [
-                      {
-                        key: "sectors-list",
-                        icon: "iconoir-folder",
-                        label: "Setores",
-                        route: {
-                          name: "owner.sectors",
-                        },
-                      } as MenuItemType,
-                    ]
-                  : []),
-              ],
+              route: { name: "owner.companies" },
             } as MenuItemType,
           ]
         : []),
