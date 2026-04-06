@@ -51,7 +51,7 @@ export async function update(id: number | string, payload: RoleTemplateUpdatePay
   return res.data;
 }
 
-/** Alias de inativação (servidor define `is_active = false`, não remove a linha). */
+/** Eliminação permanente na API (requer permissão `role_templates.delete`). */
 export async function remove(id: number | string) {
   const res = await http.delete<ApiResponse>(`${base}/${id}`);
   return res.data;

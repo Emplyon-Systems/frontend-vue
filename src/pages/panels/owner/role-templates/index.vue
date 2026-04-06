@@ -24,10 +24,15 @@ const canViewTemplate = computed(
 const canEditTemplate = computed(
   () => authStore.hasRole("superadmin") || authStore.hasPermission("role_templates.update")
 );
+const canDeleteTemplate = computed(
+  () => authStore.hasRole("superadmin") || authStore.hasPermission("role_templates.delete")
+);
 const loading = ref(true);
 const templates = ref<RoleTemplateRecord[]>([]);
 const editRiskModalOpen = ref(false);
 const pendingEditId = ref<number | null>(null);
+const deleteRiskModalOpen = ref(false);
+const pendingDeleteId = ref<number | null>(null);
 
 function load() {
   loading.value = true;
@@ -73,61 +78,40 @@ function cancelEditRisk() {
   pendingEditId.value = null;
 }
 
+function openDeleteRiskModal(id: number) {
+  pendingDeleteId.value = id;
+  deleteRiskModalOpen.value = true;
+}
+
+function confirmDeleteAfterRisk() {
+  const id = pendingDeleteId.value;
+  deleteRiskModalOpen.value = false;
+  pendingDeleteId.value = null;
+  if (id == null) return;
+  roleTemplatesApi
+    .remove(id)
+    .then(() => {
+      notifySuccess("Template eliminado permanentemente.");
+      load();
+    })
+    .catch((err: unknown) => {
+      const e = err as { response?: { data?: { errors?: Record<string, string[]> } } };
+      const msg = e.response?.data?.errors?.role_template?.[0];
+      notifyError(msg ?? "Não foi possível eliminar.");
+    });
+}
+
+function cancelDeleteRisk() {
+  deleteRiskModalOpen.value = false;
+  pendingDeleteId.value = null;
+}
+
 function goCreate() {
   router.push({ name: "owner.role-templates.create" });
 }
 
 function isTemplateActive(t: RoleTemplateRecord) {
   return t.is_active !== false;
-}
-
-function confirmInactivate(t: RoleTemplateRecord) {
-  if (
-    !window.confirm(
-      `Inativar o template «${t.name}»? Ele deixa de ser usado ao criar novas filiais ou empresas; o registro permanece no banco de dados e pode ser reativado.`
-    )
-  ) {
-    return;
-  }
-  roleTemplatesApi
-    .update(t.id, { is_active: false })
-    .then(() => {
-      notifySuccess("Template inativado.");
-      load();
-    })
-    .catch((err: unknown) => {
-      const e = err as { response?: { data?: { errors?: Record<string, string[]> } } };
-      const msg = e.response?.data?.errors?.role_template?.[0];
-      notifyError(msg ?? "Não foi possível inativar.");
-    });
-}
-
-function templateById(id: number) {
-  return templates.value.find((x) => x.id === id);
-}
-
-function onActionInactivate(id: number) {
-  const t = templateById(id);
-  if (t) confirmInactivate(t);
-}
-
-function onActionReactivate(id: number) {
-  const t = templateById(id);
-  if (t) confirmReactivate(t);
-}
-
-function confirmReactivate(t: RoleTemplateRecord) {
-  roleTemplatesApi
-    .update(t.id, { is_active: true })
-    .then(() => {
-      notifySuccess("Template reativado.");
-      load();
-    })
-    .catch((err: unknown) => {
-      const e = err as { response?: { data?: { errors?: Record<string, string[]> } } };
-      const msg = e.response?.data?.errors?.role_template?.[0];
-      notifyError(msg ?? "Não foi possível reativar.");
-    });
 }
 
 onMounted(load);
@@ -176,16 +160,13 @@ onMounted(load);
                   :item-id="t.id"
                   :show-view="canViewTemplate"
                   :show-edit="canEditTemplate"
-                  :show-delete="canEditTemplate && isTemplateActive(t)"
-                  :show-restore="canEditTemplate && !isTemplateActive(t)"
+                  :show-delete="canDeleteTemplate && !t.is_locked"
                   view-title="Visualizar"
                   edit-title="Editar"
-                  delete-title="Inativar"
-                  restore-title="Reativar"
+                  delete-title="Eliminar permanentemente"
                   @view="goView"
                   @edit="openEditRiskModal"
-                  @delete="onActionInactivate"
-                  @restore="onActionReactivate"
+                  @delete="openDeleteRiskModal"
                 />
               </td>
             </tr>
@@ -221,6 +202,37 @@ onMounted(load);
         <div class="d-flex justify-content-end gap-2 w-100">
           <b-button variant="outline-secondary" @click="cancelEditRisk">Cancelar</b-button>
           <b-button variant="primary" @click="confirmEditAfterRisk">Continuar para editar</b-button>
+        </div>
+      </template>
+    </b-modal>
+
+    <b-modal
+      :model-value="deleteRiskModalOpen"
+      title="Eliminar template de perfil"
+      modal-class="role-template-edit-risk-modal"
+      header-class="border-bottom"
+      body-class="pt-3"
+      centered
+      @update:model-value="(v: boolean) => { if (!v) cancelDeleteRisk(); }"
+    >
+      <p class="fw-semibold text-body mb-2">
+        Esta ação remove o registo do template na base de dados. Não é possível recuperar.
+      </p>
+      <ul class="small text-muted mb-0 ps-3">
+        <li class="mb-2">
+          Perfis <strong>já criados</strong> a partir deste modelo <strong>mantêm-se</strong>, mas deixam de estar associados a este template (a referência é anulada).
+        </li>
+        <li class="mb-2">
+          Se criar novamente um template com o mesmo nome ou regras, terá de configurar permissões e chaves de novo; não é um «desfazer».
+        </li>
+        <li>
+          Só elimine se tiver a certeza de que este modelo já não é necessário para a sua organização.
+        </li>
+      </ul>
+      <template #footer>
+        <div class="d-flex justify-content-end gap-2 w-100">
+          <b-button variant="outline-secondary" @click="cancelDeleteRisk">Cancelar</b-button>
+          <b-button variant="danger" @click="confirmDeleteAfterRisk">Eliminar permanentemente</b-button>
         </div>
       </template>
     </b-modal>
