@@ -108,7 +108,7 @@ onBeforeUnmount(() => {
 <template>
   <UIComponentCard title="Dados da modalidade">
     <b-row class="g-3">
-      <b-col md="12">
+      <b-col v-if="!isBranchLocked" md="12">
         <b-form-group label="Filial" label-for="modality-type-branch_id">
           <select
             id="modality-type-branch_id"
@@ -144,20 +144,6 @@ onBeforeUnmount(() => {
           />
           <b-form-text v-if="!isView">O slug será gerado automaticamente a partir do nome.</b-form-text>
           <b-form-invalid-feedback v-if="errors?.name">{{ errors.name }}</b-form-invalid-feedback>
-        </b-form-group>
-      </b-col>
-      <b-col md="12">
-        <b-form-group label="Padrão" label-for="modality-type-is_default">
-          <b-form-checkbox
-            id="modality-type-is_default"
-            :model-value="!!modelValue.is_default"
-            :disabled="isView"
-            :class="{ 'is-invalid': errors?.is_default }"
-            @update:model-value="updateField('is_default', !!$event)"
-          >
-            Marcar como padrão
-          </b-form-checkbox>
-          <b-form-invalid-feedback v-if="errors?.is_default">{{ errors.is_default }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
     </b-row>

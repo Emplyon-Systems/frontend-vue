@@ -89,7 +89,13 @@ onMounted(async () => {
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Novo setor</h1>
-          <p class="text-muted mb-0 small">Criar setor vinculado a uma filial. O slug é gerado automaticamente.</p>
+          <p class="text-muted mb-0 small">
+            {{
+              branchScoped
+                ? "Criar setor nesta filial. O slug é gerado automaticamente."
+                : "Criar setor vinculado a uma filial. O slug é gerado automaticamente."
+            }}
+          </p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
       </div>

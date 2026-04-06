@@ -66,7 +66,7 @@ function formatTime(v?: string): string {
   return m ? `${m[1]}:${m[2]}` : "—";
 }
 
-// ── Gráfico 1: Donut — Composição da Equipa ─────────────────────────────────
+// ── Gráfico 1: Donut — Composição da Equipe ─────────────────────────────────
 const teamChart = computed(() => {
   const raw = [
     { label: "Gerentes",      value: managersCount.value,      color: "#ffc107" },
@@ -256,12 +256,12 @@ onMounted(loadData);
         <!-- Linha 2: Gráficos ───────────────────────────────────────────── -->
         <b-row class="g-3 mb-4">
 
-          <!-- Donut: Composição da Equipa -->
+          <!-- Donut: Composição da Equipe -->
           <b-col lg="4">
             <b-card class="border-0 shadow-sm h-100">
               <b-card-body>
                 <div class="mb-1">
-                  <h6 class="fw-semibold mb-0">Composição da Equipa</h6>
+                  <h6 class="fw-semibold mb-0">Composição da Equipe</h6>
                   <p class="text-muted small mb-0">Distribuição por tipo de perfil</p>
                 </div>
                 <VueApexCharts

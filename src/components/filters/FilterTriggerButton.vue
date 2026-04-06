@@ -21,6 +21,7 @@ const emit = defineEmits<{
   <b-button variant="coral" @click="emit('update:modelValue', !modelValue)">
     <i class="iconoir-search me-1"></i>
     {{ label }}
+    <i v-if="modelValue" class="iconoir-nav-arrow-down ms-1" aria-hidden="true"></i>
     <b-badge v-if="active" variant="primary" pill class="ms-2">Ativo</b-badge>
   </b-button>
 </template>

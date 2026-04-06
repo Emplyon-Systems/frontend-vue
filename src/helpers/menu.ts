@@ -46,6 +46,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     "sectors.delete",
     "sectors.plucks",
   ]);
+  const canEmployees = hasAny([
+    "employees.index",
+    "employees.read",
+    "employees.create",
+    "employees.update",
+    "employees.delete",
+    "employees.plucks",
+  ]);
   const canShifts = hasAny([
     "shifts.index",
     "shifts.read",
@@ -127,7 +135,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   ];
   // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canShifts || canModalityTypes || canScaleTypes)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canEmployees || canShifts || canModalityTypes || canScaleTypes)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
       if (canBranches) {
@@ -144,6 +152,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
           icon: "iconoir-folder",
           label: "Setores",
           route: { name: "branch.sectors" },
+        });
+      }
+      if (canEmployees) {
+        baseMenu.push({
+          key: "employees-list",
+          icon: "iconoir-community",
+          label: "Funcionários",
+          route: { name: "branch.employees" },
         });
       }
       if (canShifts) {
@@ -254,6 +270,16 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
                 icon: "iconoir-folder",
                 label: "Setores",
                 route: { name: path === "/company" ? "company.sectors" : "owner.sectors" },
+              } as MenuItemType,
+            ]
+          : []),
+        ...(canEmployees
+          ? [
+              {
+                key: "employees-list",
+                icon: "iconoir-community",
+                label: "Funcionários",
+                route: { name: path === "/company" ? "company.employees" : "owner.employees" },
               } as MenuItemType,
             ]
           : []),

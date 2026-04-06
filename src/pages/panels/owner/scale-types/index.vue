@@ -53,7 +53,7 @@ const listagemColumns = computed(() => [
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "slug", label: "Slug", sortable: true, align: "start" as const },
   ...(isOwnerScaleTypes.value && !isCompanyFixed.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
-  { key: "branch", label: "Filial", sortable: false, align: "start" as const },
+  ...(branchScoped.value ? [] : [{ key: "branch", label: "Filial", sortable: false, align: "start" as const }]),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
 const deleteId = ref<number | null>(null);
@@ -320,7 +320,7 @@ onMounted(async () => {
             <b-td v-if="isOwnerScaleTypes && !isCompanyFixed">
               {{ companyOptions.find((c) => c.id === (item as ScaleTypeRecord).branch?.company_id)?.name ?? (item as ScaleTypeRecord).branch?.company?.name ?? "—" }}
             </b-td>
-            <b-td>{{ (item as ScaleTypeRecord).branch?.name ?? "—" }}</b-td>
+            <b-td v-if="!branchScoped">{{ (item as ScaleTypeRecord).branch?.name ?? "—" }}</b-td>
             <b-td class="text-end">
               <TableActionButtons
                 :item-id="(item as ScaleTypeRecord).id"

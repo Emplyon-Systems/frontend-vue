@@ -571,6 +571,12 @@ const panelRoutes = [
         component: () => import("@/pages/panels/owner/companies/workspace/sectors.vue"),
       },
       {
+        path: "employees",
+        name: "owner.company.workspace.employees",
+        meta: { title: setTitle("Empresa — Funcionários"), authRequired: true, panel: "owner", permission: ["employees.index", "employees.read"] },
+        component: () => import("@/pages/panels/owner/companies/workspace/employees.vue"),
+      },
+      {
         path: "shifts",
         name: "owner.company.workspace.shifts",
         meta: { title: setTitle("Empresa — Turnos"), authRequired: true, panel: "owner", permission: ["shifts.index", "shifts.read"] },
@@ -689,6 +695,50 @@ const panelRoutes = [
       permission: "sectors.read",
     },
     component: () => import("@/pages/panels/owner/sectors/view.vue"),
+  },
+  {
+    path: "/employees",
+    name: "owner.employees",
+    meta: {
+      title: setTitle("Funcionários"),
+      authRequired: true,
+      panel: "owner",
+      permission: ["employees.index", "employees.read"],
+    },
+    component: () => import("@/pages/panels/owner/employees/index.vue"),
+  },
+  {
+    path: "/employees/create",
+    name: "owner.employees.create",
+    meta: {
+      title: setTitle("Novo funcionário"),
+      authRequired: true,
+      panel: "owner",
+      permission: "employees.create",
+    },
+    component: () => import("@/pages/panels/owner/employees/create.vue"),
+  },
+  {
+    path: "/employees/:id/edit",
+    name: "owner.employees.edit",
+    meta: {
+      title: setTitle("Editar funcionário"),
+      authRequired: true,
+      panel: "owner",
+      permission: "employees.update",
+    },
+    component: () => import("@/pages/panels/owner/employees/edit.vue"),
+  },
+  {
+    path: "/employees/:id",
+    name: "owner.employees.view",
+    meta: {
+      title: setTitle("Visualizar funcionário"),
+      authRequired: true,
+      panel: "owner",
+      permission: "employees.read",
+    },
+    component: () => import("@/pages/panels/owner/employees/view.vue"),
   },
   {
     path: "/shifts",
@@ -825,6 +875,7 @@ const panelRoutes = [
   /** Redirects de rotas planas antigas → listagem de empresas (hub empresa) */
   { path: "/branches", redirect: "/companies" },
   { path: "/sectors", redirect: "/companies" },
+  { path: "/employees", redirect: "/companies" },
   { path: "/shifts", redirect: "/companies" },
   { path: "/modality-types", redirect: "/companies" },
   { path: "/scale-types", redirect: "/companies" },
@@ -1010,6 +1061,46 @@ const panelRoutes = [
       permission: "sectors.read",
     },
     component: () => import("@/pages/panels/owner/sectors/view.vue"),
+  },
+  {
+    path: "/company/employees",
+    name: "company.employees",
+    meta: {
+      title: setTitle("Funcionários da empresa"),
+      authRequired: true,
+      permission: ["employees.index", "employees.read"],
+    },
+    component: () => import("@/pages/panels/owner/employees/index.vue"),
+  },
+  {
+    path: "/company/employees/create",
+    name: "company.employees.create",
+    meta: {
+      title: setTitle("Novo funcionário"),
+      authRequired: true,
+      permission: "employees.create",
+    },
+    component: () => import("@/pages/panels/owner/employees/create.vue"),
+  },
+  {
+    path: "/company/employees/:id/edit",
+    name: "company.employees.edit",
+    meta: {
+      title: setTitle("Editar funcionário"),
+      authRequired: true,
+      permission: "employees.update",
+    },
+    component: () => import("@/pages/panels/owner/employees/edit.vue"),
+  },
+  {
+    path: "/company/employees/:id",
+    name: "company.employees.view",
+    meta: {
+      title: setTitle("Visualizar funcionário"),
+      authRequired: true,
+      permission: "employees.read",
+    },
+    component: () => import("@/pages/panels/owner/employees/view.vue"),
   },
   {
     path: "/company/shifts",
@@ -1233,6 +1324,54 @@ const panelRoutes = [
       rolePrefix: ["filial-b"],
     },
     component: () => import("@/pages/panels/owner/sectors/view.vue"),
+  },
+  {
+    path: "/branch/employees",
+    name: "branch.employees",
+    meta: {
+      title: setTitle("Funcionários da filial"),
+      authRequired: true,
+      permission: ["employees.index", "employees.read"],
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/employees/index.vue"),
+  },
+  {
+    path: "/branch/employees/create",
+    name: "branch.employees.create",
+    meta: {
+      title: setTitle("Novo funcionário"),
+      authRequired: true,
+      permission: "employees.create",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/employees/create.vue"),
+  },
+  {
+    path: "/branch/employees/:id/edit",
+    name: "branch.employees.edit",
+    meta: {
+      title: setTitle("Editar funcionário"),
+      authRequired: true,
+      permission: "employees.update",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/employees/edit.vue"),
+  },
+  {
+    path: "/branch/employees/:id",
+    name: "branch.employees.view",
+    meta: {
+      title: setTitle("Visualizar funcionário"),
+      authRequired: true,
+      permission: "employees.read",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/employees/view.vue"),
   },
   {
     path: "/branch/shifts",

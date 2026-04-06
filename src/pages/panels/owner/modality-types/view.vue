@@ -55,7 +55,6 @@ function fillFromModalityType(data: Awaited<ReturnType<typeof modalityTypesApi.g
   form.value = {
     branch_id: mt.branch_id ?? 0,
     name: mt.name ?? "",
-    is_default: mt.is_default ?? false,
   };
 }
 
@@ -129,7 +128,13 @@ onMounted(async () => {
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
       <div v-else-if="loadingModalityType" class="text-muted">A carregar modalidade...</div>
-      <DataForm v-else v-model="form" :branch-options="branchOptions" mode="view" />
+      <DataForm
+        v-else
+        v-model="form"
+        :branch-options="branchOptions"
+        :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
+        mode="view"
+      />
     </div>
   </DefaultLayout>
 </template>

@@ -55,7 +55,9 @@ const listagemColumns = computed(() => [
   ...((isOwnerSectors.value && !isCompanyFixed.value)
     ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }]
     : []),
-  { key: "branch", label: "Filial", sortable: false, align: "start" as const },
+  ...(branchScoped.value
+    ? []
+    : [{ key: "branch", label: "Filial", sortable: false, align: "start" as const }]),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
 const deleteId = ref<number | null>(null);
@@ -281,7 +283,7 @@ onMounted(async () => {
             <b-td v-if="isOwnerSectors && !isCompanyFixed">
               {{ companyOptions.find((c) => c.id === (item as SectorRecord).branch?.company_id)?.name ?? "—" }}
             </b-td>
-            <b-td>{{ (item as SectorRecord).branch?.name ?? "—" }}</b-td>
+            <b-td v-if="!branchScoped">{{ (item as SectorRecord).branch?.name ?? "—" }}</b-td>
             <b-td class="text-end">
               <TableActionButtons
                 :item-id="(item as SectorRecord).id"

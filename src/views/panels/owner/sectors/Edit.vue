@@ -17,6 +17,12 @@ const sectorId = computed(() => Number(route.params.id));
 const routeName = computed(() => String(route.name ?? ""));
 const companyScoped = computed(() => routeName.value.startsWith("company."));
 const branchScoped = computed(() => routeName.value.startsWith("branch."));
+const currentBranchId = computed(() => {
+  if (!branchScoped.value) return 0;
+  const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
+  if (fromContext > 0) return fromContext;
+  return Number(authStore.user?.branches?.[0]?.id ?? 0);
+});
 
 function sectorsListRoute() {
   return branchScoped.value ? "branch.sectors" : companyScoped.value ? "company.sectors" : "owner.sectors";
@@ -109,7 +115,7 @@ onMounted(async () => {
           v-model="form"
           :errors="errors"
           :branch-options="branchOptions"
-          :lock-branch-id="null"
+          :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
           mode="edit"
           @clear-error="clearError"
         >

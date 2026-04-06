@@ -55,6 +55,8 @@ export interface UserRecord {
   permissions?: RolePermission[];
   companies?: UserCompany[];
   branches?: UserBranch[];
+  /** Funcionário vinculado ao utilizador nesta filial (listagem com filtro por filial). */
+  employee?: { id: number; user_id?: number; name?: string } | null;
   sectors?: Array<{
     id: number;
     name: string;
@@ -160,6 +162,53 @@ export interface BranchRecord {
     pivot?: { is_primary?: boolean };
   }>;
   sectors?: Array<{ id: number; name: string; slug: string }>;
+}
+
+export interface EmployeeBranchPivot {
+  sector_id: number;
+  is_primary?: boolean;
+}
+
+export interface EmployeeRecord {
+  id: number;
+  company_id: number;
+  user_id?: number | null;
+  name: string;
+  cpf: string;
+  email: string;
+  phone: string;
+  job_title: string;
+  street?: string | null;
+  street_number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  zip_code?: string | null;
+  city?: string | null;
+  state?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  company?: {
+    id: number;
+    name?: string;
+  } | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  branches?: Array<{
+    id: number;
+    name?: string;
+    company_id?: number;
+    pivot?: EmployeeBranchPivot;
+    pivot_sector?: {
+      id: number;
+      branch_id?: number;
+      name: string;
+      slug?: string;
+    } | null;
+  }>;
 }
 
 export interface SectorRecord {

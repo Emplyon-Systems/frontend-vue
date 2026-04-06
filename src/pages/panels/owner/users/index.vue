@@ -95,15 +95,24 @@ const hasActiveFilters = computed(
     !!appliedFilters.value.created_at_until
 );
 
-const listagemColumns = [
+const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "email", label: "E-mail", sortable: true, align: "start" as const },
   { key: "status", label: "Status", sortable: false, align: "start" as const },
   { key: "company", label: "Empresa", sortable: false, align: "start" as const },
   { key: "roles", label: "Perfis", sortable: false, align: "start" as const },
+  ...(isBranchContext.value
+    ? [{ key: "employee", label: "Funcionário", sortable: false, align: "start" as const }]
+    : []),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
-];
+]);
+const canOpenEmployee = computed(
+  () =>
+    authStore.hasPermission("employees.read") ||
+    authStore.hasPermission("employees.index") ||
+    authStore.hasPermission("employees.update")
+);
 
 const resultLabel = computed(() => {
   const n = pagination.value.total;
@@ -431,6 +440,19 @@ onMounted(() => {
                   {{ r.name }}
                 </b-badge>
               </span>
+              <span v-else class="text-muted">—</span>
+            </b-td>
+            <b-td v-if="isBranchContext">
+              <template v-if="(item as UserRecord).employee?.id">
+                <router-link
+                  v-if="canOpenEmployee"
+                  :to="{ name: 'branch.employees.view', params: { id: String((item as UserRecord).employee!.id) } }"
+                  class="text-decoration-none"
+                >
+                  {{ (item as UserRecord).employee?.name ?? `Funcionário #${(item as UserRecord).employee?.id}` }}
+                </router-link>
+                <span v-else>{{ (item as UserRecord).employee?.name ?? `Funcionário #${(item as UserRecord).employee?.id}` }}</span>
+              </template>
               <span v-else class="text-muted">—</span>
             </b-td>
             <b-td class="text-end">

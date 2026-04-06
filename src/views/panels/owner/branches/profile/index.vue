@@ -42,6 +42,9 @@
               <b-tab title="Setores">
                 <BranchSectorsTab :sectors="sectors" />
               </b-tab>
+              <b-tab v-if="showEmployeesTab && branchId" title="Funcionários">
+                <BranchEmployeesTab :branch-id="branchId" />
+              </b-tab>
             </b-tabs>
           </b-card-body>
         </b-card>
@@ -55,6 +58,7 @@ import ProfileInfo from "./ProfileInfo.vue";
 import BranchInformation from "./BranchInformation.vue";
 import BranchUsersTab from "./BranchUsersTab.vue";
 import BranchSectorsTab from "./BranchSectorsTab.vue";
+import BranchEmployeesTab from "./BranchEmployeesTab.vue";
 import type { BranchRecord } from "@/types/api";
 
 withDefaults(
@@ -75,6 +79,10 @@ withDefaults(
     onEdit?: () => void;
     userLimit?: number | null;
     usersUsedDisplay?: number | null;
+    /** ID da filial (para a aba Funcionários). */
+    branchId?: number;
+    /** Ex.: superadmin — lista API de funcionários desta filial. */
+    showEmployeesTab?: boolean;
   }>(),
   {
     users: () => [],
@@ -82,6 +90,8 @@ withDefaults(
     sectors: () => [],
     userLimit: null,
     usersUsedDisplay: null,
+    branchId: 0,
+    showEmployeesTab: false,
   }
 );
 </script>

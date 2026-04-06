@@ -10,7 +10,6 @@ const requiredText = (label: string, max: number) =>
 const modalityTypeBaseSchema = z.object({
   branch_id: z.number({ required_error: "Filial é obrigatória." }).int().positive("Filial é obrigatória."),
   name: requiredText("Nome", 255),
-  is_default: z.boolean().optional(),
 });
 
 export const modalityTypeCreateSchema = modalityTypeBaseSchema;
@@ -25,7 +24,6 @@ export type ModalityTypeFieldErrors = Partial<Record<keyof ModalityTypeFormData,
 export const modalityTypeInitialForm = (): ModalityTypeFormData => ({
   branch_id: 0,
   name: "",
-  is_default: false,
 });
 
 function toFieldErrors(error: z.ZodError): ModalityTypeFieldErrors {

@@ -11,7 +11,7 @@ import ModalityTypesFilter from "@/views/panels/owner/modality-types/Filter.vue"
 import type { ModalityTypesFilterModel } from "@/views/panels/owner/modality-types/Filter.vue";
 import { modalityTypesApi, branchesApi, companiesApi } from "@/api/resources";
 import type { ModalityTypeRecord } from "@/types/api";
-import { notifySuccess } from "@/helpers/notify";
+import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -52,13 +52,14 @@ const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "slug", label: "Slug", sortable: true, align: "start" as const },
-  { key: "is_default", label: "Padrão", sortable: false, align: "start" as const },
+  { key: "is_default", label: "Modalidade padrão", sortable: false, align: "start" as const },
   ...(isOwnerModalityTypes.value && !isCompanyFixed.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
-  { key: "branch", label: "Filial", sortable: false, align: "start" as const },
+  ...(branchScoped.value ? [] : [{ key: "branch", label: "Filial", sortable: false, align: "start" as const }]),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
+const defaultToggleBusyId = ref<number | null>(null);
 const showFilters = ref(false);
 const hasActiveFilters = computed(
   () =>
@@ -255,6 +256,28 @@ function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir
   loadList(1);
 }
 
+function onToggleDefault(item: ModalityTypeRecord, value: boolean) {
+  if (!canUpdate.value) return;
+  const id = item.id;
+  defaultToggleBusyId.value = id;
+  modalityTypesApi
+    .update(id, { is_default: value })
+    .then(() => {
+      notifySuccess(value ? "Modalidade definida como padrão." : "Modalidade já não é a padrão.");
+      loadList(pagination.value.current_page);
+    })
+    .catch((err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? String((err as { response?: { data?: { message?: string } } }).response?.data?.message ?? "")
+          : "";
+      notifyError(msg || "Não foi possível atualizar a modalidade padrão.");
+    })
+    .finally(() => {
+      defaultToggleBusyId.value = null;
+    });
+}
+
 onMounted(async () => {
   if (branchScoped.value && currentBranchId.value > 0) {
     filters.value.branch_ids = [currentBranchId.value];
@@ -318,11 +341,20 @@ onMounted(async () => {
             <b-td>{{ (item as ModalityTypeRecord).id }}</b-td>
             <b-td>{{ (item as ModalityTypeRecord).name }}</b-td>
             <b-td><code>{{ (item as ModalityTypeRecord).slug }}</code></b-td>
-            <b-td>{{ (item as ModalityTypeRecord).is_default ? "Sim" : "Não" }}</b-td>
+            <b-td>
+              <b-form-checkbox
+                switch
+                class="mb-0"
+                :model-value="!!(item as ModalityTypeRecord).is_default"
+                :disabled="!canUpdate || defaultToggleBusyId === (item as ModalityTypeRecord).id"
+                :aria-label="`Modalidade padrão: ${(item as ModalityTypeRecord).name}`"
+                @update:model-value="(v: boolean | string) => onToggleDefault(item as ModalityTypeRecord, !!v)"
+              />
+            </b-td>
             <b-td v-if="isOwnerModalityTypes && !isCompanyFixed">
               {{ companyOptions.find((c) => c.id === (item as ModalityTypeRecord).branch?.company_id)?.name ?? (item as ModalityTypeRecord).branch?.company?.name ?? "—" }}
             </b-td>
-            <b-td>{{ (item as ModalityTypeRecord).branch?.name ?? "—" }}</b-td>
+            <b-td v-if="!branchScoped">{{ (item as ModalityTypeRecord).branch?.name ?? "—" }}</b-td>
             <b-td class="text-end">
               <TableActionButtons
                 :item-id="(item as ModalityTypeRecord).id"

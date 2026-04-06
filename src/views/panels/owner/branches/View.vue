@@ -40,6 +40,8 @@ const branchUserLimit = ref<number | null>(null);
 const branchUsersUsedDisplay = ref<number | null>(null);
 const sectors = ref<BranchRecord["sectors"]>([]);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
+/** Aba Funcionários na vista da filial: superadmin (pedido de produto). */
+const showBranchEmployeesTab = computed(() => authStore.hasRole("superadmin"));
 
 function back() {
   if (branchScoped.value) {
@@ -162,6 +164,8 @@ onMounted(async () => {
         :sectors="sectors"
         :subtitle="companyOptions.find((c) => c.id === form.company_id)?.name || ''"
         :onEdit="canEditBranch ? goEdit : undefined"
+        :branch-id="branchId"
+        :show-employees-tab="showBranchEmployeesTab"
       />
     </div>
   </DefaultLayout>

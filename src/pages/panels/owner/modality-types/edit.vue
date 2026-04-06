@@ -53,7 +53,6 @@ function fillFormFromModalityType(data: Awaited<ReturnType<typeof modalityTypesA
   form.value = {
     branch_id: mt.branch_id ?? 0,
     name: mt.name ?? "",
-    is_default: mt.is_default ?? false,
   };
 }
 
@@ -84,7 +83,6 @@ function submit() {
 
   loading.value = true;
   const payload = { ...validation.data };
-  if (payload.is_default === undefined) delete payload.is_default;
 
   modalityTypesApi
     .update(modalityTypeId.value, payload)

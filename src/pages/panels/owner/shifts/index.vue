@@ -52,9 +52,10 @@ const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "slug", label: "Slug", sortable: true, align: "start" as const },
-  { key: "schedule", label: "Horário", sortable: false, align: "start" as const },
+  { key: "start_time", label: "Horário início", sortable: true, align: "start" as const },
+  { key: "end_time", label: "Horário fim", sortable: true, align: "start" as const },
   ...((isOwnerShifts.value || isOwnerWorkspace.value) && !isCompanyFixed.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
-  { key: "branch", label: "Filial", sortable: false, align: "start" as const },
+  ...(branchScoped.value ? [] : [{ key: "branch", label: "Filial", sortable: false, align: "start" as const }]),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
 const deleteId = ref<number | null>(null);
@@ -324,13 +325,12 @@ onMounted(async () => {
             <b-td>{{ (item as ShiftRecord).id }}</b-td>
             <b-td>{{ (item as ShiftRecord).name }}</b-td>
             <b-td><code>{{ (item as ShiftRecord).slug }}</code></b-td>
-            <b-td>
-              {{ formatTime((item as ShiftRecord).start_time) }} – {{ formatTime((item as ShiftRecord).end_time) }}
-            </b-td>
+            <b-td>{{ formatTime((item as ShiftRecord).start_time) }}</b-td>
+            <b-td>{{ formatTime((item as ShiftRecord).end_time) }}</b-td>
             <b-td v-if="(isOwnerShifts || isOwnerWorkspace) && !isCompanyFixed">
               {{ companyOptions.find((c) => c.id === (item as ShiftRecord).branch?.company_id)?.name ?? (item as ShiftRecord).branch?.company?.name ?? "—" }}
             </b-td>
-            <b-td>{{ (item as ShiftRecord).branch?.name ?? "—" }}</b-td>
+            <b-td v-if="!branchScoped">{{ (item as ShiftRecord).branch?.name ?? "—" }}</b-td>
             <b-td class="text-end">
               <TableActionButtons
                 :item-id="(item as ShiftRecord).id"

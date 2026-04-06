@@ -38,6 +38,12 @@ const tabs = computed<TabDef[]>(() => {
       visible: isSuperadmin || canAny(["sectors.index", "sectors.read"]),
     },
     {
+      key: "employees",
+      label: "Funcionários",
+      name: "owner.company.workspace.employees",
+      visible: isSuperadmin || canAny(["employees.index", "employees.read"]),
+    },
+    {
       key: "shifts",
       label: "Turnos",
       name: "owner.company.workspace.shifts",

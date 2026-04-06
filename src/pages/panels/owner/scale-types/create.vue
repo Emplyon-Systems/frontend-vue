@@ -105,7 +105,11 @@ onMounted(async () => {
         <div>
           <h1 class="h4 mb-1">Novo tipo de escala</h1>
           <p class="text-muted mb-0 small">
-            Criar tipo de escala vinculado a uma filial. O slug é gerado automaticamente.
+            {{
+              branchScoped
+                ? "Criar tipo de escala nesta filial. O slug é gerado automaticamente."
+                : "Criar tipo de escala vinculado a uma filial. O slug é gerado automaticamente."
+            }}
           </p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>

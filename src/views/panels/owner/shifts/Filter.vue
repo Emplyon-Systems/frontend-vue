@@ -231,6 +231,7 @@ onBeforeUnmount(() => {
           </div>
         </b-form-group>
       </b-col>
+      <div class="w-100" aria-hidden="true" />
       <b-col md="6">
         <b-form-group label="Data de cadastro de" label-for="filter-shift-created-from">
           <b-form-input

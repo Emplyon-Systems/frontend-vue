@@ -52,7 +52,6 @@ function submit() {
 
   loading.value = true;
   const payload = { ...validation.data };
-  if (payload.is_default === undefined) delete payload.is_default;
 
   modalityTypesApi
     .create(payload)
@@ -108,7 +107,11 @@ onMounted(async () => {
         <div>
           <h1 class="h4 mb-1">Nova modalidade</h1>
           <p class="text-muted mb-0 small">
-            Criar tipo de modalidade vinculado a uma filial. O slug é gerado automaticamente.
+            {{
+              branchScoped
+                ? "Criar tipo de modalidade nesta filial. O slug é gerado automaticamente."
+                : "Criar tipo de modalidade vinculado a uma filial. O slug é gerado automaticamente."
+            }}
           </p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
