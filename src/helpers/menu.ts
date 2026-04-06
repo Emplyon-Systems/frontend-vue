@@ -89,6 +89,24 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   if (hasAny(["roles.index", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.plucks"])) {
     systemChildren.push({ key: "roles", icon: "iconoir-shield", label: "Perfis", route: { name: "owner.roles" } });
   }
+  /** Superadmin vê sempre; outros precisam das permissões (payload /me pode não listar tudo até novo login após seed). */
+  if (
+    isSuperadmin ||
+    hasAny([
+      "role_templates.index",
+      "role_templates.read",
+      "role_templates.update",
+      "role_templates.create",
+      "role_templates.delete",
+    ])
+  ) {
+    systemChildren.push({
+      key: "role-templates",
+      icon: "iconoir-book-stack",
+      label: "Templates de perfil",
+      route: { name: "owner.role-templates" },
+    });
+  }
   if (hasAny(["audits.index", "audits.read"])) {
     systemChildren.push({ key: "audits", icon: "iconoir-database", label: "Auditoria", route: { name: "owner.audits" } });
   }

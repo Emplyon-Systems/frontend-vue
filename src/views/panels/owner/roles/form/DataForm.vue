@@ -51,6 +51,7 @@ const permissionModuleLabels: Record<string, string> = {
   employees: "Funcionários",
   modality_types: "Modalidades",
   permissions: "Permissões",
+  role_templates: "Templates de perfil",
   scale_types: "Tipos de escala",
   roles: "Perfis",
   sectors: "Setores",

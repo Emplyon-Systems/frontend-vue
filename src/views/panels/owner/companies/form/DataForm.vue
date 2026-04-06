@@ -150,6 +150,7 @@ function generateRandomPassword(length = 12): void {
 
 <template>
   <div>
+    <b-alert v-if="errors.company" show variant="danger" class="mb-3">{{ errors.company }}</b-alert>
     <UIComponentCard title="Dados da empresa">
       <b-row>
         <b-col md="6">

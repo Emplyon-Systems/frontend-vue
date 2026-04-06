@@ -600,12 +600,6 @@ const panelRoutes = [
         meta: { title: setTitle("Empresa — Usuarios"), authRequired: true, panel: "owner", permission: ["users.index", "users.read"] },
         component: () => import("@/pages/panels/owner/companies/workspace/users.vue"),
       },
-      {
-        path: "demo/:slot",
-        name: "owner.company.workspace.demo",
-        meta: { title: setTitle("Empresa — Exemplo"), authRequired: true, panel: "owner", permission: "companies.read" },
-        component: () => import("@/pages/panels/owner/companies/workspace/placeholder-section.vue"),
-      },
     ],
   },
   {
@@ -898,6 +892,42 @@ const panelRoutes = [
       permission: ["roles.read", "roles.update", "roles.create"],
     },
     component: () => import("@/pages/panels/owner/roles/form.vue"),
+  },
+  {
+    path: "/role-templates",
+    name: "owner.role-templates",
+    meta: {
+      title: setTitle("Templates de perfil (empresas e filiais)"),
+      authRequired: true,
+      permission: [
+        "role_templates.index",
+        "role_templates.read",
+        "role_templates.update",
+        "role_templates.create",
+        "role_templates.delete",
+      ],
+    },
+    component: () => import("@/pages/panels/owner/role-templates/index.vue"),
+  },
+  {
+    path: "/role-templates/create",
+    name: "owner.role-templates.create",
+    meta: {
+      title: setTitle("Novo template de perfil"),
+      authRequired: true,
+      permission: ["role_templates.create"],
+    },
+    component: () => import("@/pages/panels/owner/role-templates/create.vue"),
+  },
+  {
+    path: "/role-templates/:id/edit",
+    name: "owner.role-templates.edit",
+    meta: {
+      title: setTitle("Editar template de perfil"),
+      authRequired: true,
+      permission: ["role_templates.index", "role_templates.read", "role_templates.update"],
+    },
+    component: () => import("@/pages/panels/owner/role-templates/edit.vue"),
   },
   {
     path: "/audits",

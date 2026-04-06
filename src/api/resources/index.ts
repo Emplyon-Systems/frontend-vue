@@ -4,6 +4,7 @@ export * as companiesApi from "./companies";
 export * as employeesApi from "./employees";
 export * as modalityTypesApi from "./modality-types";
 export * as permissionsApi from "./permissions";
+export * as roleTemplatesApi from "./role-templates";
 export * as rolesApi from "./roles";
 export * as scaleTypesApi from "./scale-types";
 export * as sectorsApi from "./sectors";

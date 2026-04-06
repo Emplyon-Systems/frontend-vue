@@ -5,17 +5,22 @@ const props = withDefaults(
     showView?: boolean;
     showEdit?: boolean;
     showDelete?: boolean;
+    /** Ex.: reativar registro inativado (mesmo estilo dos outros botões). */
+    showRestore?: boolean;
     viewTitle?: string;
     editTitle?: string;
     deleteTitle?: string;
+    restoreTitle?: string;
   }>(),
   {
     showView: true,
     showEdit: true,
     showDelete: true,
+    showRestore: false,
     viewTitle: "Visualizar",
     editTitle: "Editar",
     deleteTitle: "Eliminar",
+    restoreTitle: "Reativar",
   }
 );
 
@@ -23,6 +28,7 @@ const emit = defineEmits<{
   (e: "view", id: number): void;
   (e: "edit", id: number): void;
   (e: "delete", id: number): void;
+  (e: "restore", id: number): void;
 }>();
 </script>
 
@@ -70,6 +76,20 @@ const emit = defineEmits<{
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
           <path d="M20 9L18.005 20.3463C17.8369 21.3026 17.0062 22 16.0353 22H7.96474C6.99379 22 6.1631 21.3026 5.99496 20.3463L4 9" />
           <path d="M21 6L15.375 6M3 6L8.625 6M8.625 6V4C8.625 2.89543 9.52043 2 10.625 2H13.375C14.4796 2 15.375 2.89543 15.375 4V6M8.625 6L15.375 6" />
+        </svg>
+      </span>
+    </b-button>
+    <b-button
+      v-if="showRestore"
+      size="sm"
+      variant="outline-success"
+      class="btn-action"
+      :title="restoreTitle"
+      @click="emit('restore', itemId)"
+    >
+      <span class="icon-svg" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 12a8 8 0 0 1 8-8V2l4 3.5L12 9V6a6 6 0 1 0 6 6" />
         </svg>
       </span>
     </b-button>

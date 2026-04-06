@@ -250,6 +250,7 @@ onBeforeUnmount(() => {
     </b-card-body>
   </b-card>
   <UIComponentCard v-else title="Dados da filial">
+    <b-alert v-if="errors.branch" show variant="danger" class="mb-3">{{ errors.branch }}</b-alert>
     <b-row>
       <b-col md="6">
         <b-form-group label-for="branch-company-id" class="mb-3">

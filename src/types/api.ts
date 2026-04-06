@@ -91,6 +91,24 @@ export interface PermissionRecord {
   description?: string | null;
 }
 
+/** Template de perfil automático (ex.: ao criar filial). */
+export interface RoleTemplateRecord {
+  id: number;
+  key: string;
+  name: string;
+  description?: string | null;
+  provision_scope: string;
+  auto_provision: boolean;
+  slug_prefix: string;
+  sort_order: number;
+  is_locked: boolean;
+  /** Se false, não entra no provisionamento automático (linha mantida na BD). */
+  is_active: boolean;
+  /** Se true (escopo empresa), o utilizador criado com a empresa recebe este perfil. */
+  assigns_company_owner?: boolean;
+  permissions?: RolePermission[];
+}
+
 export interface CompanyRecord {
   id: number;
   name: string;

@@ -15,8 +15,7 @@ const companyId = computed(() => {
 
 const companyName = ref("");
 
-/** `extraParams` só para rotas com mais parâmetros (ex.: demo/:slot). */
-type TabDef = { key: string; label: string; name: string; visible?: boolean; extraParams?: Record<string, string> };
+type TabDef = { key: string; label: string; name: string; visible?: boolean };
 
 const tabs = computed<TabDef[]>(() => {
   const can = (slug: string) => authStore.hasPermission(slug);
@@ -69,29 +68,15 @@ const tabs = computed<TabDef[]>(() => {
     },
   ];
 
-  /** Abas só para testar scroll (placeholder). Remover o bloco quando não precisares. */
-  const demoTabs: TabDef[] = Array.from({ length: 10 }, (_, i) => ({
-    key: `demo-${i + 1}`,
-    label: `Exemplo ${i + 1}`,
-    name: "owner.company.workspace.demo",
-    visible: true,
-    extraParams: { slot: String(i + 1) },
-  }));
-
-  return [...main.filter((t) => t.visible !== false), ...demoTabs];
+  return main.filter((t) => t.visible !== false);
 });
 
 function tabTo(tab: TabDef) {
-  const base: Record<string, string> = { id: String(companyId.value) };
-  if (tab.extraParams) Object.assign(base, tab.extraParams);
-  return { name: tab.name, params: base };
+  return { name: tab.name, params: { id: String(companyId.value) } };
 }
 
 function isTabActive(tab: TabDef): boolean {
   const n = String(route.name ?? "");
-  if (tab.extraParams?.slot != null) {
-    return n === tab.name && String(route.params.slot ?? "") === tab.extraParams.slot;
-  }
   return n === tab.name || n.startsWith(`${tab.name}.`);
 }
 

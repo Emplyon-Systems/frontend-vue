@@ -39,7 +39,7 @@ const lockCompanyId = computed<number | null>(() => {
 const loading = ref(false);
 const form = ref<BranchFormData>(branchInitialForm());
 const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
-  toastFieldPriority: ["company_id", "general"],
+  toastFieldPriority: ["branch", "company_id", "general"],
 });
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 
