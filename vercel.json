@@ -5,6 +5,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://serveremplyon.cloud/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
