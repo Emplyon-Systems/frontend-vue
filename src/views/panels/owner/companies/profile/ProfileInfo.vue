@@ -89,14 +89,10 @@ const branchesDisplay = computed(() => {
 </script>
 
 <style scoped>
-.profile-logo-frame,
-.profile-logo-placeholder {
+.profile-logo-frame {
   width: min(100%, 280px);
   height: 128px;
   border-radius: 0.5rem;
-}
-
-.profile-logo-frame {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -113,8 +109,16 @@ const branchesDisplay = computed(() => {
   display: block;
 }
 
+/* Quadrado fixo: evita retângulo alto/estreito na coluna quando não há imagem. */
 .profile-logo-placeholder {
-  font-size: 2.25rem;
+  width: 112px;
+  height: 112px;
+  min-width: 112px;
+  min-height: 112px;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  font-size: 2.5rem;
   font-weight: 600;
+  line-height: 1;
 }
 </style>
