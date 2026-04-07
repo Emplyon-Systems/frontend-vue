@@ -107,7 +107,13 @@ onMounted(async () => {
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Novo turno</h1>
-          <p class="text-muted mb-0 small">Criar turno vinculado a uma filial.</p>
+          <p class="text-muted mb-0 small">
+            {{
+              branchScoped
+                ? "Criar turno nesta filial. O slug é gerado automaticamente."
+                : "Criar turno vinculado a uma filial."
+            }}
+          </p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
       </div>
@@ -126,7 +132,7 @@ onMounted(async () => {
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

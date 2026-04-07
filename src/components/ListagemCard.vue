@@ -32,7 +32,7 @@ const props = withDefaults(
     orderBy: "id",
     orderDir: "desc",
     hasActiveFilters: false,
-    emptyMessage: "Nenhum registo encontrado.",
+    emptyMessage: "Nenhum registro encontrado.",
     resultBadgeClass: "result-badge-default",
   }
 );
@@ -82,7 +82,7 @@ function thClass(col: ListagemColumn) {
       </div>
     </b-card-header>
     <b-card-body class="pt-0">
-      <div v-if="loading" class="text-center py-4 text-muted">A carregar...</div>
+      <div v-if="loading" class="text-center py-4 text-muted">Carregando...</div>
       <div v-else class="table-responsive">
         <b-table-simple responsive striped hover class="mb-0">
           <b-thead>

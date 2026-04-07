@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import DataForm from "./form/DataForm.vue";
@@ -10,15 +10,45 @@ import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+/** Perfis vêm de `rolesApi.list` filtrado por empresa/filial; sem `company_ids` o backend só devolve perfis globais (null company/branch). */
+function buildInitialForm(): UserFormData {
+  const base = userInitialForm("create");
+  const qCid = route.query.company_id;
+  const qBid = route.query.branch_id;
+  if (qCid != null && String(qCid).trim() !== "") {
+    const cid = Number(qCid);
+    if (Number.isFinite(cid) && cid > 0) {
+      let next: UserFormData = { ...base, company_ids: [cid] };
+      if (qBid != null && String(qBid).trim() !== "") {
+        const bid = Number(qBid);
+        if (Number.isFinite(bid) && bid > 0) next = { ...next, branch_ids: [bid] };
+      }
+      return next;
+    }
+  }
+  if (!authStore.hasRole("superadmin") && authStore.activeContext?.company_id) {
+    const cid = Number(authStore.activeContext.company_id);
+    if (Number.isFinite(cid) && cid > 0) {
+      let next: UserFormData = { ...base, company_ids: [cid] };
+      const bid = authStore.activeContext.branch_id != null ? Number(authStore.activeContext.branch_id) : 0;
+      if (Number.isFinite(bid) && bid > 0) next = { ...next, branch_ids: [bid] };
+      return next;
+    }
+  }
+  return base;
+}
+
 const loading = ref(false);
 const roleOptions = ref<{ id: number; name: string; slug?: string; permission_ids?: number[] }[]>([]);
 const permissionOptions = ref<{ id: number; name: string; slug?: string }[]>([]);
 const companyOptions = ref<{ id: number; name: string }[]>([]);
 const branchOptions = ref<{ id: number; company_id?: number; name: string; company_name?: string }[]>([]);
 const sectorOptions = ref<{ id: number; branch_id: number; name: string; slug?: string }[]>([]);
-const form = ref<UserFormData>(userInitialForm("create"));
+const form = ref<UserFormData>(buildInitialForm());
 const {
   errors,
   submitAttempt,
@@ -65,7 +95,12 @@ function submit() {
 
   const selectedRoleIds = new Set(validation.data.roles ?? []);
   const selectedRoles = roleOptions.value.filter((role) => selectedRoleIds.has(role.id));
-  const hasManager = selectedRoles.some((role) => role.slug === "branch_manager" || role.slug?.startsWith("filial-b"));
+  const hasManager = selectedRoles.some(
+    (role) =>
+      role.slug === "branch_manager" ||
+      role.slug?.startsWith("filial-b") ||
+      role.slug?.startsWith("setor-b")
+  );
   const hasCollaborator = selectedRoles.some((role) => role.slug === "colaborador" || role.slug?.startsWith("colaborador-b"));
   if (hasManager && hasCollaborator) {
     errors.value = {
@@ -277,7 +312,7 @@ watch(
           <b-row>
             <b-col class="d-flex gap-2">
               <b-button type="submit" variant="primary" :disabled="loading">
-                {{ loading ? "A guardar..." : "Guardar" }}
+                {{ loading ? "Salvando..." : "Salvar" }}
               </b-button>
               <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
             </b-col>

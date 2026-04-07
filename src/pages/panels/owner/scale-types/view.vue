@@ -127,8 +127,14 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingScaleType" class="text-muted">A carregar tipo de escala...</div>
-      <DataForm v-else v-model="form" :branch-options="branchOptions" mode="view" />
+      <div v-else-if="loadingScaleType" class="text-muted">Carregando tipo de escala...</div>
+      <DataForm
+        v-else
+        v-model="form"
+        :branch-options="branchOptions"
+        :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
+        mode="view"
+      />
     </div>
   </DefaultLayout>
 </template>

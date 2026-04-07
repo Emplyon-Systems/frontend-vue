@@ -34,7 +34,7 @@
             <summary class="d-flex align-items-center justify-content-between px-3 py-2 cursor-pointer user-select-none">
               <strong>{{ group.moduleLabel }}</strong>
               <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-light text-dark border">{{ group.permissions.length }}</span>
+                <span class="badge bg-light text-dark border">{{ group.total }}</span>
                 <i
                   class="iconoir-nav-arrow-down"
                   :style="{
@@ -45,21 +45,45 @@
               </div>
             </summary>
             <div class="px-3 pb-3">
-              <b-row>
-                <b-col
-                  v-for="permission in group.permissions"
-                  :key="permission.slug"
-                  cols="12"
-                  md="6"
-                  lg="4"
-                  class="mb-2"
+              <template v-if="group.kind === 'employees'">
+                <div
+                  v-for="section in group.sections"
+                  :key="section.sectionKey"
+                  class="border rounded p-3 mb-3 bg-light bg-opacity-50"
                 >
-                  <div class="border rounded px-2 py-1 h-100">
-                    <p class="mb-0 fw-medium">{{ permission.name }}</p>
-                    <small class="text-muted">{{ permission.slug }}</small>
-                  </div>
-                </b-col>
-              </b-row>
+                  <div class="fw-semibold text-body mb-2">{{ section.sectionLabel }}</div>
+                  <b-row>
+                    <b-col
+                      v-for="permission in section.permissions"
+                      :key="permission.slug"
+                      cols="12"
+                      md="6"
+                      lg="4"
+                      class="mb-2"
+                    >
+                      <div class="border rounded px-2 py-1 h-100 bg-white">
+                        <p class="mb-0 fw-medium">{{ permission.name }}</p>
+                      </div>
+                    </b-col>
+                  </b-row>
+                </div>
+              </template>
+              <template v-else>
+                <b-row>
+                  <b-col
+                    v-for="permission in group.permissions"
+                    :key="permission.slug"
+                    cols="12"
+                    md="6"
+                    lg="4"
+                    class="mb-2"
+                  >
+                    <div class="border rounded px-2 py-1 h-100">
+                      <p class="mb-0 fw-medium">{{ permission.name }}</p>
+                    </div>
+                  </b-col>
+                </b-row>
+              </template>
             </div>
           </details>
         </div>
@@ -71,25 +95,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { buildGroupedReadOnlyModules, type PermissionReadItem } from "@/helpers/permissionModuleGroups";
 
 type PermissionItem = { name: string; slug: string };
-
-const permissionModuleLabels: Record<string, string> = {
-  audits: "Auditoria",
-  branches: "Filiais",
-  companies: "Empresas",
-  modality_types: "Modalidades",
-  permissions: "Permissões",
-  scale_types: "Tipos de escala",
-  roles: "Perfis",
-  sectors: "Setores",
-  shifts: "Turnos",
-  users: "Usuários",
-};
-
-function getModuleLabel(moduleName: string): string {
-  return permissionModuleLabels[moduleName] ?? moduleName;
-}
 
 const props = withDefaults(
   defineProps<{
@@ -115,20 +123,11 @@ function onGroupToggle(moduleName: string, event: Event): void {
 
 const groupedPermissions = computed(() => {
   const directSlugs = new Set((props.directPermissions ?? []).map((p) => p.slug));
-  const groups = new Map<string, PermissionItem[]>();
+  const merged: PermissionReadItem[] = [];
   for (const permission of props.permissions) {
     if (directSlugs.has(permission.slug)) continue;
-    const moduleName = permission.slug?.split(".")?.[0] || "geral";
-    if (!groups.has(moduleName)) groups.set(moduleName, []);
-    groups.get(moduleName)!.push(permission);
+    merged.push({ name: permission.name, slug: permission.slug });
   }
-
-  return [...groups.entries()]
-    .sort(([a], [b]) => getModuleLabel(a).localeCompare(getModuleLabel(b)))
-    .map(([moduleName, permissions]) => ({
-      moduleName,
-      moduleLabel: getModuleLabel(moduleName),
-      permissions: [...permissions].sort((a, b) => a.name.localeCompare(b.name)),
-    }));
+  return buildGroupedReadOnlyModules(merged);
 });
 </script>

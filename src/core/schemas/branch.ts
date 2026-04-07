@@ -15,7 +15,7 @@ function toHhMm(time: string): string {
 }
 
 const branchBaseSchema = z.object({
-  company_id: z.number({ required_error: "Empresa é obrigatória." }).int().positive("Empresa é obrigatória."),
+  company_id: z.number({ error: "Empresa é obrigatória." }).int().positive("Empresa é obrigatória."),
   name: requiredText("Nome", 255),
   cnpj: requiredText("CNPJ", 18),
   zip_code: requiredText("CEP", 9),
@@ -28,7 +28,6 @@ const branchBaseSchema = z.object({
   expedient_end_time: timeSchema,
   store_open_time: timeSchema,
   store_close_time: timeSchema,
-  user_limit: z.coerce.number().int().min(0, "Utilize 0 quando não houver vagas no plano."),
 });
 
 export const branchCreateSchema = branchBaseSchema;
@@ -39,17 +38,6 @@ export type BranchCreateData = z.output<typeof branchCreateSchema>;
 export type BranchEditData = z.output<typeof branchEditSchema>;
 export type BranchFormMode = "create" | "edit";
 export type BranchFieldErrors = Partial<Record<keyof BranchFormData, string>>;
-
-export type BranchUserLimitQuota = {
-  /** Limite total de usuários da empresa (0 = sem teto no backend para a soma) */
-  companyCap: number;
-  /** Soma dos user_limit das outras filiais (exclui a filial em edição, se aplicável) */
-  sumOtherBranches: number;
-  /** Usuários já contados no teto da empresa (users_used da API) — para "vagas reais" */
-  companyUsersUsed: number;
-  /** Usuários já nesta filial (users_used da filial na edição; 0 na criação). */
-  usersOnThisBranch?: number;
-};
 
 export const branchInitialForm = (): BranchFormData => ({
   company_id: 0,
@@ -65,7 +53,6 @@ export const branchInitialForm = (): BranchFormData => ({
   expedient_end_time: "18:00",
   store_open_time: "09:00",
   store_close_time: "18:00",
-  user_limit: 0,
 });
 
 function toFieldErrors(error: z.ZodError): BranchFieldErrors {
@@ -81,7 +68,6 @@ function toFieldErrors(error: z.ZodError): BranchFieldErrors {
 export function validateBranchForm(
   form: BranchFormData,
   mode: BranchFormMode,
-  quota?: BranchUserLimitQuota | null
 ):
   | { success: true; data: BranchCreateData | BranchEditData }
   | { success: false; errors: BranchFieldErrors } {
@@ -93,30 +79,6 @@ export function validateBranchForm(
   }
 
   const data = parsed.data;
-
-  if (quota && quota.companyCap > 0) {
-    const naFilial = quota.usersOnThisBranch ?? 0;
-    /** Consumido = max(usuários reais, reservas das outras filiais) — sem dupla contagem. */
-    const consumed = Math.max(quota.companyUsersUsed, quota.sumOtherBranches);
-    const effectiveMax = Math.max(naFilial, quota.companyCap - consumed);
-
-    if (data.user_limit < naFilial) {
-      return {
-        success: false,
-        errors: {
-          user_limit: `O limite não pode ser inferior a ${naFilial} (usuários já vinculados a esta filial).`,
-        },
-      };
-    }
-    if (data.user_limit > effectiveMax) {
-      return {
-        success: false,
-        errors: {
-          user_limit: `O valor máximo permitido para esta filial é ${effectiveMax}.`,
-        },
-      };
-    }
-  }
 
   return {
     success: true,

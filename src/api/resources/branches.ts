@@ -36,7 +36,6 @@ export interface BranchCreatePayload {
   expedient_end_time: string;
   store_open_time: string;
   store_close_time: string;
-  user_limit: number;
 }
 
 export interface BranchUpdatePayload {
@@ -53,7 +52,6 @@ export interface BranchUpdatePayload {
   expedient_end_time?: string;
   store_open_time?: string;
   store_close_time?: string;
-  user_limit?: number;
 }
 
 export async function list(params?: BranchesListParams) {
@@ -73,6 +71,14 @@ export async function create(payload: BranchCreatePayload) {
 
 export async function update(id: number | string, payload: BranchUpdatePayload) {
   const res = await http.put<ApiResponse & { branch: BranchRecord }>(`${base}/${id}`, payload);
+  return res.data;
+}
+
+/** Logo no object storage: `company/.../branches/{id}/branding/...` */
+export async function uploadLogo(id: number | string, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await http.post<ApiResponse & { branch: BranchRecord }>(`${base}/${id}/logo`, fd);
   return res.data;
 }
 

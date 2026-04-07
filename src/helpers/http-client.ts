@@ -13,9 +13,12 @@ const instance: AxiosInstance = axios.create({
 });
 
 instance.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
+  const token = localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.data instanceof FormData) {
+    delete (config.headers as Record<string, unknown>)["Content-Type"];
   }
   return config;
 });
@@ -24,8 +27,9 @@ instance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      sessionStorage.removeItem(AUTH_STORAGE_KEYS.USER);
-      sessionStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(AUTH_STORAGE_KEYS.USER);
+      localStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
       const path = encodeURIComponent(window.location.pathname + window.location.search);
       const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") || "";
       window.location.href = `${window.location.origin}${base}/auth/sign-in?redirectedFrom=${path}`;

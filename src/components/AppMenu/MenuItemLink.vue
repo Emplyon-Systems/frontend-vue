@@ -1,6 +1,6 @@
 <template>
   <router-link
-    :class="`${currentRouteName === item.route?.name && 'active'} ${className}`"
+    :class="`${isActive && 'active'} ${className}`"
     :to="{ name: item.route?.name, params: item.route?.params }"
   >
     <i class="menu-icon" :class="item.icon" v-if="item.icon" />
@@ -16,10 +16,19 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import { useRoute } from "vue-router";
 import type { SubMenus } from "@/types/menu";
-import router from "@/router";
 
-defineProps<SubMenus>();
+const props = defineProps<SubMenus>();
+const route = useRoute();
 
-const currentRouteName = router.currentRoute.value.name;
+const isActive = computed(() => {
+  const n = route.name;
+  const target = props.item.route?.name;
+  if (target != null && n === target) return true;
+  const prefix = props.item.activeRouteNamePrefix;
+  if (prefix && typeof n === "string" && n.startsWith(prefix)) return true;
+  return false;
+});
 </script>

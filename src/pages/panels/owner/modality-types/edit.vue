@@ -53,7 +53,6 @@ function fillFormFromModalityType(data: Awaited<ReturnType<typeof modalityTypesA
   form.value = {
     branch_id: mt.branch_id ?? 0,
     name: mt.name ?? "",
-    is_default: mt.is_default ?? false,
   };
 }
 
@@ -84,7 +83,6 @@ function submit() {
 
   loading.value = true;
   const payload = { ...validation.data };
-  if (payload.is_default === undefined) delete payload.is_default;
 
   modalityTypesApi
     .update(modalityTypeId.value, payload)
@@ -145,7 +143,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingModalityType" class="text-muted">A carregar modalidade...</div>
+      <div v-else-if="loadingModalityType" class="text-muted">Carregando modalidade...</div>
       <b-form v-else @submit.prevent="submit">
         <DataForm
           v-model="form"
@@ -157,7 +155,7 @@ onMounted(async () => {
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

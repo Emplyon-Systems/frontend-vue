@@ -6,6 +6,7 @@
         :subtitle="subtitle"
         :users-count="usersCount"
         :branch-name="branchName"
+        :hide-branch-context="hideBranchContext"
       />
     </b-row>
 
@@ -20,6 +21,7 @@
                     :name="name"
                     :slug="slug"
                     :branch-name="branchName"
+                    :hide-branch-context="hideBranchContext"
                     :on-edit="onEdit"
                     full-width
                   />
@@ -48,6 +50,7 @@ withDefaults(
     slug?: string;
     branchName?: string;
     subtitle?: string;
+    hideBranchContext?: boolean;
     users?: SectorUser[];
     usersCount?: number;
     onEdit?: () => void;
@@ -55,6 +58,7 @@ withDefaults(
   {
     users: () => [],
     usersCount: 0,
+    hideBranchContext: false,
   }
 );
 </script>

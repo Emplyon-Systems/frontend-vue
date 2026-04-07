@@ -45,7 +45,7 @@ function loadUser() {
   loadError.value = "";
   loadingUser.value = true;
   if (!userId.value) {
-    loadError.value = "Utilizador não identificado.";
+    loadError.value = "Usuário não identificado.";
     loadingUser.value = false;
     return;
   }
@@ -77,7 +77,7 @@ function submit() {
     return;
   }
   if (form.value.password && form.value.password !== form.value.password_confirmation) {
-    errors.value.password_confirmation = "A confirmação da palavra-passe não confere.";
+    errors.value.password_confirmation = "A confirmação da senha não confere.";
     return;
   }
 
@@ -111,7 +111,7 @@ onMounted(loadUser);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingUser" class="text-muted">A carregar perfil...</div>
+      <div v-else-if="loadingUser" class="text-muted">Carregando perfil...</div>
 
       <UIComponentCard v-else title="Dados do perfil">
         <b-form @submit.prevent="submit">
@@ -141,7 +141,7 @@ onMounted(loadUser);
 
           <b-row>
             <b-col md="6">
-              <b-form-group label="Nova palavra-passe" class="mb-3">
+              <b-form-group label="Nova senha" class="mb-3">
                 <b-form-input
                   v-model="form.password"
                   type="password"
@@ -153,11 +153,11 @@ onMounted(loadUser);
               </b-form-group>
             </b-col>
             <b-col md="6">
-              <b-form-group label="Confirmar palavra-passe" class="mb-3">
+              <b-form-group label="Confirmar senha" class="mb-3">
                 <b-form-input
                   v-model="form.password_confirmation"
                   type="password"
-                  placeholder="Repita a nova palavra-passe"
+                  placeholder="Repita a nova senha"
                   :state="errors.password_confirmation ? false : null"
                   @input="clearError('password_confirmation')"
                 />
@@ -170,7 +170,7 @@ onMounted(loadUser);
 
           <div class="d-flex gap-2">
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </div>

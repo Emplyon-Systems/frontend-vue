@@ -74,6 +74,14 @@ export async function update(id: number | string, payload: CompanyUpdatePayload)
   return res.data;
 }
 
+/** Logo no object storage: `company/{id}/branding/...` */
+export async function uploadLogo(id: number | string, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await http.post<ApiResponse & { company: CompanyRecord }>(`${base}/${id}/logo`, fd);
+  return res.data;
+}
+
 export async function remove(id: number | string) {
   const res = await http.delete<ApiResponse>(`${base}/${id}`);
   return res.data;

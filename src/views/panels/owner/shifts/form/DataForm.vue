@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
       </b-col>
     </b-row>
     <b-row class="g-3">
-      <b-col md="12">
+      <b-col v-if="!isBranchLocked" md="12">
         <b-form-group label="Filial" label-for="shift-branch_id">
           <select
             id="shift-branch_id"
@@ -137,7 +137,7 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors?.branch_id">{{ errors.branch_id }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="6">
+      <b-col :md="isView && !isBranchLocked ? 6 : 12">
         <b-form-group label="Nome" label-for="shift-name">
           <b-form-input
             id="shift-name"
@@ -151,17 +151,15 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors?.name">{{ errors.name }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="6">
+      <b-col v-if="isView && !isBranchLocked" md="6">
         <b-form-group label="Slug" label-for="shift-slug">
           <b-form-input
             id="shift-slug"
             :model-value="modelValue.slug"
             type="text"
-            :placeholder="isView ? '' : 'Gerado automaticamente a partir do nome'"
             readonly
             :class="{ 'is-invalid': errors?.slug }"
           />
-          <b-form-text v-if="!isView">O slug é gerado pelo backend a partir do nome.</b-form-text>
           <b-form-invalid-feedback v-if="errors?.slug">{{ errors.slug }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>

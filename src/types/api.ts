@@ -55,6 +55,8 @@ export interface UserRecord {
   permissions?: RolePermission[];
   companies?: UserCompany[];
   branches?: UserBranch[];
+  /** Funcionário vinculado ao usuário nesta filial (listagem com filtro por filial). */
+  employee?: { id: number; user_id?: number; name?: string } | null;
   sectors?: Array<{
     id: number;
     name: string;
@@ -89,6 +91,24 @@ export interface PermissionRecord {
   description?: string | null;
 }
 
+/** Template de perfil automático (ex.: ao criar filial). */
+export interface RoleTemplateRecord {
+  id: number;
+  key: string;
+  name: string;
+  description?: string | null;
+  provision_scope: string;
+  auto_provision: boolean;
+  slug_prefix: string;
+  sort_order: number;
+  is_locked: boolean;
+  /** Se false, não entra no provisionamento automático (linha mantida na BD). */
+  is_active: boolean;
+  /** Se true (escopo empresa), o usuário criado com a empresa recebe este perfil. */
+  assigns_company_owner?: boolean;
+  permissions?: RolePermission[];
+}
+
 export interface CompanyRecord {
   id: number;
   name: string;
@@ -105,11 +125,15 @@ export interface CompanyRecord {
   user_limit: number;
   /** Filiais existentes (contagem). */
   branches_used?: number;
-  /** Utilizadores com acesso à empresa (vínculo direto ou filial). */
+  /** Usuarios com acesso à empresa (vínculo direto ou filial). */
   users_used?: number;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
+  /** MinIO/S3 — logo institucional. */
+  logo_disk?: string | null;
+  logo_path?: string | null;
+  logo_url?: string | null;
   users?: Array<{
     id: number;
     name: string;
@@ -124,6 +148,7 @@ export interface CompanyRecord {
     cnpj: string;
     city: string;
     state: string;
+    logo_url?: string | null;
     pivot?: { is_primary?: boolean };
   }>;
 }
@@ -143,11 +168,13 @@ export interface BranchRecord {
   expedient_end_time?: string;
   store_open_time?: string;
   store_close_time?: string;
-  user_limit?: number;
   users_used?: number;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
+  logo_disk?: string | null;
+  logo_path?: string | null;
+  logo_url?: string | null;
   company?: {
     id: number;
     name: string;
@@ -161,6 +188,56 @@ export interface BranchRecord {
     pivot?: { is_primary?: boolean };
   }>;
   sectors?: Array<{ id: number; name: string; slug: string }>;
+}
+
+export interface EmployeeBranchPivot {
+  sector_id: number;
+  is_primary?: boolean;
+}
+
+export interface EmployeeRecord {
+  id: number;
+  company_id: number;
+  user_id?: number | null;
+  name: string;
+  cpf: string;
+  email: string;
+  phone: string;
+  job_title: string;
+  street?: string | null;
+  street_number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  zip_code?: string | null;
+  city?: string | null;
+  state?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  photo_disk?: string | null;
+  photo_path?: string | null;
+  photo_url?: string | null;
+  company?: {
+    id: number;
+    name?: string;
+  } | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  branches?: Array<{
+    id: number;
+    name?: string;
+    company_id?: number;
+    pivot?: EmployeeBranchPivot;
+    pivot_sector?: {
+      id: number;
+      branch_id?: number;
+      name: string;
+      slug?: string;
+    } | null;
+  }>;
 }
 
 export interface SectorRecord {
@@ -244,3 +321,36 @@ export interface AuditRecord {
 }
 
 export type PluckItem = { id: number; name?: string; label?: string };
+
+export interface EmployeeVacationRecord {
+  id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  total_period_days: number;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+}
+
+export interface EmployeeMedicalCertificateRecord {
+  id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  total_period_days: number;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+}
+
+export interface EmployeeLeafRecord {
+  id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  total_period_days: number;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+}

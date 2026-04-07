@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import DataForm from "./form/DataForm.vue";
@@ -9,7 +9,6 @@ import {
   branchInitialForm,
   validateBranchForm,
   type BranchFormData,
-  type BranchUserLimitQuota,
 } from "@/core/schemas";
 import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
@@ -18,56 +17,43 @@ import { useAuthStore } from "@/stores/auth";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+/** Contexto workspace do superadmin: ?company_id=X na query */
+const workspaceCompanyId = computed(() => {
+  const id = Number(route.query.company_id ?? 0);
+  return id > 0 ? id : 0;
+});
+const isWorkspaceContext = computed(() => workspaceCompanyId.value > 0);
+
+/** Contexto painel da própria empresa */
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
+
+/** ID de empresa travado (workspace ou company-scoped) */
+const lockCompanyId = computed<number | null>(() => {
+  if (isWorkspaceContext.value) return workspaceCompanyId.value;
+  if (companyScoped.value && scopedCompanyId.value > 0) return scopedCompanyId.value;
+  return null;
+});
+
 const loading = ref(false);
 const form = ref<BranchFormData>(branchInitialForm());
 const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
-  toastFieldPriority: ["company_id", "general"],
+  toastFieldPriority: ["branch", "company_id", "general"],
 });
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
-const branchQuota = ref<BranchUserLimitQuota | null>(null);
 
 function cancel() {
+  if (isWorkspaceContext.value) {
+    router.push({ name: "owner.company.workspace.branches", params: { id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
 }
 
-async function refreshBranchQuota(companyId: number) {
-  if (!companyId) {
-    branchQuota.value = null;
-    return;
-  }
-  try {
-    const [companyRes, branchesRes] = await Promise.all([
-      companiesApi.getById(companyId),
-      branchesApi.list({ company_id: companyId, per_page: 500, order_by: "id", order_dir: "asc" }),
-    ]);
-    const cap = companyRes.company?.user_limit ?? 0;
-    const used = Number(companyRes.company?.users_used ?? 0);
-    const rows = branchesRes.branches?.data ?? [];
-    const sum = rows.reduce((s, b) => s + (Number(b.user_limit) || 0), 0);
-    branchQuota.value = {
-      companyCap: cap,
-      sumOtherBranches: sum,
-      companyUsersUsed: used,
-      usersOnThisBranch: 0,
-    };
-  } catch {
-    branchQuota.value = null;
-  }
-}
-
-watch(
-  () => form.value.company_id,
-  (id) => {
-    void refreshBranchQuota(Number(id));
-  },
-  { immediate: true }
-);
-
 function submit() {
   resetErrors();
-  const validation = validateBranchForm(form.value, "create", branchQuota.value);
+  const validation = validateBranchForm(form.value, "create");
   if (!validation.success) {
     errors.value = validation.errors;
     return;
@@ -78,18 +64,35 @@ function submit() {
     .create(validation.data as BranchCreatePayload)
     .then(() => {
       notifySuccess("Filial criada com sucesso.");
-      router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
+      cancel();
     })
     .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
 onMounted(async () => {
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    form.value.company_id = scopedCompanyId.value;
+  /** Workspace do superadmin: empresa fixa via query param */
+  if (isWorkspaceContext.value) {
+    form.value.company_id = workspaceCompanyId.value;
+    try {
+      const res = await companiesApi.getById(workspaceCompanyId.value);
+      const c = res.company;
+      companyOptions.value = [{ id: workspaceCompanyId.value, name: c?.name ?? `Empresa #${workspaceCompanyId.value}` }];
+      const used = c?.branches_used ?? c?.branches?.length ?? 0;
+      const limit = c?.branch_limit ?? 0;
+      if (limit > 0 && used >= limit) {
+        notifyError("Limite de filiais atingido.");
+        cancel();
+      }
+    } catch {
+      companyOptions.value = [{ id: workspaceCompanyId.value, name: `Empresa #${workspaceCompanyId.value}` }];
+    }
+    return;
   }
 
+  /** Painel da própria empresa */
   if (companyScoped.value && scopedCompanyId.value > 0) {
+    form.value.company_id = scopedCompanyId.value;
     const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
     companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
     try {
@@ -100,7 +103,6 @@ onMounted(async () => {
       if (limit > 0 && used >= limit) {
         notifyError("Limite de filiais atingido.");
         router.replace({ name: "company.branches" });
-        return;
       }
     } catch {
       /* guard de rota e API validam na mesma */
@@ -108,6 +110,7 @@ onMounted(async () => {
     return;
   }
 
+  /** Superadmin sem contexto fixo: escolha livre */
   const companies = await companiesApi.plucks();
   companyOptions.value = companies
     .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
@@ -131,14 +134,13 @@ onMounted(async () => {
           v-model="form"
           :errors="errors"
           :company-options="companyOptions"
-          :lock-company-id="companyScoped ? scopedCompanyId : null"
-          :branch-quota="branchQuota"
+          :lock-company-id="lockCompanyId"
           mode="create"
           @clear-error="clearError"
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

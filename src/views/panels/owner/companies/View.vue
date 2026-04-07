@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
@@ -8,6 +8,8 @@ import { companiesApi, usersApi } from "@/api/resources";
 import { companyInitialForm, type CompanyFormData } from "@/core/schemas";
 import type { CompanyRecord, UserRecord } from "@/types/api";
 import { useAuthStore } from "@/stores/auth";
+
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false });
 
 type CompanyWithStats = CompanyRecord & {
   sectors_count?: number;
@@ -20,6 +22,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
+const isOwnerWorkspace = computed(() => String(route.name ?? "").startsWith("owner.company.workspace") || props.embedded);
 const scopedCompanyId = computed(() => Number(authStore.activeContext?.company_id ?? authStore.user?.companies?.[0]?.id ?? 0));
 const companyId = computed(() => {
   const fromParam = Number(route.params.id);
@@ -40,6 +43,8 @@ const branchesUsed = ref(0);
 const usersUsed = ref(0);
 const branchLimit = ref(10);
 const userLimit = ref(50);
+/** URL pública do logo (API). */
+const companyLogoUrl = ref<string | null>(null);
 const canEditCompany = computed(() => authStore.hasPermission("companies.update") || companyScoped.value);
 
 function back() {
@@ -75,9 +80,10 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
   next.branch_limit = Number(company.branch_limit ?? 10);
   next.user_limit = Number(company.user_limit ?? 50);
   form.value = next;
+  companyLogoUrl.value = company.logo_url ?? null;
   companyBranches.value = company.branches ?? [];
-  branchLimit.value = next.branch_limit;
-  userLimit.value = next.user_limit;
+  branchLimit.value = Number(next.branch_limit ?? 10);
+  userLimit.value = Number(next.user_limit ?? 50);
   branchesUsed.value = Number(company.branches_used ?? company.branches?.length ?? 0);
   usersUsed.value = Number(company.users_used ?? company.users?.length ?? 0);
   usersCount.value = usersUsed.value;
@@ -133,12 +139,15 @@ async function loadCompany() {
 }
 
 onMounted(loadCompany);
+watch(companyId, (newId, oldId) => {
+  if (newId !== oldId && newId > 0) loadCompany();
+});
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+    <div :class="isOwnerWorkspace ? '' : 'py-4'">
+      <div v-if="!isOwnerWorkspace" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Visualizar empresa</h1>
           <p class="text-muted mb-0 small">Consulta dos dados cadastrais da empresa.</p>
@@ -148,9 +157,12 @@ onMounted(loadCompany);
           <b-button variant="outline-secondary" @click="back">Voltar</b-button>
         </div>
       </div>
+      <div v-else class="d-flex justify-content-end mb-3">
+        <b-button v-if="canEditCompany" variant="outline-primary" size="sm" @click="goEdit">Editar empresa</b-button>
+      </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingCompany" class="text-muted">A carregar empresa...</div>
+      <div v-else-if="loadingCompany" class="text-muted">Carregando empresa...</div>
       <ProfilePage
         v-else
         :name="form.name"
@@ -172,8 +184,9 @@ onMounted(loadCompany);
         :usersUsed="usersUsed"
         :branchLimit="branchLimit"
         :userLimit="userLimit"
+        :logo-src="companyLogoUrl ?? undefined"
         :onEdit="canEditCompany ? goEdit : undefined"
       />
     </div>
-  </DefaultLayout>
+  </component>
 </template>

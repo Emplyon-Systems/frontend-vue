@@ -32,6 +32,17 @@ const effectiveShowBranch = computed(() =>
   props.showBranchFilter !== undefined ? props.showBranchFilter : props.showTenantFilters
 );
 
+/** Largura das colunas da 1.ª linha (pesquisa + empresa + filial) em ecrãs md+. */
+const firstRowColMd = computed(() => {
+  const n =
+    1 +
+    (effectiveShowCompany.value ? 1 : 0) +
+    (effectiveShowBranch.value ? 1 : 0);
+  if (n <= 1) return 12;
+  if (n === 2) return 6;
+  return 4;
+});
+
 const emit = defineEmits<{
   (e: "update:modelValue", value: RolesFilterModel): void;
   (e: "apply"): void;
@@ -198,7 +209,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="p-0">
     <b-row class="g-3">
-      <b-col md="6">
+      <b-col cols="12" :md="firstRowColMd">
         <b-form-group label="Pesquisar" label-for="filter-roles-search">
           <b-form-input
             id="filter-roles-search"
@@ -209,9 +220,10 @@ onBeforeUnmount(() => {
           />
         </b-form-group>
       </b-col>
-      <b-col v-if="effectiveShowCompany" md="6">
+      <b-col v-if="effectiveShowCompany" cols="12" :md="firstRowColMd">
         <b-form-group label="Empresa" label-for="filter-roles-company">
           <select
+            v-if="(companyOptions ?? []).length > 0"
             id="filter-roles-company"
             ref="companySelectRef"
             class="form-select"
@@ -226,6 +238,14 @@ onBeforeUnmount(() => {
               {{ company.name }}
             </option>
           </select>
+          <div
+            v-else
+            id="filter-roles-company-empty"
+            class="rounded border bg-light text-muted small px-3 py-2"
+            role="status"
+          >
+            Nenhuma empresa disponível para filtrar.
+          </div>
           <div class="d-flex justify-content-between align-items-center mt-1">
             <small class="text-muted">{{ selectionLabel(modelValue.company_ids.length, "empresa", "empresas") }}</small>
             <b-button
@@ -241,9 +261,10 @@ onBeforeUnmount(() => {
           </div>
         </b-form-group>
       </b-col>
-      <b-col v-if="effectiveShowBranch" md="6">
+      <b-col v-if="effectiveShowBranch" cols="12" :md="firstRowColMd">
         <b-form-group label="Filial" label-for="filter-roles-branch">
           <select
+            v-if="(branchOptions ?? []).length > 0"
             id="filter-roles-branch"
             ref="branchSelectRef"
             class="form-select"
@@ -258,6 +279,14 @@ onBeforeUnmount(() => {
               {{ branch.name }}
             </option>
           </select>
+          <div
+            v-else
+            id="filter-roles-branch-empty"
+            class="rounded border bg-light text-muted small px-3 py-2"
+            role="status"
+          >
+            Nenhuma filial disponível para filtrar.
+          </div>
           <div class="d-flex justify-content-between align-items-center mt-1">
             <small class="text-muted">{{ selectionLabel(modelValue.branch_ids.length, "filial", "filiais") }}</small>
             <b-button
@@ -273,22 +302,24 @@ onBeforeUnmount(() => {
           </div>
         </b-form-group>
       </b-col>
-      <b-col md="3">
+      <b-col cols="12" md="6">
         <b-form-group label="Data de cadastro de" label-for="filter-roles-created-from">
           <b-form-input
             id="filter-roles-created-from"
             :model-value="modelValue.created_at_from"
             type="date"
+            class="w-100"
             @update:model-value="update('created_at_from', $event)"
           />
         </b-form-group>
       </b-col>
-      <b-col md="3">
+      <b-col cols="12" md="6">
         <b-form-group label="Data de cadastro até" label-for="filter-roles-created-until">
           <b-form-input
             id="filter-roles-created-until"
             :model-value="modelValue.created_at_until"
             type="date"
+            class="w-100"
             @update:model-value="update('created_at_until', $event)"
           />
         </b-form-group>

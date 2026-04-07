@@ -46,6 +46,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     "sectors.delete",
     "sectors.plucks",
   ]);
+  const canEmployees = hasAny([
+    "employees.index",
+    "employees.read",
+    "employees.create",
+    "employees.update",
+    "employees.delete",
+    "employees.plucks",
+  ]);
   const canShifts = hasAny([
     "shifts.index",
     "shifts.read",
@@ -81,6 +89,24 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   if (hasAny(["roles.index", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.plucks"])) {
     systemChildren.push({ key: "roles", icon: "iconoir-shield", label: "Perfis", route: { name: "owner.roles" } });
   }
+  /** Superadmin vê sempre; outros precisam das permissões (payload /me pode não listar tudo até novo login após seed). */
+  if (
+    isSuperadmin ||
+    hasAny([
+      "role_templates.index",
+      "role_templates.read",
+      "role_templates.update",
+      "role_templates.create",
+      "role_templates.delete",
+    ])
+  ) {
+    systemChildren.push({
+      key: "role-templates",
+      icon: "iconoir-book-stack",
+      label: "Templates de perfil",
+      route: { name: "owner.role-templates" },
+    });
+  }
   if (hasAny(["audits.index", "audits.read"])) {
     systemChildren.push({ key: "audits", icon: "iconoir-database", label: "Auditoria", route: { name: "owner.audits" } });
   }
@@ -89,77 +115,13 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     return [
       { key: "main", label: "Menu", isTitle: true },
       { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name: "panels.owner.dashboard" } },
-      ...((isSuperadmin || canCompanies || canBranches || canSectors || canShifts || canModalityTypes || canScaleTypes)
+      ...((isSuperadmin || canCompanies)
         ? [
             {
               key: "companies",
               icon: "iconoir-building",
               label: "Empresas",
-              route: { name: companiesRouteName },
-              children: [
-                ...(canCompaniesList || isSuperadmin
-                  ? [
-                      {
-                        key: "companies-list",
-                        icon: "iconoir-building",
-                        label: "Empresas",
-                        route: { name: "owner.companies" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(canBranches
-                  ? [
-                      {
-                        key: "branches-list",
-                        icon: "iconoir-git-branch",
-                        label: "Filiais",
-                        route: { name: branchRouteName },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canShifts
-                  ? [
-                      {
-                        key: "shifts-list",
-                        icon: "iconoir-clock",
-                        label: "Turnos",
-                        route: { name: "owner.shifts" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canModalityTypes
-                  ? [
-                      {
-                        key: "modality-types-list",
-                        icon: "iconoir-book",
-                        label: "Modalidades",
-                        route: { name: "owner.modality-types" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canScaleTypes
-                  ? [
-                      {
-                        key: "scale-types-list",
-                        icon: "iconoir-calendar",
-                        label: "Tipos de escala",
-                        route: { name: "owner.scale-types" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canSectors
-                  ? [
-                      {
-                        key: "sectors-list",
-                        icon: "iconoir-folder",
-                        label: "Setores",
-                        route: {
-                          name: "owner.sectors",
-                        },
-                      } as MenuItemType,
-                    ]
-                  : []),
-              ],
+              route: { name: "owner.companies" },
             } as MenuItemType,
           ]
         : []),
@@ -191,7 +153,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   ];
   // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canShifts || canModalityTypes || canScaleTypes)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canEmployees || canShifts || canModalityTypes || canScaleTypes)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
       if (canBranches) {
@@ -208,6 +170,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
           icon: "iconoir-folder",
           label: "Setores",
           route: { name: "branch.sectors" },
+        });
+      }
+      if (canEmployees) {
+        baseMenu.push({
+          key: "employees-list",
+          icon: "iconoir-community",
+          label: "Funcionários",
+          route: { name: "branch.employees" },
         });
       }
       if (canShifts) {
@@ -318,6 +288,16 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
                 icon: "iconoir-folder",
                 label: "Setores",
                 route: { name: path === "/company" ? "company.sectors" : "owner.sectors" },
+              } as MenuItemType,
+            ]
+          : []),
+        ...(canEmployees
+          ? [
+              {
+                key: "employees-list",
+                icon: "iconoir-community",
+                label: "Funcionários",
+                route: { name: path === "/company" ? "company.employees" : "owner.employees" },
               } as MenuItemType,
             ]
           : []),

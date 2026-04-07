@@ -25,14 +25,12 @@ export interface RolesListParams {
 
 export interface RoleCreatePayload {
   name: string;
-  slug: string;
   description?: string;
   permissions?: number[];
 }
 
 export interface RoleUpdatePayload {
   name?: string;
-  slug?: string;
   description?: string;
   permissions?: number[];
 }

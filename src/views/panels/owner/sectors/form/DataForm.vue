@@ -104,7 +104,7 @@ onBeforeUnmount(() => {
 <template>
   <UIComponentCard title="Dados do setor">
     <b-row class="g-3">
-      <b-col md="12">
+      <b-col v-if="!isBranchLocked" md="12">
         <b-form-group label="Filial" label-for="sector-branch_id">
           <select
             id="sector-branch_id"

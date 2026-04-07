@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "./form/DataForm.vue";
 import { branchesApi, companiesApi } from "@/api/resources";
 import {
   branchInitialForm,
   validateBranchForm,
   type BranchFormData,
-  type BranchUserLimitQuota,
 } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
@@ -21,48 +21,30 @@ const authStore = useAuthStore();
 const branchId = computed(() => Number(route.params.id));
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
+const workspaceCompanyId = computed(() => {
+  const id = Number(route.query.company_id ?? 0);
+  return id > 0 ? id : 0;
+});
+const isWorkspaceContext = computed(() => workspaceCompanyId.value > 0);
 
 const loading = ref(false);
 const loadingBranch = ref(true);
 const loadError = ref("");
 const form = ref<BranchFormData>(branchInitialForm());
+const branchLogoUrl = ref<string | null>(null);
+const branchLogoUploading = ref(false);
 const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
   notifyOnApiFieldErrors: false,
   notifyOnGenericApiMessage: false,
   notifyOnEmptyResponse: false,
 });
-const companyOptions = ref<Array<{ id: number; name: string }>>([]);
-const branchQuota = ref<BranchUserLimitQuota | null>(null);
-const usersOnThisBranchRef = ref(0);
-
-async function refreshBranchQuota(companyId: number, excludeBranchId: number, usersOnThisBranch = 0) {
-  if (!companyId || !excludeBranchId) {
-    branchQuota.value = null;
-    return;
-  }
-  try {
-    const [companyRes, branchesRes] = await Promise.all([
-      companiesApi.getById(companyId),
-      branchesApi.list({ company_id: companyId, per_page: 500, order_by: "id", order_dir: "asc" }),
-    ]);
-    const cap = companyRes.company?.user_limit ?? 0;
-    const used = Number(companyRes.company?.users_used ?? 0);
-    const rows = branchesRes.branches?.data ?? [];
-    const sum = rows
-      .filter((b) => b.id !== excludeBranchId)
-      .reduce((s, b) => s + (Number(b.user_limit) || 0), 0);
-    branchQuota.value = {
-      companyCap: cap,
-      sumOtherBranches: sum,
-      companyUsersUsed: used,
-      usersOnThisBranch,
-    };
-  } catch {
-    branchQuota.value = null;
-  }
-}
+const companyOptions = ref<Array<{ id: number; name: string }>>();
 
 function cancel() {
+  if (isWorkspaceContext.value) {
+    router.push({ name: "owner.company.workspace.branches", params: { id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
 }
 
@@ -88,10 +70,22 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
     store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
     store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
-    user_limit: Number(branch.user_limit) >= 0 ? Number(branch.user_limit) : 0,
   };
-  usersOnThisBranchRef.value = Number(branch.users_used ?? 0);
-  void refreshBranchQuota(branch.company_id ?? 0, branch.id, usersOnThisBranchRef.value);
+  branchLogoUrl.value = branch.logo_url ?? null;
+}
+
+async function onBranchLogoSelect(file: File) {
+  if (Number.isNaN(branchId.value)) return;
+  branchLogoUploading.value = true;
+  try {
+    const res = await branchesApi.uploadLogo(branchId.value, file);
+    branchLogoUrl.value = res.branch?.logo_url ?? null;
+    notifySuccess("Logo da filial atualizado.");
+  } catch (e) {
+    onApiError(e);
+  } finally {
+    branchLogoUploading.value = false;
+  }
 }
 
 function loadBranch() {
@@ -111,18 +105,9 @@ function loadBranch() {
     .finally(() => (loadingBranch.value = false));
 }
 
-watch(
-  () => form.value.company_id,
-  (id) => {
-    if (branchId.value && id) {
-      void refreshBranchQuota(Number(id), branchId.value, usersOnThisBranchRef.value);
-    }
-  }
-);
-
 function submit() {
   resetErrors();
-  const validation = validateBranchForm(form.value, "edit", branchQuota.value);
+  const validation = validateBranchForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
     return;
@@ -165,20 +150,27 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingBranch" class="text-muted">A carregar filial...</div>
+      <div v-else-if="loadingBranch" class="text-muted">Carregando filial...</div>
       <b-form v-else @submit.prevent="submit">
+        <ImageUploadCard
+          class="mb-3"
+          title="Logo da filial"
+          description="Imagem da filial (armazenada na pasta da empresa e filial no object storage)."
+          :preview-url="branchLogoUrl"
+          :uploading="branchLogoUploading"
+          @select="onBranchLogoSelect"
+        />
         <DataForm
           v-model="form"
           :errors="errors"
-          :company-options="companyOptions"
+          :company-options="companyOptions ?? []"
           :lock-company-id="companyScoped ? scopedCompanyId : null"
-          :branch-quota="branchQuota"
           mode="edit"
           @clear-error="clearError"
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

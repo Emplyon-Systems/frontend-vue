@@ -21,12 +21,12 @@ export interface UseFormValidationErrorsOptions {
   notifyOnEmptyResponse?: boolean;
 }
 
-const DEFAULT_CLIENT_TOAST = "Corrija os campos indicados antes de guardar.";
+const DEFAULT_CLIENT_TOAST = "Corrija os campos indicados antes de salvar.";
 
 export function useFormValidationErrors(options: UseFormValidationErrorsOptions = {}) {
   const {
     toastFieldPriority = [],
-    fallbackMessage = "Não foi possível guardar. Tente novamente.",
+    fallbackMessage = "Não foi possível salvar. Tente novamente.",
     bumpSubmitAttemptOnApiError = false,
     bumpSubmitAttemptOnClientValidation = false,
     notifyOnApiFieldErrors = true,

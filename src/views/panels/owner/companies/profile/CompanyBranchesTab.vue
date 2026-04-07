@@ -14,6 +14,28 @@
   >
     <template #row="{ item }">
       <b-tr>
+        <b-td class="align-middle">
+          <div
+            v-if="branchLogoUrl(item as CompanyBranch)"
+            class="rounded border overflow-hidden bg-light"
+            style="width: 40px; height: 40px;"
+          >
+            <img
+              :src="String(branchLogoUrl(item as CompanyBranch))"
+              alt=""
+              class="w-100 h-100"
+              style="object-fit: cover;"
+              loading="lazy"
+            />
+          </div>
+          <div
+            v-else
+            class="rounded bg-light border d-flex align-items-center justify-content-center text-primary small fw-semibold"
+            style="width: 40px; height: 40px;"
+          >
+            {{ branchInitial(item as CompanyBranch) }}
+          </div>
+        </b-td>
         <b-td>{{ (item as CompanyBranch).id }}</b-td>
         <b-td>{{ (item as CompanyBranch).name }}</b-td>
         <b-td>{{ (item as CompanyBranch).cnpj || "—" }}</b-td>
@@ -45,6 +67,7 @@ const currentPage = ref(1);
 const perPage = ref(5);
 
 const columns = [
+  { key: "logo", label: "Logo", sortable: false, align: "start" as const },
   { key: "id", label: "ID", sortable: false, align: "start" as const },
   { key: "name", label: "Nome", sortable: false, align: "start" as const },
   { key: "cnpj", label: "CNPJ", sortable: false, align: "start" as const },
@@ -74,6 +97,16 @@ const resultLabel = computed(() => {
   if (total.value === 1) return "1 filial vinculada";
   return `${total.value} filiais vinculadas`;
 });
+
+function branchLogoUrl(branch: CompanyBranch): string | null {
+  const u = branch.logo_url?.trim();
+  return u ? u : null;
+}
+
+function branchInitial(branch: CompanyBranch): string {
+  const n = branch.name?.trim();
+  return n ? n.charAt(0).toUpperCase() : "?";
+}
 
 function formatCityState(branch: CompanyBranch): string {
   const city = branch.city?.trim() ?? "";

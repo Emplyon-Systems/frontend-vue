@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
-import UIComponentCard from "@/components/UIComponentCard.vue";
 import DataForm from "./form/DataForm.vue";
 import { shiftsApi, branchesApi } from "@/api/resources";
 import { shiftInitialForm, type ShiftFormData } from "@/core/schemas";
@@ -15,6 +14,12 @@ const authStore = useAuthStore();
 const routeName = computed(() => String(route.name ?? ""));
 const companyScoped = computed(() => routeName.value.startsWith("company."));
 const branchScoped = computed(() => routeName.value.startsWith("branch."));
+const currentBranchId = computed(() => {
+  if (!branchScoped.value) return 0;
+  const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
+  if (fromContext > 0) return fromContext;
+  return Number(authStore.user?.branches?.[0]?.id ?? 0);
+});
 const shiftId = computed(() => Number(route.params.id));
 const loadingShift = ref(true);
 const loadError = ref("");
@@ -65,21 +70,33 @@ function loadShift() {
     .finally(() => (loadingShift.value = false));
 }
 
-const branchName = computed(() => {
-  const id = form.value.branch_id;
-  const branch = branchOptions.value.find((b) => b.id === id);
-  return branch?.company_name ? `${branch.name} (${branch.company_name})` : branch?.name ?? "—";
-});
-
 onMounted(async () => {
-  const branches = await branchesApi.plucks();
-  branchOptions.value = (branches as { id: number; name?: string; company_name?: string }[])
-    .map((b) => ({
-      id: b.id,
-      name: b.name ?? `Filial #${b.id}`,
-      company_name: b.company_name ?? "",
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  if (branchScoped.value && currentBranchId.value > 0) {
+    let branchName =
+      authStore.activeContext?.branch_id === currentBranchId.value
+        ? authStore.activeContext?.branch_name
+        : authStore.user?.branches?.find((b) => b.id === currentBranchId.value)?.name;
+    if (!branchName) {
+      try {
+        const res = await branchesApi.getById(currentBranchId.value);
+        branchName = res.branch?.name ?? `Filial #${currentBranchId.value}`;
+      } catch {
+        branchName = `Filial #${currentBranchId.value}`;
+      }
+    }
+    branchOptions.value = [
+      { id: currentBranchId.value, name: branchName ?? `Filial #${currentBranchId.value}`, company_name: "" },
+    ];
+  } else {
+    const branches = await branchesApi.plucks();
+    branchOptions.value = (branches as { id: number; name?: string; company_name?: string }[])
+      .map((b) => ({
+        id: b.id,
+        name: b.name ?? `Filial #${b.id}`,
+        company_name: b.company_name ?? "",
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
   loadShift();
 });
 </script>
@@ -99,11 +116,12 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingShift" class="text-muted">A carregar turno...</div>
+      <div v-else-if="loadingShift" class="text-muted">Carregando turno...</div>
       <DataForm
         v-else
         v-model="form"
         :branch-options="branchOptions"
+        :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
         mode="view"
       />
     </div>

@@ -24,6 +24,11 @@ const branchId = computed(() => {
 });
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
+const workspaceCompanyId = computed(() => {
+  const id = Number(route.query.company_id ?? 0);
+  return id > 0 ? id : 0;
+});
+const isWorkspaceContext = computed(() => workspaceCompanyId.value > 0);
 
 const loadingBranch = ref(true);
 const loadError = ref("");
@@ -34,11 +39,18 @@ const usersCount = ref(0);
 const branchUserLimit = ref<number | null>(null);
 const branchUsersUsedDisplay = ref<number | null>(null);
 const sectors = ref<BranchRecord["sectors"]>([]);
+const branchLogoUrl = ref<string | null>(null);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
+/** Aba Funcionários na vista da filial: superadmin (pedido de produto). */
+const showBranchEmployeesTab = computed(() => authStore.hasRole("superadmin"));
 
 function back() {
   if (branchScoped.value) {
     router.push({ name: "panels.branch.dashboard" });
+    return;
+  }
+  if (isWorkspaceContext.value) {
+    router.push({ name: "owner.company.workspace.branches", params: { id: String(workspaceCompanyId.value) } });
     return;
   }
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
@@ -48,6 +60,10 @@ function goEdit() {
   if (!canEditBranch.value) return;
   if (branchScoped.value) {
     router.push({ name: "branch.my-branch.edit" });
+    return;
+  }
+  if (isWorkspaceContext.value) {
+    router.push({ name: "owner.branches.edit", params: { id: String(branchId.value) }, query: { company_id: String(workspaceCompanyId.value) } });
     return;
   }
   router.push({ name: companyScoped.value ? "company.branches.edit" : "owner.branches.edit", params: { id: String(branchId.value) } });
@@ -75,14 +91,14 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
     store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
     store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
-    user_limit: Number(branch.user_limit) > 0 ? Number(branch.user_limit) : 1,
   };
   users.value = branch.users ?? [];
-  branchUserLimit.value = branch.user_limit != null ? Number(branch.user_limit) : null;
+  branchUserLimit.value = null;
   branchUsersUsedDisplay.value =
     branch.users_used != null ? Number(branch.users_used) : (branch.users?.length ?? 0);
   usersCount.value = branchUsersUsedDisplay.value;
   sectors.value = branch.sectors ?? [];
+  branchLogoUrl.value = branch.logo_url ?? null;
 }
 
 function loadBranch() {
@@ -131,7 +147,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingBranch" class="text-muted">A carregar filial...</div>
+      <div v-else-if="loadingBranch" class="text-muted">Carregando filial...</div>
       <ProfilePage
         v-else
         :name="form.name"
@@ -149,7 +165,10 @@ onMounted(async () => {
         :usersUsedDisplay="branchUsersUsedDisplay"
         :sectors="sectors"
         :subtitle="companyOptions.find((c) => c.id === form.company_id)?.name || ''"
+        :logo-src="branchLogoUrl ?? undefined"
         :onEdit="canEditBranch ? goEdit : undefined"
+        :branch-id="branchId"
+        :show-employees-tab="showBranchEmployeesTab"
       />
     </div>
   </DefaultLayout>
