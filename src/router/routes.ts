@@ -17,7 +17,7 @@ const authRoutes = [
     path: "/auth/register",
     name: "auth.register",
     meta: {
-      title: setTitle("Registo"),
+      title: setTitle("Registro"),
     },
     component: () => import("@/views/auth/register.vue"),
   },
@@ -34,7 +34,7 @@ const authRoutes = [
     path: "/auth/reset-pass",
     name: "auth.reset-pass",
     meta: {
-      title: setTitle("Recuperar palavra-passe"),
+      title: setTitle("Recuperar senha"),
     },
     component: () => import("@/views/auth/reset-pass.vue"),
   },
@@ -724,6 +724,28 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/employees/edit.vue"),
   },
   {
+    path: "/employees/:employeeId/absences/:kind/create",
+    name: "owner.employees.absences.create",
+    meta: {
+      title: setTitle("Novo registro"),
+      authRequired: true,
+      panel: "owner",
+      permission: "employees.create",
+    },
+    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
+  },
+  {
+    path: "/employees/:employeeId/absences/:kind/:recordId/edit",
+    name: "owner.employees.absences.edit",
+    meta: {
+      title: setTitle("Editar registro"),
+      authRequired: true,
+      panel: "owner",
+      permission: "employees.update",
+    },
+    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
+  },
+  {
     path: "/employees/:id",
     name: "owner.employees.view",
     meta: {
@@ -1123,6 +1145,26 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/employees/edit.vue"),
   },
   {
+    path: "/company/employees/:employeeId/absences/:kind/create",
+    name: "company.employees.absences.create",
+    meta: {
+      title: setTitle("Novo registro"),
+      authRequired: true,
+      permission: "employees.create",
+    },
+    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
+  },
+  {
+    path: "/company/employees/:employeeId/absences/:kind/:recordId/edit",
+    name: "company.employees.absences.edit",
+    meta: {
+      title: setTitle("Editar registro"),
+      authRequired: true,
+      permission: "employees.update",
+    },
+    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
+  },
+  {
     path: "/company/employees/:id",
     name: "company.employees.view",
     meta: {
@@ -1390,6 +1432,30 @@ const panelRoutes = [
       rolePrefix: ["filial-b"],
     },
     component: () => import("@/pages/panels/owner/employees/edit.vue"),
+  },
+  {
+    path: "/branch/employees/:employeeId/absences/:kind/create",
+    name: "branch.employees.absences.create",
+    meta: {
+      title: setTitle("Novo registro"),
+      authRequired: true,
+      permission: "employees.create",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
+  },
+  {
+    path: "/branch/employees/:employeeId/absences/:kind/:recordId/edit",
+    name: "branch.employees.absences.edit",
+    meta: {
+      title: setTitle("Editar registro"),
+      authRequired: true,
+      permission: "employees.update",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
   },
   {
     path: "/branch/employees/:id",

@@ -309,7 +309,7 @@ onMounted(async () => {
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const e = employees.find((x) => x.id === id); if (e) confirmDelete(e); }"
@@ -322,8 +322,8 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar funcionário"
-      message="Tem a certeza que deseja eliminar este funcionário?"
+      title="Excluir funcionário"
+      message="Tem certeza de que deseja excluir este funcionário?"
       @confirm="doDelete"
     />
   </component>

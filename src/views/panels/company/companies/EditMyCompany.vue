@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "@/views/panels/owner/companies/form/DataForm.vue";
 import { companiesApi } from "@/api/resources";
 import { companyInitialForm, validateCompanyForm, type CompanyFormData } from "@/core/schemas";
@@ -17,6 +18,8 @@ const loading = ref(false);
 const loadingCompany = ref(true);
 const loadError = ref("");
 const form = ref<CompanyFormData>(companyInitialForm());
+const logoUrl = ref<string | null>(null);
+const logoUploading = ref(false);
 const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
   notifyOnApiFieldErrors: false,
   notifyOnGenericApiMessage: false,
@@ -53,7 +56,22 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
     phone: company.phone ?? "",
   };
   next.street_number = company.street_number ?? "";
+  logoUrl.value = company.logo_url ?? null;
   form.value = next;
+}
+
+async function onLogoSelect(file: File) {
+  if (!companyId.value) return;
+  logoUploading.value = true;
+  try {
+    const res = await companiesApi.uploadLogo(companyId.value, file);
+    logoUrl.value = res.company?.logo_url ?? null;
+    notifySuccess("Logo da empresa atualizado.");
+  } catch (e) {
+    onApiError(e);
+  } finally {
+    logoUploading.value = false;
+  }
 }
 
 function loadCompany() {
@@ -112,12 +130,20 @@ onMounted(loadCompany);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingCompany" class="text-muted">A carregar empresa...</div>
+      <div v-else-if="loadingCompany" class="text-muted">Carregando empresa...</div>
       <b-form v-else @submit.prevent="submit">
+        <ImageUploadCard
+          class="mb-3"
+          title="Logo da empresa"
+          description="Imagem institucional (armazenada na pasta da empresa no object storage)."
+          :preview-url="logoUrl"
+          :uploading="logoUploading"
+          @select="onLogoSelect"
+        />
         <DataForm v-model="form" :errors="errors" mode="edit" @clear-error="clearError">
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

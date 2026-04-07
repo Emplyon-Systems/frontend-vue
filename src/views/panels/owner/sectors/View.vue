@@ -99,7 +99,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingSector" class="text-muted">A carregar setor...</div>
+      <div v-else-if="loadingSector" class="text-muted">Carregando setor...</div>
       <ProfilePage
         v-else
         :name="form.name"

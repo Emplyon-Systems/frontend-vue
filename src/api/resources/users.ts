@@ -21,9 +21,9 @@ export interface UsersListParams {
   branch_id?: number;
   branch_ids?: number[];
   sector_ids?: number[];
-  /** Só utilizadores sem registo de funcionário (ou ver `except_employee_user_id`) */
+  /** Só usuárioes sem registro de funcionário (ou ver `except_employee_user_id`) */
   without_employee?: boolean | number;
-  /** Incluir este utilizador na lista mesmo já tendo funcionário (ex.: edição do próprio vínculo) */
+  /** Incluir este usuário na lista mesmo já tendo funcionário (ex.: edição do próprio vínculo) */
   except_employee_user_id?: number;
   order_by?: string;
   order_dir?: "asc" | "desc";

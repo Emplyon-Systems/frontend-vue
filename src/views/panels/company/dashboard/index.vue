@@ -108,7 +108,7 @@ const userRolesChart = computed(() => {
         : ["#dee2e6"],
       legend: { position: "bottom" as const, fontSize: "12px" },
       dataLabels: { enabled: hasData },
-      tooltip: { y: { formatter: (v: number) => `${v} utilizador${v !== 1 ? "es" : ""}` } },
+      tooltip: { y: { formatter: (v: number) => `${v} usuário${v !== 1 ? "es" : ""}` } },
       plotOptions: { pie: { donut: { size: "58%" } } },
     },
   };
@@ -166,7 +166,7 @@ onMounted(loadData);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loading" class="text-muted py-4 text-center">A carregar dados da empresa...</div>
+      <div v-else-if="loading" class="text-muted py-4 text-center">Carregando dados da empresa...</div>
 
       <template v-else>
 
@@ -236,7 +236,7 @@ onMounted(loadData);
                 </div>
                 <p class="text-muted small mb-1">Meus perfis</p>
                 <h3 class="fw-bold mb-0">{{ myRoles.length }}</h3>
-                <small class="text-muted">atribuídos a este utilizador</small>
+                <small class="text-muted">atribuídos a este usuário</small>
               </b-card-body>
             </b-card>
           </b-col>
@@ -376,7 +376,7 @@ onMounted(loadData);
                     </div>
                   </div>
                 </div>
-                <p v-else class="text-muted small mb-0">Nenhum utilizador registado.</p>
+                <p v-else class="text-muted small mb-0">Nenhum usuário registrado.</p>
               </b-card-body>
             </b-card>
           </b-col>

@@ -339,7 +339,7 @@ onMounted(async () => {
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const s = shifts.find((x) => x.id === id); if (s) confirmDelete(s); }"
@@ -352,8 +352,8 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar turno"
-      message="Tem a certeza que deseja eliminar este turno?"
+      title="Excluir turno"
+      message="Tem certeza de que deseja excluir este turno?"
       @confirm="doDelete"
     />
   </component>

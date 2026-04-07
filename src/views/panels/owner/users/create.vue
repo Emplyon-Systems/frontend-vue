@@ -95,7 +95,12 @@ function submit() {
 
   const selectedRoleIds = new Set(validation.data.roles ?? []);
   const selectedRoles = roleOptions.value.filter((role) => selectedRoleIds.has(role.id));
-  const hasManager = selectedRoles.some((role) => role.slug === "branch_manager" || role.slug?.startsWith("filial-b"));
+  const hasManager = selectedRoles.some(
+    (role) =>
+      role.slug === "branch_manager" ||
+      role.slug?.startsWith("filial-b") ||
+      role.slug?.startsWith("setor-b")
+  );
   const hasCollaborator = selectedRoles.some((role) => role.slug === "colaborador" || role.slug?.startsWith("colaborador-b"));
   if (hasManager && hasCollaborator) {
     errors.value = {
@@ -307,7 +312,7 @@ watch(
           <b-row>
             <b-col class="d-flex gap-2">
               <b-button type="submit" variant="primary" :disabled="loading">
-                {{ loading ? "A guardar..." : "Guardar" }}
+                {{ loading ? "Salvando..." : "Salvar" }}
               </b-button>
               <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
             </b-col>

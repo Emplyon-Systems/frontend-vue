@@ -43,6 +43,8 @@ const branchesUsed = ref(0);
 const usersUsed = ref(0);
 const branchLimit = ref(10);
 const userLimit = ref(50);
+/** URL pública do logo (API). */
+const companyLogoUrl = ref<string | null>(null);
 const canEditCompany = computed(() => authStore.hasPermission("companies.update") || companyScoped.value);
 
 function back() {
@@ -78,6 +80,7 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
   next.branch_limit = Number(company.branch_limit ?? 10);
   next.user_limit = Number(company.user_limit ?? 50);
   form.value = next;
+  companyLogoUrl.value = company.logo_url ?? null;
   companyBranches.value = company.branches ?? [];
   branchLimit.value = Number(next.branch_limit ?? 10);
   userLimit.value = Number(next.user_limit ?? 50);
@@ -159,7 +162,7 @@ watch(companyId, (newId, oldId) => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingCompany" class="text-muted">A carregar empresa...</div>
+      <div v-else-if="loadingCompany" class="text-muted">Carregando empresa...</div>
       <ProfilePage
         v-else
         :name="form.name"
@@ -181,6 +184,7 @@ watch(companyId, (newId, oldId) => {
         :usersUsed="usersUsed"
         :branchLimit="branchLimit"
         :userLimit="userLimit"
+        :logo-src="companyLogoUrl ?? undefined"
         :onEdit="canEditCompany ? goEdit : undefined"
       />
     </div>

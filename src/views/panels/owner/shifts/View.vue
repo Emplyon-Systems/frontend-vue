@@ -116,7 +116,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingShift" class="text-muted">A carregar turno...</div>
+      <div v-else-if="loadingShift" class="text-muted">Carregando turno...</div>
       <DataForm
         v-else
         v-model="form"

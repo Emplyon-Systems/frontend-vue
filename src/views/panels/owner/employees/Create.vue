@@ -189,26 +189,26 @@ function submit() {
   if (branchScoped.value) {
     if (branchAccessAccountState.value === "blocked") {
       notifyError(
-        "Não é possível concluir o cadastro: limite de utilizadores atingido e nenhum utilizador disponível para vínculo nesta filial. Contacte a empresa Matriz."
+        "Não é possível concluir o cadastro: limite de usuárioes atingido e nenhum usuário disponível para vínculo nesta filial. Contacte a empresa Matriz."
       );
       return;
     }
     if (branchAccessAccountState.value === "pending") {
-      notifyError("Aguarde a verificação de limites e de utilizadores disponíveis.");
+      notifyError("Aguarde a verificação de limites e de usuárioes disponíveis.");
       return;
     }
     if (userAccessMode.value === "link") {
       if (d.user_id <= 0) {
-        errors.value = { ...errors.value, user_id: "Selecione um utilizador ou crie uma conta." };
+        errors.value = { ...errors.value, user_id: "Selecione um usuário ou crie uma conta." };
         return;
       }
     } else {
       if (!newUserPassword.value.trim()) {
-        errors.value = { ...errors.value, new_user_password: "Defina palavra-passe." };
+        errors.value = { ...errors.value, new_user_password: "Defina senha." };
         return;
       }
       if (newUserPassword.value !== newUserPasswordConfirm.value) {
-        errors.value = { ...errors.value, new_user_password: "As palavras-passe não coincidem." };
+        errors.value = { ...errors.value, new_user_password: "As senhas não coincidem." };
         return;
       }
       if (newUserRoleId.value <= 0) {
@@ -234,7 +234,7 @@ function submit() {
         .then((res) => {
           const uid = res.user?.id;
           if (!uid) {
-            throw new Error("Resposta sem utilizador.");
+            throw new Error("Resposta sem usuário.");
           }
           userIdCreatedForRollback = uid;
           const payload: EmployeeCreatePayload = {
@@ -410,7 +410,7 @@ onMounted(async () => {
                 branchAccessAccountState === 'pending'
               "
             >
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

@@ -21,18 +21,18 @@ const userBaseSchema = z.object({
 export const userCreateSchema = userBaseSchema.extend({
   password: z
     .string()
-    .min(1, "Palavra-passe é obrigatória.")
-    .min(6, "Palavra-passe deve ter no mínimo 6 caracteres."),
+    .min(1, "Senha é obrigatória.")
+    .min(6, "Senha deve ter no mínimo 6 caracteres."),
   password_confirmation: z
     .string()
-    .min(1, "Confirmação da palavra-passe é obrigatória.")
-    .min(6, "Confirmação da palavra-passe deve ter no mínimo 6 caracteres."),
+    .min(1, "Confirmação da senha é obrigatória.")
+    .min(6, "Confirmação da senha deve ter no mínimo 6 caracteres."),
 }).superRefine((data, ctx) => {
   if (data.password !== data.password_confirmation) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["password_confirmation"],
-      message: "A confirmação da palavra-passe não confere.",
+      message: "A confirmação da senha não confere.",
     });
   }
 });

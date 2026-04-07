@@ -39,7 +39,7 @@ const listagemColumns = [
   { key: "created_at", label: "Data", sortable: true, align: "start" as const },
   { key: "event", label: "Evento", sortable: true, align: "start" as const },
   { key: "auditable_type", label: "Tipo", sortable: true, align: "start" as const },
-  { key: "user", label: "Utilizador", sortable: false, align: "start" as const },
+  { key: "user", label: "Usuário", sortable: false, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ];
 
@@ -124,7 +124,7 @@ onMounted(() => loadList());
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Auditoria</h1>
-          <p class="text-muted mb-0 small">Consultar registos de ações no sistema.</p>
+          <p class="text-muted mb-0 small">Consultar registros de ações no sistema.</p>
         </div>
         <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" label="Filtros" />
       </div>
@@ -147,7 +147,7 @@ onMounted(() => loadList());
         :order-dir="orderDir"
         :result-label="resultLabel"
         :has-active-filters="hasActiveFilters"
-        empty-message="Nenhum registo de auditoria."
+        empty-message="Nenhum registro de auditoria."
         result-badge-class="result-badge-default"
         @update:per-page="onPerPageChange"
         @update:sort="onSortChange"

@@ -288,7 +288,7 @@ onMounted(() => {
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const b = branches.find((x) => x.id === id); if (b) confirmDelete(b); }"
@@ -301,8 +301,8 @@ onMounted(() => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar filial"
-      message="Tem a certeza que deseja eliminar esta filial?"
+      title="Excluir filial"
+      message="Tem certeza de que deseja excluir esta filial?"
       @confirm="doDelete"
     />
   </component>

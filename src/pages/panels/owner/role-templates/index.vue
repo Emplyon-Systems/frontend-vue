@@ -97,7 +97,7 @@ function confirmDeleteAfterRisk() {
     .catch((err: unknown) => {
       const e = err as { response?: { data?: { errors?: Record<string, string[]> } } };
       const msg = e.response?.data?.errors?.role_template?.[0];
-      notifyError(msg ?? "Não foi possível eliminar.");
+      notifyError(msg ?? "Não foi possível excluir.");
     });
 }
 
@@ -163,7 +163,7 @@ onMounted(load);
                   :show-delete="canDeleteTemplate && !t.is_locked"
                   view-title="Visualizar"
                   edit-title="Editar"
-                  delete-title="Eliminar permanentemente"
+                  delete-title="Excluir permanentemente"
                   @view="goView"
                   @edit="openEditRiskModal"
                   @delete="openDeleteRiskModal"
@@ -199,16 +199,16 @@ onMounted(load);
         </li>
       </ul>
       <template #footer>
-        <div class="d-flex justify-content-end gap-2 w-100">
-          <b-button variant="outline-secondary" @click="cancelEditRisk">Cancelar</b-button>
+        <div class="d-flex justify-content-start gap-2 w-100">
           <b-button variant="primary" @click="confirmEditAfterRisk">Continuar para editar</b-button>
+          <b-button variant="outline-secondary" @click="cancelEditRisk">Cancelar</b-button>
         </div>
       </template>
     </b-modal>
 
     <b-modal
       :model-value="deleteRiskModalOpen"
-      title="Eliminar template de perfil"
+      title="Excluir template de perfil"
       modal-class="role-template-edit-risk-modal"
       header-class="border-bottom"
       body-class="pt-3"
@@ -216,11 +216,11 @@ onMounted(load);
       @update:model-value="(v: boolean) => { if (!v) cancelDeleteRisk(); }"
     >
       <p class="fw-semibold text-body mb-2">
-        Esta ação remove o registo do template na base de dados. Não é possível recuperar.
+        Esta ação remove o registro do template na base de dados. Não é possível recuperar.
       </p>
       <ul class="small text-muted mb-0 ps-3">
         <li class="mb-2">
-          Perfis <strong>já criados</strong> a partir deste modelo <strong>mantêm-se</strong>, mas deixam de estar associados a este template (a referência é anulada).
+          Perfis <strong>já criados</strong> a partir deste modelo <strong>mantêm-se</strong>, mas deixam de estar associados a este template (a referência é desfeita).
         </li>
         <li class="mb-2">
           Se criar novamente um template com o mesmo nome ou regras, terá de configurar permissões e chaves de novo; não é um «desfazer».
@@ -230,9 +230,9 @@ onMounted(load);
         </li>
       </ul>
       <template #footer>
-        <div class="d-flex justify-content-end gap-2 w-100">
+        <div class="d-flex justify-content-start gap-2 w-100">
           <b-button variant="outline-secondary" @click="cancelDeleteRisk">Cancelar</b-button>
-          <b-button variant="danger" @click="confirmDeleteAfterRisk">Eliminar permanentemente</b-button>
+          <b-button variant="danger" @click="confirmDeleteAfterRisk">Excluir permanentemente</b-button>
         </div>
       </template>
     </b-modal>

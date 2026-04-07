@@ -15,11 +15,11 @@ const props = withDefaults(
     mode?: "create" | "edit" | "view";
     companyOptions?: Array<{ id: number; name: string }>;
     branchOptions?: Array<{ id: number; name: string; company_id?: number }>;
-    /** Utilizadores da empresa (`company_id` do formulário) para vínculo opcional */
+    /** Usuárioes da empresa (`company_id` do formulário) para vínculo opcional */
     userOptions?: Array<{ id: number; name: string; email?: string }>;
     lockCompanyId?: number | null;
     lockBranchId?: number | null;
-    /** Fluxo filial: vincular vs criar utilizador */
+    /** Fluxo filial: vincular vs criar usuário */
     branchUserFlow?: boolean;
     userAccessMode?: "link" | "create";
     newUserPassword?: string;
@@ -78,10 +78,10 @@ watch(
 const searchingZipCode = ref(false);
 /** Evita repetir ViaCEP para o mesmo CEP na busca automática. */
 const lastViaCepZipFetched = ref("");
-/** Só busca automática após o utilizador interagir com o CEP (evita ViaCEP ao abrir edição com CEP já guardado). */
+/** Só busca automática após o usuário interagir com o CEP (evita ViaCEP ao abrir edição com CEP já guardado). */
 const zipTouchedByUser = ref(false);
 let zipLookupDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-/** Ver/ocultar palavras-passe ao criar utilizador no fluxo filial. */
+/** Ver/ocultar senhas ao criar usuário no fluxo filial. */
 const showNewUserPassword = ref(false);
 const isView = computed(() => props.mode === "view");
 /** Asterisco em campos obrigatórios (criar/editar). */
@@ -138,7 +138,7 @@ const linkedUserDisplayName = computed(() => {
     const mail = (o.email ?? "").trim();
     return mail ? `${o.name} (${mail})` : o.name;
   }
-  return `Utilizador #${uid}`;
+  return `Usuário #${uid}`;
 });
 
 /** Filiais disponíveis por linha (empresa selecionada ou contexto filial bloqueado). */
@@ -271,7 +271,7 @@ function initUserSelectr() {
   userSelectr = new Selectr(userSelectRef.value, {
     searchable: true,
     multiple: false,
-    placeholder: props.branchUserFlow ? "Selecione o utilizador" : "Sem utilizador vinculado",
+    placeholder: props.branchUserFlow ? "Selecione o usuário" : "Sem usuário vinculado",
   });
   userSelectr.on("selectr.change", () => {
     const raw = userSelectr?.getValue();
@@ -286,7 +286,7 @@ function cleanZipCode(value: string): string {
 }
 
 /**
- * @param manual — true: utilizador clicou no ícone; valida e permite repetir o mesmo CEP.
+ * @param manual — true: usuário clicou no ícone; valida e permite repetir o mesmo CEP.
  * false: busca automática ao completar 8 dígitos (não repete se já preenchemos este CEP).
  */
 async function fillAddressByZipCode(opts?: { manual?: boolean }): Promise<boolean> {
@@ -816,7 +816,7 @@ onBeforeUnmount(() => {
 
     <b-row v-if="isView" class="g-3 mt-1">
       <b-col md="12">
-        <b-form-group label="Utilizador vinculado (conta de acesso)">
+        <b-form-group label="Usuário vinculado (conta de acesso)">
           <b-form-input readonly tabindex="-1" :model-value="linkedUserDisplayName" class="bg-light" />
         </b-form-group>
       </b-col>
@@ -908,23 +908,23 @@ onBeforeUnmount(() => {
         <template v-if="branchAccessAccountState === 'pending'">
           <p class="text-muted small mb-0 d-flex align-items-center gap-2">
             <b-spinner small class="flex-shrink-0" role="status" aria-hidden="true" />
-            <span>A verificar limites e utilizadores disponíveis…</span>
+            <span>A verificar limites e usuárioes disponíveis…</span>
           </p>
         </template>
         <template v-else-if="branchAccessAccountState === 'blocked'">
           <div class="alert alert-warning mb-0" role="alert">
-            Entre em contato com a <strong>empresa Matriz</strong> sobre os limites de utilizadores e de funcionários. Não é
-            possível criar um novo utilizador para este funcionário; só é permitido vincular um existente com acesso à
-            empresa. Neste momento não há utilizadores disponíveis para vínculo nesta filial.
+            Entre em contato com a <strong>empresa Matriz</strong> sobre os limites de usuárioes e de funcionários. Não é
+            possível criar um novo usuário para este funcionário; só é permitido vincular um existente com acesso à
+            empresa. Neste momento não há usuárioes disponíveis para vínculo nesta filial.
           </div>
         </template>
         <template v-else-if="branchAccessAccountState === 'link_only'">
           <p class="text-muted small mb-2">
-            O limite de utilizadores da empresa foi atingido. Não é possível criar uma nova conta; vincule um utilizador
+            O limite de usuárioes da empresa foi atingido. Não é possível criar uma nova conta; vincule um usuário
             existente com acesso a esta filial.
           </p>
           <p class="text-muted small mb-2">
-            Só aparecem utilizadores desta filial que ainda não estão ligados a outro funcionário.
+            Só aparecem usuárioes desta filial que ainda não estão ligados a outro funcionário.
           </p>
           <template v-if="!canPickLinkedUser">
             <p class="text-muted small mb-0">
@@ -934,7 +934,7 @@ onBeforeUnmount(() => {
           <template v-else>
             <b-form-group label-for="emp-user_id">
               <template #label>
-                Utilizador<span v-if="reqAccessUserLink" class="text-danger ms-1" aria-hidden="true">*</span>
+                Usuário<span v-if="reqAccessUserLink" class="text-danger ms-1" aria-hidden="true">*</span>
               </template>
               <select
                 id="emp-user_id"
@@ -942,7 +942,7 @@ onBeforeUnmount(() => {
                 class="form-select"
                 :class="{ 'is-invalid': !!errors?.user_id }"
               >
-                <option value="" :selected="!localForm.user_id">Selecione o utilizador</option>
+                <option value="" :selected="!localForm.user_id">Selecione o usuário</option>
                 <option
                   v-for="u in userOptions ?? []"
                   :key="u.id"
@@ -963,10 +963,10 @@ onBeforeUnmount(() => {
             @update:model-value="emit('update:userAccessMode', $event as 'link' | 'create')"
           >
             <b-form-radio value="link">Vincular existente</b-form-radio>
-            <b-form-radio v-if="!hideCreateUserOption" value="create">Criar novo utilizador</b-form-radio>
+            <b-form-radio v-if="!hideCreateUserOption" value="create">Criar novo usuário</b-form-radio>
           </b-form-radio-group>
           <p class="text-muted small mb-2">
-            Só aparecem utilizadores desta filial que ainda não estão ligados a outro funcionário.
+            Só aparecem usuárioes desta filial que ainda não estão ligados a outro funcionário.
           </p>
           <template v-if="userAccessMode === 'link'">
             <p v-if="!canPickLinkedUser" class="text-muted small mb-0">
@@ -975,7 +975,7 @@ onBeforeUnmount(() => {
             <template v-else>
               <b-form-group label-for="emp-user_id">
                 <template #label>
-                  Utilizador<span v-if="reqAccessUserLink" class="text-danger ms-1" aria-hidden="true">*</span>
+                  Usuário<span v-if="reqAccessUserLink" class="text-danger ms-1" aria-hidden="true">*</span>
                 </template>
                 <select
                   id="emp-user_id"
@@ -983,7 +983,7 @@ onBeforeUnmount(() => {
                   class="form-select"
                   :class="{ 'is-invalid': !!errors?.user_id }"
                 >
-                  <option value="" :selected="!localForm.user_id">Selecione o utilizador</option>
+                  <option value="" :selected="!localForm.user_id">Selecione o usuário</option>
                   <option
                     v-for="u in userOptions ?? []"
                     :key="u.id"
@@ -1002,7 +1002,7 @@ onBeforeUnmount(() => {
               <b-col md="6">
                 <b-form-group label-for="emp-nup">
                   <template #label>
-                    Palavra-passe<span v-if="reqAccessUserCreate" class="text-danger ms-1" aria-hidden="true">*</span>
+                    Senha<span v-if="reqAccessUserCreate" class="text-danger ms-1" aria-hidden="true">*</span>
                   </template>
                   <b-input-group>
                     <b-form-input
@@ -1030,7 +1030,7 @@ onBeforeUnmount(() => {
               <b-col md="6">
                 <b-form-group label-for="emp-nup2">
                   <template #label>
-                    Confirmar palavra-passe<span v-if="reqAccessUserCreate" class="text-danger ms-1" aria-hidden="true">*</span>
+                    Confirmar senha<span v-if="reqAccessUserCreate" class="text-danger ms-1" aria-hidden="true">*</span>
                   </template>
                   <b-form-input
                     id="emp-nup2"
@@ -1068,12 +1068,12 @@ onBeforeUnmount(() => {
         </b-form-group>
       </b-col>
       <b-col v-else md="12">
-        <b-form-group label="Utilizador vinculado" label-for="emp-user_id">
+        <b-form-group label="Usuário vinculado" label-for="emp-user_id">
           <p v-if="!canPickLinkedUser" class="text-muted small mb-0">
             {{
               hideCompanyField
                 ? "Aguarde o carregamento dos dados."
-                : "Selecione a empresa para listar utilizadores com acesso a essa empresa."
+                : "Selecione a empresa para listar usuárioes com acesso a essa empresa."
             }}
           </p>
           <template v-else>
@@ -1095,7 +1095,7 @@ onBeforeUnmount(() => {
             </select>
             <b-form-invalid-feedback v-if="errors?.user_id">{{ errors.user_id }}</b-form-invalid-feedback>
             <p class="text-muted small mt-1 mb-0">
-              Utilizadores da empresa sem vínculo a funcionário. Um utilizador só pode estar ligado a um funcionário.
+              Usuárioes da empresa sem vínculo a funcionário. Um usuário só pode estar ligado a um funcionário.
             </p>
           </template>
         </b-form-group>

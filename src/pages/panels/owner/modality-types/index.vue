@@ -363,7 +363,7 @@ onMounted(async () => {
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const m = modalityTypes.find((x) => x.id === id); if (m) confirmDelete(m); }"
@@ -376,8 +376,8 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar modalidade"
-      message="Tem a certeza que deseja eliminar esta modalidade?"
+      title="Excluir modalidade"
+      message="Tem certeza de que deseja excluir esta modalidade?"
       @confirm="doDelete"
     />
   </component>

@@ -5,6 +5,7 @@
         :name="name"
         :cnpj="cnpj"
         :subtitle="subtitle"
+        :logo-src="logoSrc"
         :usersCount="usersCount"
         :userLimit="userLimit"
         :zipCode="zipCode"
@@ -76,6 +77,7 @@ withDefaults(
     usersCount?: number;
     sectors?: BranchRecord["sectors"];
     subtitle?: string;
+    logoSrc?: string;
     onEdit?: () => void;
     userLimit?: number | null;
     usersUsedDisplay?: number | null;

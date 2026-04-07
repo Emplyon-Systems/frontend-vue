@@ -292,7 +292,7 @@ onMounted(async () => {
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const s = sectors.find((x) => x.id === id); if (s) confirmDelete(s); }"
@@ -305,8 +305,8 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar setor"
-      message="Tem a certeza que deseja eliminar este setor?"
+      title="Excluir setor"
+      message="Tem certeza de que deseja excluir este setor?"
       @confirm="doDelete"
     />
   </component>

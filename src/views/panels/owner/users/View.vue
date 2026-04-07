@@ -124,7 +124,7 @@ onMounted(loadUser);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingUser" class="text-muted">A carregar usuário...</div>
+      <div v-else-if="loadingUser" class="text-muted">Carregando usuário...</div>
       <ProfilePage
         v-else
         :name="form.name"

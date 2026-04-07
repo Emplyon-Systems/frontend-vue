@@ -21,7 +21,7 @@ export interface RoleTemplateUpdatePayload {
   name?: string;
   description?: string | null;
   auto_provision?: boolean;
-  /** Inativar/reactivar sem apagar o registo na BD. */
+  /** Inativar/reativar sem apagar o registro na BD. */
   is_active?: boolean;
   permissions?: number[];
 }

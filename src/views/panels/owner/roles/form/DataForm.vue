@@ -7,6 +7,12 @@ import { rolesApi, permissionsApi } from "@/api/resources";
 import { roleInitialForm, validateRoleForm, type RoleFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import {
+  buildGroupedPermissionModules,
+  collectPermissionIdsFromEmployeesSection,
+  collectPermissionIdsFromGroup,
+  type GroupedPermissionModule,
+} from "@/helpers/permissionModuleGroups";
 
 const props = defineProps<{
   roleId: number | null;
@@ -18,8 +24,11 @@ const isEdit = computed(() => props.roleId !== null);
 
 /** Slug carregado na edição (para detetar perfil de sistema); o backend gera o slug na criação. */
 const loadedRoleSlug = ref("");
-/** Perfil criado automaticamente pela filial (filial-b{id}). */
-const isSystemBranchRole = computed(() => (loadedRoleSlug.value ?? "").startsWith("filial-b"));
+/** Perfil criado automaticamente pela filial (filial-b{id}, setor-b{id}). */
+const isSystemBranchRole = computed(() => {
+  const s = loadedRoleSlug.value ?? "";
+  return s.startsWith("filial-b") || s.startsWith("setor-b");
+});
 /** Empresa (contexto empresa) ou superadmin podem editar perfis das filiais. */
 const isCompanyContext = computed(
   () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id == null
@@ -44,53 +53,13 @@ const form = ref<RoleFormData>(roleInitialForm());
 const errors = ref<Record<string, string>>({});
 const permissionSearch = ref("");
 const moduleOpenState = ref<Record<string, boolean>>({});
-const permissionModuleLabels: Record<string, string> = {
-  audits: "Auditoria",
-  branches: "Filiais",
-  companies: "Empresas",
-  employees: "Funcionários",
-  modality_types: "Modalidades",
-  permissions: "Permissões",
-  role_templates: "Templates de perfil",
-  scale_types: "Tipos de escala",
-  roles: "Perfis",
-  sectors: "Setores",
-  shifts: "Turnos",
-  users: "Usuários",
-};
-
-function getPermissionModuleLabel(moduleName: string): string {
-  return permissionModuleLabels[moduleName] ?? moduleName;
-}
-
-const groupedPermissions = computed(() => {
-  const term = permissionSearch.value.trim().toLowerCase();
-  const groups = new Map<string, { id: number; label: string }[]>();
-  const selected = new Set(form.value.permissions);
-
-  for (const permission of permissionOptions.value) {
-    const moduleName = permission.slug?.split(".")?.[0] || "geral";
-    const label = `${permission.name} (${permission.slug})`;
-    if (term && !label.toLowerCase().includes(term)) continue;
-
-    if (!groups.has(moduleName)) groups.set(moduleName, []);
-    groups.get(moduleName)!.push({ id: permission.id, label });
-  }
-
-  return [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([moduleName, options]) => {
-      const sorted = options.sort((a, b) => a.label.localeCompare(b.label));
-      const selectedCount = sorted.filter((option) => selected.has(option.id)).length;
-      return {
-        moduleName,
-        moduleLabel: getPermissionModuleLabel(moduleName),
-        options: sorted,
-        total: sorted.length,
-        selected: selectedCount,
-      };
-    });
-});
+const groupedPermissions = computed((): GroupedPermissionModule[] =>
+  buildGroupedPermissionModules(
+    permissionOptions.value,
+    form.value.permissions ?? [],
+    permissionSearch.value
+  )
+);
 
 const totalVisiblePermissions = computed(() =>
   groupedPermissions.value.reduce((sum, group) => sum + group.total, 0)
@@ -116,11 +85,26 @@ function toggleModule(moduleName: string, checked: boolean) {
   if (!target) return;
 
   const current = new Set(form.value.permissions);
-  for (const permission of target.options) {
-    if (checked) current.add(permission.id);
-    else current.delete(permission.id);
+  const ids = collectPermissionIdsFromGroup(target);
+  for (const id of ids) {
+    if (checked) current.add(id);
+    else current.delete(id);
   }
 
+  form.value.permissions = [...current];
+  errors.value.permissions = "";
+}
+
+function toggleEmployeesSection(sectionKey: string, checked: boolean) {
+  const target = groupedPermissions.value.find((g) => g.kind === "employees");
+  if (!target || target.kind !== "employees") return;
+
+  const current = new Set(form.value.permissions);
+  const ids = collectPermissionIdsFromEmployeesSection(target, sectionKey);
+  for (const id of ids) {
+    if (checked) current.add(id);
+    else current.delete(id);
+  }
   form.value.permissions = [...current];
   errors.value.permissions = "";
 }
@@ -128,9 +112,10 @@ function toggleModule(moduleName: string, checked: boolean) {
 function toggleAllVisible(checked: boolean) {
   const current = new Set(form.value.permissions);
   for (const group of groupedPermissions.value) {
-    for (const permission of group.options) {
-      if (checked) current.add(permission.id);
-      else current.delete(permission.id);
+    const ids = collectPermissionIdsFromGroup(group);
+    for (const id of ids) {
+      if (checked) current.add(id);
+      else current.delete(id);
     }
   }
   form.value.permissions = [...current];
@@ -286,32 +271,82 @@ watch(
                     <span class="badge bg-light text-dark border">{{ group.selected }}/{{ group.total }}</span>
                   </summary>
                   <div class="px-3 pb-3">
-                    <b-form-checkbox
-                      class="mb-2"
-                      :model-value="group.selected > 0 && group.selected === group.total"
-                      :disabled="isRoleLocked"
-                      @update:model-value="toggleModule(group.moduleName, Boolean($event))"
-                    >
-                      Marcar todo módulo
-                    </b-form-checkbox>
-                    <b-row>
-                      <b-col
-                        v-for="permission in group.options"
-                        :key="permission.id"
-                        cols="12"
-                        md="6"
-                        lg="4"
-                        class="mb-1"
+                    <template v-if="group.kind === 'employees'">
+                      <b-form-checkbox
+                        class="mb-3"
+                        :model-value="group.selected > 0 && group.selected === group.total"
+                        :disabled="isRoleLocked"
+                        @update:model-value="toggleModule('employees', Boolean($event))"
                       >
+                        Marcar todo o bloco Funcionários
+                      </b-form-checkbox>
+                      <div
+                        v-for="section in group.sections"
+                        :key="section.sectionKey"
+                        class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                      >
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                          <span class="fw-semibold text-body">{{ section.sectionLabel }}</span>
+                          <span class="badge bg-white text-dark border small"
+                            >{{ section.selected }}/{{ section.total }}</span
+                          >
+                        </div>
                         <b-form-checkbox
-                          :model-value="isPermissionSelected(permission.id)"
+                          class="mb-2"
+                          :model-value="section.total > 0 && section.selected === section.total"
                           :disabled="isRoleLocked"
-                          @update:model-value="togglePermission(permission.id, Boolean($event))"
+                          @update:model-value="toggleEmployeesSection(section.sectionKey, Boolean($event))"
                         >
-                          {{ permission.label }}
+                          Marcar {{ section.sectionLabel.toLowerCase() }}
                         </b-form-checkbox>
-                      </b-col>
-                    </b-row>
+                        <b-row>
+                          <b-col
+                            v-for="permission in section.options"
+                            :key="permission.id"
+                            cols="12"
+                            md="6"
+                            lg="4"
+                            class="mb-1"
+                          >
+                            <b-form-checkbox
+                              :model-value="isPermissionSelected(permission.id)"
+                              :disabled="isRoleLocked"
+                              @update:model-value="togglePermission(permission.id, Boolean($event))"
+                            >
+                              {{ permission.label }}
+                            </b-form-checkbox>
+                          </b-col>
+                        </b-row>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <b-form-checkbox
+                        class="mb-2"
+                        :model-value="group.selected > 0 && group.selected === group.total"
+                        :disabled="isRoleLocked"
+                        @update:model-value="toggleModule(group.moduleName, Boolean($event))"
+                      >
+                        Marcar todo módulo
+                      </b-form-checkbox>
+                      <b-row>
+                        <b-col
+                          v-for="permission in group.options"
+                          :key="permission.id"
+                          cols="12"
+                          md="6"
+                          lg="4"
+                          class="mb-1"
+                        >
+                          <b-form-checkbox
+                            :model-value="isPermissionSelected(permission.id)"
+                            :disabled="isRoleLocked"
+                            @update:model-value="togglePermission(permission.id, Boolean($event))"
+                          >
+                            {{ permission.label }}
+                          </b-form-checkbox>
+                        </b-col>
+                      </b-row>
+                    </template>
                   </div>
                 </details>
               </div>
@@ -320,8 +355,10 @@ watch(
               <b-form-invalid-feedback v-if="errors.permissions" class="d-block">
                 {{ errors.permissions }}
               </b-form-invalid-feedback>
-              <small class="text-muted">
-                Selecione permissões por módulo em dropdown.
+              <small class="text-muted d-block mt-2">
+                Clique em cada módulo para expandir. Em <strong>Funcionários</strong> estão o cadastro e, em blocos
+                separados, férias, atestados médicos e afastamentos. O contador
+                <span class="text-nowrap">(ex.: 0/6)</span> indica quantas permissões estão ativas naquele grupo.
               </small>
             </b-form-group>
           </b-col>
@@ -329,7 +366,7 @@ watch(
         <b-row>
           <b-col class="d-flex gap-2">
             <b-button v-if="!isRoleLocked" type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">
               {{ isRoleLocked ? "Voltar" : "Cancelar" }}

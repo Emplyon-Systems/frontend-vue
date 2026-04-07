@@ -29,7 +29,7 @@ export interface EmployeeAssignmentInput {
 
 export interface EmployeeCreatePayload {
   company_id: number;
-  /** Opcional: utilizador já existente na mesma empresa (`company_users`) */
+  /** Opcional: usuário já existente na mesma empresa (`company_users`) */
   user_id?: number | null;
   name: string;
   cpf: string;
@@ -70,6 +70,14 @@ export async function create(payload: EmployeeCreatePayload) {
 
 export async function update(id: number | string, payload: EmployeeUpdatePayload) {
   const res = await http.put<ApiResponse & { employee: EmployeeRecord }>(`${base}/${id}`, payload);
+  return res.data;
+}
+
+/** Foto no object storage: `company/.../employees/.../photo/...` */
+export async function uploadPhoto(id: number | string, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await http.post<ApiResponse & { employee: EmployeeRecord }>(`${base}/${id}/photo`, fd);
   return res.data;
 }
 

@@ -38,7 +38,12 @@ const users              = computed(() => branch.value?.users ?? []);
 const usersCount         = computed(() => users.value.length);
 const managersCount      = computed(() =>
   users.value.filter((u) =>
-    (u.roles ?? []).some((r) => r.slug === "branch_manager" || r.slug?.startsWith("filial-b"))
+    (u.roles ?? []).some(
+      (r) =>
+        r.slug === "branch_manager" ||
+        r.slug?.startsWith("filial-b") ||
+        r.slug?.startsWith("setor-b")
+    )
   ).length
 );
 const collaboratorsCount = computed(() =>
@@ -85,7 +90,7 @@ const teamChart = computed(() => {
       colors: hasData ? raw.map((e) => e.color) : ["#dee2e6"],
       legend: { position: "bottom" as const, fontSize: "12px" },
       dataLabels: { enabled: hasData },
-      tooltip: { y: { formatter: (v: number) => `${v} utilizador${v !== 1 ? "es" : ""}` } },
+      tooltip: { y: { formatter: (v: number) => `${v} usuário${v !== 1 ? "es" : ""}` } },
       plotOptions: { pie: { donut: { size: "58%", labels: {
         show: true,
         total: {
@@ -123,7 +128,7 @@ const rolesBarChart = computed(() => {
       yaxis: { labels: { formatter: (v: number) => String(Math.round(v)) } },
       grid: { strokeDashArray: 4, borderColor: "#f0f0f0" },
       plotOptions: { bar: { borderRadius: 4, columnWidth: "50%", horizontal: entries.length > 5 } },
-      tooltip: { y: { formatter: (v: number) => `${v} utilizador${v !== 1 ? "es" : ""}` } },
+      tooltip: { y: { formatter: (v: number) => `${v} usuário${v !== 1 ? "es" : ""}` } },
     },
   };
 });
@@ -180,7 +185,7 @@ onMounted(loadData);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loading" class="text-muted py-4 text-center">A carregar dados da filial...</div>
+      <div v-else-if="loading" class="text-muted py-4 text-center">Carregando dados da filial...</div>
 
       <template v-else>
 
@@ -386,7 +391,7 @@ onMounted(loadData);
                     </div>
                   </div>
                 </div>
-                <p v-else class="text-muted small mb-0">Nenhum utilizador vinculado a esta filial.</p>
+                <p v-else class="text-muted small mb-0">Nenhum usuário vinculado a esta filial.</p>
               </b-card-body>
             </b-card>
           </b-col>

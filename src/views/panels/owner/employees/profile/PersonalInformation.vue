@@ -47,7 +47,7 @@
           </li>
           <li v-if="linkedUserLine" class="mt-2">
             <i class="iconoir-user-circle me-2 text-secondary fs-18 align-middle"></i>
-            <b>Utilizador</b>: {{ linkedUserLine }}
+            <b>Usuário</b>: {{ linkedUserLine }}
           </li>
         </ul>
 

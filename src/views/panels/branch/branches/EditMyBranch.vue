@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "@/views/panels/owner/branches/form/DataForm.vue";
 import { branchesApi, companiesApi } from "@/api/resources";
 import {
@@ -21,10 +22,13 @@ const loading = ref(false);
 const loadingBranch = ref(true);
 const loadError = ref("");
 const form = ref<BranchFormData>(branchInitialForm());
-const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
-  notifyOnApiFieldErrors: false,
-  notifyOnGenericApiMessage: false,
-  notifyOnEmptyResponse: false,
+const branchLogoUrl = ref<string | null>(null);
+const branchLogoUploading = ref(false);
+const { errors, clearError, resetErrors, onApiError, onClientValidationFailed } = useFormValidationErrors({
+  notifyOnApiFieldErrors: true,
+  notifyOnGenericApiMessage: true,
+  notifyOnEmptyResponse: true,
+  fallbackMessage: "Não foi possível salvar a filial. Verifique a ligação ou tente novamente.",
 });
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 
@@ -74,6 +78,21 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
     store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
   };
+  branchLogoUrl.value = branch.logo_url ?? null;
+}
+
+async function onBranchLogoSelect(file: File) {
+  if (!branchId.value) return;
+  branchLogoUploading.value = true;
+  try {
+    const res = await branchesApi.uploadLogo(branchId.value, file);
+    branchLogoUrl.value = res.branch?.logo_url ?? null;
+    notifySuccess("Logo da filial atualizado.");
+  } catch (e) {
+    onApiError(e);
+  } finally {
+    branchLogoUploading.value = false;
+  }
 }
 
 function loadBranch() {
@@ -97,7 +116,7 @@ function submit() {
   resetErrors();
   const validation = validateBranchForm(form.value, "edit");
   if (!validation.success) {
-    errors.value = validation.errors;
+    onClientValidationFailed(validation.errors);
     return;
   }
 
@@ -137,8 +156,16 @@ onMounted(() => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingBranch" class="text-muted">A carregar filial...</div>
+      <div v-else-if="loadingBranch" class="text-muted">Carregando filial...</div>
       <b-form v-else @submit.prevent="submit">
+        <ImageUploadCard
+          class="mb-3"
+          title="Logo da filial"
+          description="Imagem da filial (armazenada na pasta da empresa e filial no object storage)."
+          :preview-url="branchLogoUrl"
+          :uploading="branchLogoUploading"
+          @select="onBranchLogoSelect"
+        />
         <DataForm
           v-model="form"
           :errors="errors"
@@ -149,7 +176,7 @@ onMounted(() => {
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

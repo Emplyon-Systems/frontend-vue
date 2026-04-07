@@ -5,24 +5,18 @@
         <b-row>
           <b-col lg="4" class="align-self-center mb-3 mb-lg-0">
             <div class="d-flex align-items-center flex-row flex-wrap">
-              <div class="position-relative me-3">
-                <div
-                  v-if="logoSrc"
-                  class="rounded-circle overflow-hidden"
-                  style="width: 120px; height: 120px;"
-                >
+              <div class="position-relative me-3 flex-shrink-0">
+                <div v-if="logoSrc" class="profile-logo-frame">
                   <img
                     :src="logoSrc"
                     alt=""
-                    height="120"
-                    width="120"
-                    class="rounded-circle"
+                    class="profile-logo-img"
+                    loading="lazy"
                   />
                 </div>
                 <div
                   v-else
-                  class="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary"
-                  style="width: 120px; height: 120px; font-size: 2.5rem; font-weight: 600;"
+                  class="profile-logo-placeholder bg-light d-flex align-items-center justify-content-center text-primary"
                 >
                   {{ name ? name.charAt(0).toUpperCase() : "?" }}
                 </div>
@@ -93,3 +87,34 @@ const branchesDisplay = computed(() => {
   return String(props.branchesCount ?? 0);
 });
 </script>
+
+<style scoped>
+.profile-logo-frame,
+.profile-logo-placeholder {
+  width: min(100%, 280px);
+  height: 128px;
+  border-radius: 0.5rem;
+}
+
+.profile-logo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  background: var(--bs-light, #f8f9fa);
+}
+
+.profile-logo-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.profile-logo-placeholder {
+  font-size: 2.25rem;
+  font-weight: 600;
+}
+</style>

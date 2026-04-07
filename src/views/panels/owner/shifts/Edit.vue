@@ -136,7 +136,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingShift" class="text-muted">A carregar turno...</div>
+      <div v-else-if="loadingShift" class="text-muted">Carregando turno...</div>
       <template v-else>
         <AppAlert v-if="Object.keys(errors).length" variant="danger" class="mb-3">
           {{ Object.values(errors)[0] ?? "Corrija os erros antes de continuar." }}
@@ -145,7 +145,7 @@ onMounted(async () => {
         <DataForm v-model="form" :errors="errors" :branch-options="branchOptions" :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null" mode="edit" @clear-error="clearError">
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

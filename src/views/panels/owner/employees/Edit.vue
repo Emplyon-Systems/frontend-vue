@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "./form/DataForm.vue";
 import { employeesApi, branchesApi, companiesApi, usersApi, rolesApi } from "@/api/resources";
 import { loadUsersForCompany, loadUsersAvailableForEmployeeLink } from "@/helpers/employeeCompanyUsers";
@@ -62,6 +63,8 @@ const newUserPassword = ref("");
 const newUserPasswordConfirm = ref("");
 const newUserRoleId = ref(0);
 const roleOptions = ref<Array<{ id: number; name: string }>>([]);
+const employeePhotoUrl = ref<string | null>(null);
+const employeePhotoUploading = ref(false);
 
 const hideCreateUserOption = computed(() => form.value.user_id > 0);
 
@@ -220,6 +223,21 @@ function fillFormFromEmployee(data: Awaited<ReturnType<typeof employeesApi.getBy
   } else if (branchScoped.value && (e.company_id ?? 0) > 0) {
     companyOptions.value = [{ id: e.company_id, name: `Empresa #${e.company_id}` }];
   }
+  employeePhotoUrl.value = e.photo_url ?? null;
+}
+
+async function onEmployeePhotoSelect(file: File) {
+  if (Number.isNaN(employeeId.value) || employeeId.value <= 0) return;
+  employeePhotoUploading.value = true;
+  try {
+    const res = await employeesApi.uploadPhoto(employeeId.value, file);
+    employeePhotoUrl.value = res.employee?.photo_url ?? null;
+    notifySuccess("Foto do funcionário atualizada.");
+  } catch (e) {
+    onApiError(e);
+  } finally {
+    employeePhotoUploading.value = false;
+  }
 }
 
 function loadEmployee() {
@@ -252,23 +270,23 @@ function submit() {
   if (branchScoped.value) {
     if (branchAccessAccountState.value === "blocked") {
       notifyError(
-        "Não é possível concluir: limite de utilizadores atingido e nenhum utilizador disponível para vínculo nesta filial. Contacte a empresa Matriz."
+        "Não é possível concluir: limite de usuárioes atingido e nenhum usuário disponível para vínculo nesta filial. Contacte a empresa Matriz."
       );
       return;
     }
     if (branchAccessAccountState.value === "pending") {
-      notifyError("Aguarde a verificação de limites e de utilizadores disponíveis.");
+      notifyError("Aguarde a verificação de limites e de usuárioes disponíveis.");
       return;
     }
   }
 
   if (branchScoped.value && userAccessMode.value === "create") {
     if (!newUserPassword.value.trim()) {
-      errors.value = { ...errors.value, new_user_password: "Defina palavra-passe." };
+      errors.value = { ...errors.value, new_user_password: "Defina senha." };
       return;
     }
     if (newUserPassword.value !== newUserPasswordConfirm.value) {
-      errors.value = { ...errors.value, new_user_password: "As palavras-passe não coincidem." };
+      errors.value = { ...errors.value, new_user_password: "As senhas não coincidem." };
       return;
     }
     if (newUserRoleId.value <= 0) {
@@ -294,7 +312,7 @@ function submit() {
       .then((res) => {
         const uid = res.user?.id;
         if (!uid) {
-          throw new Error("Resposta sem utilizador.");
+          throw new Error("Resposta sem usuário.");
         }
         userIdCreatedForRollback = uid;
         return employeesApi.update(employeeId.value, {
@@ -334,7 +352,7 @@ function submit() {
   }
 
   if (branchScoped.value && userAccessMode.value === "link" && d.user_id <= 0) {
-    errors.value = { ...errors.value, user_id: "Selecione um utilizador ou crie uma conta." };
+    errors.value = { ...errors.value, user_id: "Selecione um usuário ou crie uma conta." };
     return;
   }
 
@@ -423,8 +441,17 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingEmployee" class="text-muted">A carregar funcionário...</div>
+      <div v-else-if="loadingEmployee" class="text-muted">Carregando funcionário...</div>
       <b-form v-else @submit.prevent="submit">
+        <ImageUploadCard
+          class="mb-3"
+          title="Foto do funcionário"
+          description="Foto de perfil (armazenada na pasta da empresa, filial e funcionário no object storage)."
+          variant="circle"
+          :preview-url="employeePhotoUrl"
+          :uploading="employeePhotoUploading"
+          @select="onEmployeePhotoSelect"
+        />
         <DataForm
           v-model="form"
           :errors="errors"
@@ -460,7 +487,7 @@ onMounted(async () => {
                 branchAccessAccountState === 'pending'
               "
             >
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

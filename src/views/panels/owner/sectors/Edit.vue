@@ -109,7 +109,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingSector" class="text-muted">A carregar setor...</div>
+      <div v-else-if="loadingSector" class="text-muted">Carregando setor...</div>
       <b-form v-else @submit.prevent="submit">
         <DataForm
           v-model="form"
@@ -121,7 +121,7 @@ onMounted(async () => {
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

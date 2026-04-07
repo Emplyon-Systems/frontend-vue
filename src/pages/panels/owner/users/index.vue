@@ -62,7 +62,7 @@ const canCreate = computed(() => {
   if (authStore.hasPermission("users.create")) return true;
   const slugs = (authStore.user?.roles ?? []).map((r) => r.slug ?? "");
   const exact = new Set(["branch_manager", "branch", "filial", "admin", "empresa"]);
-  const prefixes = ["gerente-filial", "gerente-c", "empresa-c"];
+  const prefixes = ["gerente-filial", "gerente-c", "empresa-c", "filial-b", "setor-b"];
   return slugs.some((s) => exact.has(s) || prefixes.some((p) => s.startsWith(p)));
 });
 /** Contexto empresa: limite de usuários já atingido. */
@@ -460,7 +460,7 @@ onMounted(() => {
                 :item-id="(item as UserRecord).id"
                 view-title="Ver"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const user = users.find((x) => x.id === id); if (user) confirmDelete(user); }"
@@ -473,8 +473,8 @@ onMounted(() => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar usuário"
-      message="Tem a certeza que deseja eliminar este usuário?"
+      title="Excluir usuário"
+      message="Tem certeza de que deseja excluir este usuário?"
       @confirm="doDelete"
     />
   </component>

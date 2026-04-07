@@ -10,7 +10,7 @@
     <h2>Regras</h2>
     <ul>
       <li>Não substituir o fluxo principal do caso de uso (ex.: “criar empresa + owner” no Service).</li>
-      <li>Registar: <code>{Model}::observe({Model}Observer::class);</code> no <code>AppServiceProvider</code>.</li>
+      <li>Registrar: <code>{Model}::observe({Model}Observer::class);</code> no <code>AppServiceProvider</code>.</li>
     </ul>
 
     <h2>Exemplo esqueleto</h2>

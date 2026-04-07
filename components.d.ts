@@ -55,6 +55,7 @@ declare module 'vue' {
     DropDown: typeof import('./src/components/DropDown.vue')['default']
     FilterTriggerButton: typeof import('./src/components/filters/FilterTriggerButton.vue')['default']
     FlatPicker: typeof import('./src/components/FlatPicker.vue')['default']
+    ImageUploadCard: typeof import('./src/components/ImageUploadCard.vue')['default']
     InputMask: typeof import('./src/components/InputMask.vue')['default']
     JsVectorMap: typeof import('./src/components/JsVectorMap.vue')['default']
     JustGage: typeof import('./src/components/JustGage.vue')['default']

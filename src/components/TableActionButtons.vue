@@ -19,7 +19,7 @@ const props = withDefaults(
     showRestore: false,
     viewTitle: "Visualizar",
     editTitle: "Editar",
-    deleteTitle: "Eliminar",
+    deleteTitle: "Excluir",
     restoreTitle: "Reativar",
   }
 );

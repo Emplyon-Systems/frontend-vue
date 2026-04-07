@@ -71,7 +71,7 @@ onMounted(loadEmployee);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingEmployee" class="text-muted">A carregar funcionário...</div>
+      <div v-else-if="loadingEmployee" class="text-muted">Carregando funcionário...</div>
       <ProfilePage
         v-else-if="employee"
         :employee="employee"

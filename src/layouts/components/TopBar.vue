@@ -405,7 +405,7 @@
                   <img :src="avatar1" alt="" class="thumb-md rounded-circle" />
                 </div>
                 <div class="flex-grow-1 ms-2 text-truncate align-self-center">
-                  <h6 class="my-0 fw-medium text-dark fs-13">{{ authStore.user?.name || authStore.user?.email || 'Utilizador' }}</h6>
+                  <h6 class="my-0 fw-medium text-dark fs-13">{{ authStore.user?.name || authStore.user?.email || 'Usuário' }}</h6>
                   <small class="text-muted mb-0">{{ authStore.user?.roles?.[0]?.name || '' }}</small>
                 </div>
               </div>

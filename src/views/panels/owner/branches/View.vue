@@ -39,6 +39,7 @@ const usersCount = ref(0);
 const branchUserLimit = ref<number | null>(null);
 const branchUsersUsedDisplay = ref<number | null>(null);
 const sectors = ref<BranchRecord["sectors"]>([]);
+const branchLogoUrl = ref<string | null>(null);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
 /** Aba Funcionários na vista da filial: superadmin (pedido de produto). */
 const showBranchEmployeesTab = computed(() => authStore.hasRole("superadmin"));
@@ -97,6 +98,7 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     branch.users_used != null ? Number(branch.users_used) : (branch.users?.length ?? 0);
   usersCount.value = branchUsersUsedDisplay.value;
   sectors.value = branch.sectors ?? [];
+  branchLogoUrl.value = branch.logo_url ?? null;
 }
 
 function loadBranch() {
@@ -145,7 +147,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingBranch" class="text-muted">A carregar filial...</div>
+      <div v-else-if="loadingBranch" class="text-muted">Carregando filial...</div>
       <ProfilePage
         v-else
         :name="form.name"
@@ -163,6 +165,7 @@ onMounted(async () => {
         :usersUsedDisplay="branchUsersUsedDisplay"
         :sectors="sectors"
         :subtitle="companyOptions.find((c) => c.id === form.company_id)?.name || ''"
+        :logo-src="branchLogoUrl ?? undefined"
         :onEdit="canEditBranch ? goEdit : undefined"
         :branch-id="branchId"
         :show-employees-tab="showBranchEmployeesTab"

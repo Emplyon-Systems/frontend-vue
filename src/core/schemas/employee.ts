@@ -23,7 +23,7 @@ const assignmentRowSchema = z.object({
 
 const employeeBaseSchema = z.object({
   company_id: z.number().int().nonnegative(),
-  /** 0 = sem utilizador da aplicação vinculado */
+  /** 0 = sem usuário da aplicação vinculado */
   user_id: z.number().int().nonnegative(),
   name: requiredText("Nome", 255),
   cpf: z

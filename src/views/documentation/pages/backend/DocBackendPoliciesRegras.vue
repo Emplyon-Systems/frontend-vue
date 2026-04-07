@@ -3,7 +3,7 @@
     <h1>Policies — regras</h1>
     <ul>
       <li>
-        <strong>Uma policy principal</strong> por model de domínio exposto na API (alinhada ao registo
+        <strong>Uma policy principal</strong> por model de domínio exposto na API (alinhada ao registro
         <code>Gate::policy</code>).
       </li>
       <li>

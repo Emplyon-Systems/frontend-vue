@@ -201,7 +201,7 @@ onMounted(() => loadList());
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const c = companies.find((x) => x.id === id); if (c) confirmDelete(c); }"
@@ -214,8 +214,8 @@ onMounted(() => loadList());
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar empresa"
-      message="Tem a certeza que deseja eliminar esta empresa?"
+      title="Excluir empresa"
+      message="Tem certeza de que deseja excluir esta empresa?"
       @confirm="doDelete"
     />
   </DefaultLayout>

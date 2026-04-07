@@ -127,7 +127,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingModalityType" class="text-muted">A carregar modalidade...</div>
+      <div v-else-if="loadingModalityType" class="text-muted">Carregando modalidade...</div>
       <DataForm
         v-else
         v-model="form"

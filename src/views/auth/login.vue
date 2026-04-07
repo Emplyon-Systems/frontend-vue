@@ -48,7 +48,7 @@ async function handleLogin() {
     if (data.user && data.token) {
       const roles = data.user.roles;
       if (!roles?.length) {
-        error.value = "Utilizador sem acesso. Nenhum perfil atribuído.";
+        error.value = "Usuário sem acesso. Nenhum perfil atribuído.";
         return;
       }
       authStore.saveSession(data.user, data.token);
@@ -110,7 +110,7 @@ async function handleLogin() {
             </div>
           </b-form-group>
 
-          <b-form-group label="Palavra-passe" label-for="userpassword" class="mb-3">
+          <b-form-group label="Senha" label-for="userpassword" class="mb-3">
             <b-input-group>
               <b-form-input
                 id="userpassword"
@@ -147,7 +147,7 @@ async function handleLogin() {
               Lembrar a minha preferência
             </b-form-checkbox>
             <router-link to="/auth/reset-pass" class="login-link">
-              Esqueceu a palavra-passe?
+              Esqueceu a senha?
             </router-link>
           </div>
 
@@ -182,9 +182,9 @@ async function handleLogin() {
         </div>
         -->
 
-        <!-- Registo (oculto)
+        <!-- Registro (oculto)
         <p class="login-register mt-4 mb-0">
-          Ainda não está registado?
+          Ainda não está registrado?
           <router-link to="/auth/register" class="login-link">Registe-se</router-link>
         </p>
         -->

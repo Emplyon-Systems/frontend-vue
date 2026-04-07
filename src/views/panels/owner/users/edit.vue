@@ -69,7 +69,12 @@ function submit() {
 
   const selectedRoleIds = new Set(validation.data.roles ?? []);
   const selectedRoles = roleOptions.value.filter((role) => selectedRoleIds.has(role.id));
-  const hasManager = selectedRoles.some((role) => role.slug === "branch_manager" || role.slug?.startsWith("filial-b"));
+  const hasManager = selectedRoles.some(
+    (role) =>
+      role.slug === "branch_manager" ||
+      role.slug?.startsWith("filial-b") ||
+      role.slug?.startsWith("setor-b")
+  );
   const hasCollaborator = selectedRoles.some((role) => role.slug === "colaborador" || role.slug?.startsWith("colaborador-b"));
   if (hasManager && hasCollaborator) {
     errors.value = {
@@ -344,7 +349,7 @@ watch(
         <b-form @submit.prevent="submit">
           <div v-if="!formReady" class="py-4 text-center text-muted">
             <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-            A carregar dados do usuário...
+            Carregando dados do usuário...
           </div>
           <DataForm
             v-else
@@ -365,7 +370,7 @@ watch(
           <b-row v-if="formReady">
             <b-col class="d-flex gap-2">
               <b-button type="submit" variant="primary" :disabled="loading">
-                {{ loading ? "A guardar..." : "Guardar" }}
+                {{ loading ? "Salvando..." : "Salvar" }}
               </b-button>
               <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
             </b-col>

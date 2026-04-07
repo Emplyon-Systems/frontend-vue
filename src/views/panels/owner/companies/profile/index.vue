@@ -84,6 +84,7 @@ defineProps<{
   branchLimit?: number;
   userLimit?: number;
   subtitle?: string;
+  /** Logo da empresa (URL pública). */
   logoSrc?: string;
   onEdit?: () => void;
 }>();

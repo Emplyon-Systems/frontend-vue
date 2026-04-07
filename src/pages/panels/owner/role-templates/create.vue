@@ -6,6 +6,12 @@ import UIComponentCard from "@/components/UIComponentCard.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import { permissionsApi, roleTemplatesApi } from "@/api/resources";
 import { notifySuccess, notifyError } from "@/helpers/notify";
+import {
+  buildGroupedPermissionModules,
+  collectPermissionIdsFromEmployeesSection,
+  collectPermissionIdsFromGroup,
+  type GroupedPermissionModule,
+} from "@/helpers/permissionModuleGroups";
 
 const router = useRouter();
 
@@ -26,49 +32,13 @@ const descriptionHint = computed(() =>
     : "Opcional. Pode usar {company_name} na descrição."
 );
 
-const permissionModuleLabels: Record<string, string> = {
-  audits: "Auditoria",
-  branches: "Filiais",
-  companies: "Empresas",
-  employees: "Funcionários",
-  modality_types: "Modalidades",
-  permissions: "Permissões",
-  role_templates: "Templates de perfil",
-  scale_types: "Tipos de escala",
-  roles: "Perfis",
-  sectors: "Setores",
-  shifts: "Turnos",
-  users: "Usuários",
-};
-
-const groupedPermissions = computed(() => {
-  const term = permissionSearch.value.trim().toLowerCase();
-  const groups = new Map<string, { id: number; label: string }[]>();
-  const selected = new Set(selectedPermissionIds.value);
-
-  for (const permission of permissionOptions.value) {
-    const moduleName = permission.slug?.split(".")?.[0] || "geral";
-    const label = `${permission.name} (${permission.slug})`;
-    if (term && !label.toLowerCase().includes(term)) continue;
-
-    if (!groups.has(moduleName)) groups.set(moduleName, []);
-    groups.get(moduleName)!.push({ id: permission.id, label });
-  }
-
-  return [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([moduleName, options]) => {
-      const sorted = options.sort((a, b) => a.label.localeCompare(b.label));
-      const selectedCount = sorted.filter((o) => selected.has(o.id)).length;
-      return {
-        moduleName,
-        moduleLabel: permissionModuleLabels[moduleName] ?? moduleName,
-        options: sorted,
-        total: sorted.length,
-        selected: selectedCount,
-      };
-    });
-});
+const groupedPermissions = computed((): GroupedPermissionModule[] =>
+  buildGroupedPermissionModules(
+    permissionOptions.value,
+    selectedPermissionIds.value,
+    permissionSearch.value
+  )
+);
 
 const totalVisible = computed(() =>
   groupedPermissions.value.reduce((s, g) => s + g.total, 0)
@@ -92,9 +62,22 @@ function toggleModule(moduleName: string, checked: boolean) {
   const g = groupedPermissions.value.find((x) => x.moduleName === moduleName);
   if (!g) return;
   const s = new Set(selectedPermissionIds.value);
-  for (const o of g.options) {
-    if (checked) s.add(o.id);
-    else s.delete(o.id);
+  const ids = collectPermissionIdsFromGroup(g);
+  for (const id of ids) {
+    if (checked) s.add(id);
+    else s.delete(id);
+  }
+  selectedPermissionIds.value = [...s];
+}
+
+function toggleEmployeesSection(sectionKey: string, checked: boolean) {
+  const g = groupedPermissions.value.find((x) => x.kind === "employees");
+  if (!g || g.kind !== "employees") return;
+  const s = new Set(selectedPermissionIds.value);
+  const ids = collectPermissionIdsFromEmployeesSection(g, sectionKey);
+  for (const id of ids) {
+    if (checked) s.add(id);
+    else s.delete(id);
   }
   selectedPermissionIds.value = [...s];
 }
@@ -102,9 +85,10 @@ function toggleModule(moduleName: string, checked: boolean) {
 function toggleAllVisible(checked: boolean) {
   const s = new Set(selectedPermissionIds.value);
   for (const g of groupedPermissions.value) {
-    for (const o of g.options) {
-      if (checked) s.add(o.id);
-      else s.delete(o.id);
+    const ids = collectPermissionIdsFromGroup(g);
+    for (const id of ids) {
+      if (checked) s.add(id);
+      else s.delete(id);
     }
   }
   selectedPermissionIds.value = [...s];
@@ -230,30 +214,77 @@ onMounted(async () => {
               <span class="badge bg-light text-dark border">{{ group.selected }}/{{ group.total }}</span>
             </summary>
             <div class="px-3 pb-3">
-              <b-form-checkbox
-                class="mb-2"
-                :model-value="group.selected > 0 && group.selected === group.total"
-                @update:model-value="toggleModule(group.moduleName, Boolean($event))"
-              >
-                Marcar todo o módulo
-              </b-form-checkbox>
-              <b-row>
-                <b-col
-                  v-for="opt in group.options"
-                  :key="opt.id"
-                  cols="12"
-                  md="6"
-                  lg="4"
-                  class="mb-1"
+              <template v-if="group.kind === 'employees'">
+                <b-form-checkbox
+                  class="mb-3"
+                  :model-value="group.selected > 0 && group.selected === group.total"
+                  @update:model-value="toggleModule('employees', Boolean($event))"
                 >
+                  Marcar todo o bloco Funcionários
+                </b-form-checkbox>
+                <div
+                  v-for="section in group.sections"
+                  :key="section.sectionKey"
+                  class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                >
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                    <span class="fw-semibold text-body">{{ section.sectionLabel }}</span>
+                    <span class="badge bg-white text-dark border small"
+                      >{{ section.selected }}/{{ section.total }}</span
+                    >
+                  </div>
                   <b-form-checkbox
-                    :model-value="isSelected(opt.id)"
-                    @update:model-value="togglePermission(opt.id, Boolean($event))"
+                    class="mb-2"
+                    :model-value="section.total > 0 && section.selected === section.total"
+                    @update:model-value="toggleEmployeesSection(section.sectionKey, Boolean($event))"
                   >
-                    {{ opt.label }}
+                    Marcar {{ section.sectionLabel.toLowerCase() }}
                   </b-form-checkbox>
-                </b-col>
-              </b-row>
+                  <b-row>
+                    <b-col
+                      v-for="opt in section.options"
+                      :key="opt.id"
+                      cols="12"
+                      md="6"
+                      lg="4"
+                      class="mb-1"
+                    >
+                      <b-form-checkbox
+                        :model-value="isSelected(opt.id)"
+                        @update:model-value="togglePermission(opt.id, Boolean($event))"
+                      >
+                        {{ opt.label }}
+                      </b-form-checkbox>
+                    </b-col>
+                  </b-row>
+                </div>
+              </template>
+              <template v-else>
+                <b-form-checkbox
+                  class="mb-2"
+                  :model-value="group.selected > 0 && group.selected === group.total"
+                  @update:model-value="toggleModule(group.moduleName, Boolean($event))"
+                >
+                  Marcar todo o módulo
+                </b-form-checkbox>
+                <b-row>
+                  <b-col
+                    v-for="opt in group.options"
+                    :key="opt.id"
+                    cols="12"
+                    md="6"
+                    lg="4"
+                    class="mb-1"
+                  >
+                    <b-form-checkbox
+                      :model-value="isSelected(opt.id)"
+                      @update:model-value="togglePermission(opt.id, Boolean($event))"
+                    >
+                      {{ opt.label }}
+                    </b-form-checkbox>
+                  </b-col>
+                </b-row>
+              </template>
             </div>
           </details>
         </div>
@@ -267,7 +298,7 @@ onMounted(async () => {
           <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
         </div>
       </b-form>
-      <p v-else class="text-muted">A carregar permissões…</p>
+      <p v-else class="text-muted">Carregando permissões…</p>
     </UIComponentCard>
   </DefaultLayout>
 </template>

@@ -407,7 +407,7 @@ function generateRandomPassword(length = 12): void {
           </b-col>
           <b-col md="4">
             <b-form-group label-for="user_password" class="mb-3">
-              <template #label>Palavra-passe do usuário <span class="text-danger">*</span></template>
+              <template #label>Senha do usuário <span class="text-danger">*</span></template>
               <b-input-group>
                 <b-form-input
                   id="user_password"
@@ -438,7 +438,7 @@ function generateRandomPassword(length = 12): void {
         <b-row>
           <b-col md="4" class="ms-auto">
             <b-form-group label-for="user_password_confirmation" class="mb-3">
-              <template #label>Confirmar palavra-passe <span class="text-danger">*</span></template>
+              <template #label>Confirmar senha <span class="text-danger">*</span></template>
               <b-form-input
                 id="user_password_confirmation"
                 :model-value="localForm.user_password_confirmation"

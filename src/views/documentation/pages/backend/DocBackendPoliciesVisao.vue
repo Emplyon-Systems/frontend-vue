@@ -2,7 +2,7 @@
   <article class="doc-article">
     <h1>Policies — visão geral</h1>
     <p class="doc-lead">
-      Classes em <code>App\Policies</code> que respondem se o utilizador autenticado pode executar uma
+      Classes em <code>App\Policies</code> que respondem se o usuário autenticado pode executar uma
       <strong>ability</strong> sobre um modelo (ou sobre a classe, em listagens / create).
     </p>
 
@@ -19,7 +19,7 @@
         <code>Permission</code>, <code>ModalityType</code>, <code>ScaleType</code>.
       </li>
       <li>
-        Registo em <code>AppServiceProvider::boot()</code> com
+        Registro em <code>AppServiceProvider::boot()</code> com
         <code>Gate::policy(Model::class, XxxPolicy::class)</code>.
       </li>
       <li>

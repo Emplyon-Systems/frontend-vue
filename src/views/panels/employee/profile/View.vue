@@ -93,7 +93,7 @@ function loadUser() {
   loadError.value = "";
   loadingUser.value = true;
   if (!userId.value) {
-    loadError.value = "Utilizador não identificado.";
+    loadError.value = "Usuário não identificado.";
     loadingUser.value = false;
     return;
   }
@@ -128,7 +128,7 @@ onMounted(loadUser);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingUser" class="text-muted">A carregar perfil...</div>
+      <div v-else-if="loadingUser" class="text-muted">Carregando perfil...</div>
       <ProfilePage
         v-else
         :name="form.name"

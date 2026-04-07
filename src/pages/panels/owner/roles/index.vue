@@ -51,7 +51,7 @@ const isCompanyContext = computed(
 const isBranchContext = computed(
   () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id != null
 );
-/** Utilizador tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
+/** Usuário tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
 const hasCompanyLevelAccess = computed(() =>
   authStore.getContextOptions().some((o) => o.branch_id == null)
 );
@@ -159,7 +159,7 @@ function doDelete() {
       loadList(pagination.value.current_page);
     })
     .catch((err: { response?: { data?: { errors?: { role?: string[] } } } }) => {
-      const msg = err.response?.data?.errors?.role?.[0] ?? "Não foi possível eliminar o perfil.";
+      const msg = err.response?.data?.errors?.role?.[0] ?? "Não foi possível excluir o perfil.";
       notifyError(msg);
     });
 }
@@ -172,9 +172,10 @@ function goEdit(id: number) {
   router.push({ name: "owner.roles.form", params: { id: String(id) } });
 }
 
-/** Perfil criado automaticamente pela filial (filial-b{id}). Só a empresa (contexto empresa) ou owner/superadmin pode editar. */
+/** Perfil criado automaticamente pela filial (filial-b{id}, setor-b{id}). Só a empresa (contexto empresa) ou owner/superadmin pode editar. */
 function isSystemBranchRole(role: RoleRecord): boolean {
-  return (role.slug ?? "").startsWith("filial-b");
+  const s = role.slug ?? "";
+  return s.startsWith("filial-b") || s.startsWith("setor-b");
 }
 function canEditRole(role: RoleRecord): boolean {
   if (!isSystemBranchRole(role)) return true;
@@ -274,7 +275,7 @@ onMounted(async () => {
                 :show-edit="canEditRole(item as RoleRecord)"
                 :show-delete="canEditRole(item as RoleRecord)"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @edit="goEdit"
                 @delete="(id) => { const role = roles.find((x) => x.id === id); if (role) confirmDelete(role); }"
               />
@@ -286,8 +287,8 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar perfil"
-      message="Tem a certeza que deseja eliminar este perfil?"
+      title="Excluir perfil"
+      message="Tem certeza de que deseja excluir este perfil?"
       @confirm="doDelete"
     />
   </DefaultLayout>

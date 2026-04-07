@@ -7,6 +7,12 @@ import AppAlert from "@/components/AppAlert.vue";
 import { permissionsApi, roleTemplatesApi } from "@/api/resources";
 import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import {
+  buildGroupedPermissionModules,
+  collectPermissionIdsFromEmployeesSection,
+  collectPermissionIdsFromGroup,
+  type GroupedPermissionModule,
+} from "@/helpers/permissionModuleGroups";
 
 const route = useRoute();
 const router = useRouter();
@@ -21,7 +27,7 @@ const isViewMode = computed(() => {
   const v = route.query.view;
   return v === "1" || v === "true";
 });
-/** Pode alterar campos e guardar (não é modo «Ver» da listagem). */
+/** Pode alterar campos e salvar (não é modo «Ver» da listagem). */
 const canMutate = computed(() => canEdit.value && !isViewMode.value);
 
 const pageTitle = computed(() => (canMutate.value ? "Editar template de perfil" : "Ver template de perfil"));
@@ -35,55 +41,19 @@ const templateKey = ref("");
 const slugPrefix = ref("");
 const provisionScope = ref("");
 const isLocked = ref(true);
-/** Incluído no provisionamento automático (gravado ao clicar em Guardar). */
+/** Incluído no provisionamento automático (gravado ao clicar em Salvar). */
 const isActive = ref(true);
 const permissionOptions = ref<{ id: number; name: string; slug: string }[]>([]);
 const selectedPermissionIds = ref<number[]>([]);
 const permissionSearch = ref("");
 
-const permissionModuleLabels: Record<string, string> = {
-  audits: "Auditoria",
-  branches: "Filiais",
-  companies: "Empresas",
-  employees: "Funcionários",
-  modality_types: "Modalidades",
-  permissions: "Permissões",
-  role_templates: "Templates de perfil",
-  scale_types: "Tipos de escala",
-  roles: "Perfis",
-  sectors: "Setores",
-  shifts: "Turnos",
-  users: "Usuários",
-};
-
-const groupedPermissions = computed(() => {
-  const term = permissionSearch.value.trim().toLowerCase();
-  const groups = new Map<string, { id: number; label: string }[]>();
-  const selected = new Set(selectedPermissionIds.value);
-
-  for (const permission of permissionOptions.value) {
-    const moduleName = permission.slug?.split(".")?.[0] || "geral";
-    const label = `${permission.name} (${permission.slug})`;
-    if (term && !label.toLowerCase().includes(term)) continue;
-
-    if (!groups.has(moduleName)) groups.set(moduleName, []);
-    groups.get(moduleName)!.push({ id: permission.id, label });
-  }
-
-  return [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([moduleName, options]) => {
-      const sorted = options.sort((a, b) => a.label.localeCompare(b.label));
-      const selectedCount = sorted.filter((o) => selected.has(o.id)).length;
-      return {
-        moduleName,
-        moduleLabel: permissionModuleLabels[moduleName] ?? moduleName,
-        options: sorted,
-        total: sorted.length,
-        selected: selectedCount,
-      };
-    });
-});
+const groupedPermissions = computed((): GroupedPermissionModule[] =>
+  buildGroupedPermissionModules(
+    permissionOptions.value,
+    selectedPermissionIds.value,
+    permissionSearch.value
+  )
+);
 
 const totalVisible = computed(() =>
   groupedPermissions.value.reduce((s, g) => s + g.total, 0)
@@ -109,9 +79,23 @@ function toggleModule(moduleName: string, checked: boolean) {
   const g = groupedPermissions.value.find((x) => x.moduleName === moduleName);
   if (!g) return;
   const s = new Set(selectedPermissionIds.value);
-  for (const o of g.options) {
-    if (checked) s.add(o.id);
-    else s.delete(o.id);
+  const ids = collectPermissionIdsFromGroup(g);
+  for (const id of ids) {
+    if (checked) s.add(id);
+    else s.delete(id);
+  }
+  selectedPermissionIds.value = [...s];
+}
+
+function toggleEmployeesSection(sectionKey: string, checked: boolean) {
+  if (!canMutate.value) return;
+  const g = groupedPermissions.value.find((x) => x.kind === "employees");
+  if (!g || g.kind !== "employees") return;
+  const s = new Set(selectedPermissionIds.value);
+  const ids = collectPermissionIdsFromEmployeesSection(g, sectionKey);
+  for (const id of ids) {
+    if (checked) s.add(id);
+    else s.delete(id);
   }
   selectedPermissionIds.value = [...s];
 }
@@ -120,9 +104,10 @@ function toggleAllVisible(checked: boolean) {
   if (!canMutate.value) return;
   const s = new Set(selectedPermissionIds.value);
   for (const g of groupedPermissions.value) {
-    for (const o of g.options) {
-      if (checked) s.add(o.id);
-      else s.delete(o.id);
+    const ids = collectPermissionIdsFromGroup(g);
+    for (const id of ids) {
+      if (checked) s.add(id);
+      else s.delete(id);
     }
   }
   selectedPermissionIds.value = [...s];
@@ -175,7 +160,7 @@ function submit() {
       notifySuccess("Template atualizado.");
       router.push({ name: "owner.role-templates" });
     })
-    .catch(() => notifyError("Não foi possível guardar."))
+    .catch(() => notifyError("Não foi possível salvar."))
     .finally(() => {
       loading.value = false;
     });
@@ -238,7 +223,7 @@ watch(
                   <span v-if="isActive">Ativo — entra no provisionamento ao criar filiais ou empresas</span>
                   <span v-else>Inativo — não entra no provisionamento automático</span>
                 </b-form-checkbox>
-                <small class="text-muted d-block mt-1">O status só é gravado quando clicar em Guardar.</small>
+                <small class="text-muted d-block mt-1">O status só é gravado quando clicar em Salvar.</small>
                 <small v-if="isLocked" class="text-muted d-block mt-1">
                   Template do sistema: inativar só interrompe novos perfis automáticos; o registro e a chave permanecem.
                 </small>
@@ -287,39 +272,89 @@ watch(
               <span class="badge bg-light text-dark border">{{ group.selected }}/{{ group.total }}</span>
             </summary>
             <div class="px-3 pb-3">
-              <b-form-checkbox
-                v-if="canMutate"
-                class="mb-2"
-                :model-value="group.selected > 0 && group.selected === group.total"
-                @update:model-value="toggleModule(group.moduleName, Boolean($event))"
-              >
-                Marcar todo o módulo
-              </b-form-checkbox>
-              <b-row>
-                <b-col
-                  v-for="opt in group.options"
-                  :key="opt.id"
-                  cols="12"
-                  md="6"
-                  lg="4"
-                  class="mb-1"
+              <template v-if="group.kind === 'employees'">
+                <b-form-checkbox
+                  v-if="canMutate"
+                  class="mb-3"
+                  :model-value="group.selected > 0 && group.selected === group.total"
+                  @update:model-value="toggleModule('employees', Boolean($event))"
                 >
+                  Marcar todo o bloco Funcionários
+                </b-form-checkbox>
+                <div
+                  v-for="section in group.sections"
+                  :key="section.sectionKey"
+                  class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                >
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                    <span class="fw-semibold text-body">{{ section.sectionLabel }}</span>
+                    <span class="badge bg-white text-dark border small"
+                      >{{ section.selected }}/{{ section.total }}</span
+                    >
+                  </div>
                   <b-form-checkbox
-                    :model-value="isSelected(opt.id)"
-                    :disabled="!canMutate"
-                    @update:model-value="togglePermission(opt.id, Boolean($event))"
+                    v-if="canMutate"
+                    class="mb-2"
+                    :model-value="section.total > 0 && section.selected === section.total"
+                    @update:model-value="toggleEmployeesSection(section.sectionKey, Boolean($event))"
                   >
-                    {{ opt.label }}
+                    Marcar {{ section.sectionLabel.toLowerCase() }}
                   </b-form-checkbox>
-                </b-col>
-              </b-row>
+                  <b-row>
+                    <b-col
+                      v-for="opt in section.options"
+                      :key="opt.id"
+                      cols="12"
+                      md="6"
+                      lg="4"
+                      class="mb-1"
+                    >
+                      <b-form-checkbox
+                        :model-value="isSelected(opt.id)"
+                        :disabled="!canMutate"
+                        @update:model-value="togglePermission(opt.id, Boolean($event))"
+                      >
+                        {{ opt.label }}
+                      </b-form-checkbox>
+                    </b-col>
+                  </b-row>
+                </div>
+              </template>
+              <template v-else>
+                <b-form-checkbox
+                  v-if="canMutate"
+                  class="mb-2"
+                  :model-value="group.selected > 0 && group.selected === group.total"
+                  @update:model-value="toggleModule(group.moduleName, Boolean($event))"
+                >
+                  Marcar todo o módulo
+                </b-form-checkbox>
+                <b-row>
+                  <b-col
+                    v-for="opt in group.options"
+                    :key="opt.id"
+                    cols="12"
+                    md="6"
+                    lg="4"
+                    class="mb-1"
+                  >
+                    <b-form-checkbox
+                      :model-value="isSelected(opt.id)"
+                      :disabled="!canMutate"
+                      @update:model-value="togglePermission(opt.id, Boolean($event))"
+                    >
+                      {{ opt.label }}
+                    </b-form-checkbox>
+                  </b-col>
+                </b-row>
+              </template>
             </div>
           </details>
         </div>
 
         <div class="d-flex gap-2">
           <b-button v-if="canMutate" type="submit" variant="primary" :disabled="loading">
-            {{ loading ? "A guardar…" : "Guardar" }}
+            {{ loading ? "Salvando…" : "Salvar" }}
           </b-button>
           <b-button type="button" variant="outline-secondary" @click="cancel">
             {{ canMutate ? "Cancelar" : "Voltar" }}

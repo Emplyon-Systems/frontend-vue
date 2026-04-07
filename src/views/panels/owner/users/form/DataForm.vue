@@ -2,6 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import Selectr from "@/lib/selectr";
 import type { UserFormData } from "@/core/schemas";
+import {
+  buildGroupedPermissionModules,
+  collectPermissionIdsFromEmployeesSection,
+  collectPermissionIdsFromGroup,
+  type EmployeesNestedPermissionGroup,
+  type GroupedPermissionModule,
+} from "@/helpers/permissionModuleGroups";
 
 const props = withDefaults(
   defineProps<{
@@ -83,21 +90,6 @@ watch(
     first?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 );
-
-const permissionModuleLabels: Record<string, string> = {
-  audits: "Auditoria",
-  branches: "Filiais",
-  companies: "Empresas",
-  employees: "Funcionários",
-  modality_types: "Modalidades",
-  permissions: "Permissões",
-  role_templates: "Templates de perfil",
-  scale_types: "Tipos de escala",
-  roles: "Perfis",
-  sectors: "Setores",
-  shifts: "Turnos",
-  users: "Usuários",
-};
 
 function togglePassword() {
   showUserPassword.value = !showUserPassword.value;
@@ -189,10 +181,6 @@ function initRoleSelectr() {
   if (ids.length) roleSelectr.setValue(ids);
 }
 
-function getPermissionModuleLabel(moduleName: string): string {
-  return permissionModuleLabels[moduleName] ?? moduleName;
-}
-
 const inheritedPermissionIds = computed(() => {
   const selectedRoles = new Set(props.modelValue.roles ?? []);
   const ids = new Set<number>();
@@ -213,33 +201,37 @@ const effectivePermissionIds = computed(() => {
   return ids;
 });
 
-const groupedPermissions = computed(() => {
-  const term = permissionSearch.value.trim().toLowerCase();
-  const groups = new Map<string, { id: number; name: string; slug: string }[]>();
-  for (const permission of props.permissionOptions) {
-    const slug = permission.slug ?? "";
-    const text = `${permission.name} ${slug}`.toLowerCase();
-    if (term && !text.includes(term)) continue;
-    const moduleName = slug.split(".")[0] || "geral";
-    if (!groups.has(moduleName)) groups.set(moduleName, []);
-    groups.get(moduleName)!.push({ id: permission.id, name: permission.name, slug });
-  }
-
-  return [...groups.entries()]
-    .sort(([a], [b]) => getPermissionModuleLabel(a).localeCompare(getPermissionModuleLabel(b)))
-    .map(([moduleName, options]) => {
-      const sorted = options.sort((a, b) => a.name.localeCompare(b.name));
-      const checked = sorted.filter((p) => effectivePermissionIds.value.has(p.id)).length;
-      const extras = sorted.filter((p) => (props.modelValue.direct_permission_ids ?? []).includes(p.id)).length;
-      return {
-        moduleName,
-        moduleLabel: getPermissionModuleLabel(moduleName),
-        options: sorted,
-        total: sorted.length,
-        checked,
-        extras,
-      };
+type UserPermissionGroup =
+  | (GroupedPermissionModule & {
+      checked: number;
+      extras: number;
+    })
+  | (EmployeesNestedPermissionGroup & {
+      checked: number;
+      extras: number;
+      sections: Array<EmployeesNestedPermissionGroup["sections"][number] & { extras: number }>;
     });
+
+const groupedPermissions = computed((): UserPermissionGroup[] => {
+  const base = buildGroupedPermissionModules(
+    props.permissionOptions.map((p) => ({ id: p.id, name: p.name, slug: p.slug ?? "" })),
+    [...effectivePermissionIds.value],
+    permissionSearch.value
+  );
+  const direct = new Set(props.modelValue.direct_permission_ids ?? []);
+
+  return base.map((g): UserPermissionGroup => {
+    if (g.kind === "simple") {
+      const extras = g.options.filter((o) => direct.has(o.id)).length;
+      return { ...g, checked: g.selected, extras };
+    }
+    const sections = g.sections.map((s) => ({
+      ...s,
+      extras: s.options.filter((o) => direct.has(o.id)).length,
+    }));
+    const extras = sections.reduce((sum, s) => sum + s.extras, 0);
+    return { ...g, sections, checked: g.selected, extras };
+  });
 });
 
 function isInheritedPermission(permissionId: number): boolean {
@@ -266,12 +258,47 @@ function toggleModule(moduleName: string, checked: boolean) {
   const group = groupedPermissions.value.find((g) => g.moduleName === moduleName);
   if (!group) return;
   const current = new Set(props.modelValue.direct_permission_ids ?? []);
-  for (const permission of group.options) {
-    if (isInheritedPermission(permission.id)) continue;
-    if (checked) current.add(permission.id);
-    else current.delete(permission.id);
+  const ids = collectPermissionIdsFromGroup(group);
+  for (const id of ids) {
+    if (isInheritedPermission(id)) continue;
+    if (checked) current.add(id);
+    else current.delete(id);
   }
   updateField("direct_permission_ids", [...current]);
+}
+
+function toggleEmployeesSection(sectionKey: string, checked: boolean) {
+  const group = groupedPermissions.value.find((g) => g.kind === "employees");
+  if (!group || group.kind !== "employees") return;
+  const current = new Set(props.modelValue.direct_permission_ids ?? []);
+  const ids = collectPermissionIdsFromEmployeesSection(group, sectionKey);
+  for (const id of ids) {
+    if (isInheritedPermission(id)) continue;
+    if (checked) current.add(id);
+    else current.delete(id);
+  }
+  updateField("direct_permission_ids", [...current]);
+}
+
+function simpleModuleExtrasToggleState(group: UserPermissionGroup): boolean {
+  if (group.kind !== "simple") return false;
+  const nonInherited = group.options.filter((o) => !isInheritedPermission(o.id));
+  if (!nonInherited.length) return false;
+  return nonInherited.every((o) => isExtraPermission(o.id));
+}
+
+function employeesGroupExtrasToggleState(group: UserPermissionGroup): boolean {
+  if (group.kind !== "employees") return false;
+  const opts = group.sections.flatMap((s) => s.options);
+  const nonInherited = opts.filter((o) => !isInheritedPermission(o.id));
+  if (!nonInherited.length) return false;
+  return nonInherited.every((o) => isExtraPermission(o.id));
+}
+
+function sectionExtrasToggleState(section: { options: { id: number }[] }): boolean {
+  const nonInherited = section.options.filter((o) => !isInheritedPermission(o.id));
+  if (!nonInherited.length) return false;
+  return nonInherited.every((o) => isExtraPermission(o.id));
 }
 
 function onModuleToggle(moduleName: string, event: Event) {
@@ -558,7 +585,7 @@ function generateRandomPassword(length = 12): void {
           </b-col>
 
           <b-col md="6">
-            <b-form-group :label="isCreate ? 'Palavra-passe' : 'Nova palavra-passe'" label-for="user-password" class="mb-3">
+            <b-form-group :label="isCreate ? 'Senha' : 'Nova senha'" label-for="user-password" class="mb-3">
               <b-input-group>
                 <b-form-input
                   id="user-password"
@@ -589,7 +616,7 @@ function generateRandomPassword(length = 12): void {
             </b-form-group>
           </b-col>
           <b-col v-if="isCreate" md="6">
-            <b-form-group label="Confirmar palavra-passe" label-for="user-password-confirmation" class="mb-3">
+            <b-form-group label="Confirmar senha" label-for="user-password-confirmation" class="mb-3">
               <b-form-input
                 id="user-password-confirmation"
                 :model-value="modelValue.password_confirmation ?? ''"
@@ -853,44 +880,104 @@ function generateRandomPassword(length = 12): void {
                       </div>
                     </summary>
                     <div class="px-3 pb-3">
-                      <b-form-checkbox
-                        class="mb-2 permission-extra-toggle"
-                        :model-value="group.options.filter((p) => !isInheritedPermission(p.id)).every((p) => isExtraPermission(p.id))"
-                        @update:model-value="toggleModule(group.moduleName, Boolean($event))"
-                      >
-                        Marcar extras do módulo
-                      </b-form-checkbox>
-                      <b-row>
-                        <b-col
-                          v-for="permission in group.options"
-                          :key="permission.id"
-                          cols="12"
-                          md="6"
-                          lg="4"
-                          class="mb-1 d-flex align-items-center justify-content-between gap-2 permission-item"
-                          :class="{
-                            'permission-item--inherited': isInheritedPermission(permission.id),
-                            'permission-item--extra': isExtraPermission(permission.id),
-                          }"
+                      <template v-if="group.kind === 'employees'">
+                        <b-form-checkbox
+                          class="mb-3 permission-extra-toggle"
+                          :model-value="employeesGroupExtrasToggleState(group)"
+                          @update:model-value="toggleModule('employees', Boolean($event))"
                         >
+                          Marcar extras do bloco Funcionários
+                        </b-form-checkbox>
+                        <div
+                          v-for="section in group.sections"
+                          :key="section.sectionKey"
+                          class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                        >
+                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <span class="fw-semibold text-body">{{ section.sectionLabel }}</span>
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="badge bg-light text-dark border"
+                                >{{ section.selected }}/{{ section.total }}</span
+                              >
+                              <span v-if="section.extras > 0" class="badge bg-warning text-dark"
+                                >+{{ section.extras }} EXTRA</span
+                              >
+                            </div>
+                          </div>
                           <b-form-checkbox
-                            :model-value="isPermissionChecked(permission.id)"
-                            :disabled="isInheritedPermission(permission.id)"
-                            @update:model-value="togglePermission(permission.id, Boolean($event))"
+                            class="mb-2 permission-extra-toggle"
+                            :model-value="sectionExtrasToggleState(section)"
+                            @update:model-value="toggleEmployeesSection(section.sectionKey, Boolean($event))"
                           >
-                            {{ permission.name }} ({{ permission.slug }})
+                            Marcar extras desta secção
                           </b-form-checkbox>
-                          <span v-if="isExtraPermission(permission.id)" class="badge permission-badge permission-badge--extra">+EXTRA</span>
-                          <span v-else-if="isInheritedPermission(permission.id)" class="badge permission-badge permission-badge--inherited">Perfil</span>
-                        </b-col>
-                      </b-row>
+                          <b-row>
+                            <b-col
+                              v-for="permission in section.options"
+                              :key="permission.id"
+                              cols="12"
+                              md="6"
+                              lg="4"
+                              class="mb-1 d-flex align-items-center justify-content-between gap-2 permission-item"
+                              :class="{
+                                'permission-item--inherited': isInheritedPermission(permission.id),
+                                'permission-item--extra': isExtraPermission(permission.id),
+                              }"
+                            >
+                              <b-form-checkbox
+                                :model-value="isPermissionChecked(permission.id)"
+                                :disabled="isInheritedPermission(permission.id)"
+                                @update:model-value="togglePermission(permission.id, Boolean($event))"
+                              >
+                                {{ permission.name }}
+                              </b-form-checkbox>
+                              <span v-if="isExtraPermission(permission.id)" class="badge permission-badge permission-badge--extra">+EXTRA</span>
+                              <span v-else-if="isInheritedPermission(permission.id)" class="badge permission-badge permission-badge--inherited">Perfil</span>
+                            </b-col>
+                          </b-row>
+                        </div>
+                      </template>
+                      <template v-else>
+                        <b-form-checkbox
+                          class="mb-2 permission-extra-toggle"
+                          :model-value="simpleModuleExtrasToggleState(group)"
+                          @update:model-value="toggleModule(group.moduleName, Boolean($event))"
+                        >
+                          Marcar extras do módulo
+                        </b-form-checkbox>
+                        <b-row>
+                          <b-col
+                            v-for="permission in group.options"
+                            :key="permission.id"
+                            cols="12"
+                            md="6"
+                            lg="4"
+                            class="mb-1 d-flex align-items-center justify-content-between gap-2 permission-item"
+                            :class="{
+                              'permission-item--inherited': isInheritedPermission(permission.id),
+                              'permission-item--extra': isExtraPermission(permission.id),
+                            }"
+                          >
+                            <b-form-checkbox
+                              :model-value="isPermissionChecked(permission.id)"
+                              :disabled="isInheritedPermission(permission.id)"
+                              @update:model-value="togglePermission(permission.id, Boolean($event))"
+                            >
+                              {{ permission.name }}
+                            </b-form-checkbox>
+                            <span v-if="isExtraPermission(permission.id)" class="badge permission-badge permission-badge--extra">+EXTRA</span>
+                            <span v-else-if="isInheritedPermission(permission.id)" class="badge permission-badge permission-badge--inherited">Perfil</span>
+                          </b-col>
+                        </b-row>
+                      </template>
                     </div>
                   </details>
                 </div>
                 <p v-else class="text-muted mb-0">Nenhuma permissão encontrada com esse filtro.</p>
 
                 <small class="text-muted d-block mt-2">
-                  Permissões herdadas do perfil ficam marcadas como "Perfil". Novas permissões no usuário são destacadas com "+EXTRA".
+                  Permissões herdadas do perfil ficam marcadas como "Perfil". Novas permissões no usuário são destacadas com "+EXTRA". Em
+                  <strong>Funcionários</strong>, o cadastro e as permissões de férias, atestados e afastamentos aparecem em blocos separados.
                 </small>
                 <b-form-invalid-feedback v-if="errors.direct_permission_ids" class="d-block">
                   {{ errors.direct_permission_ids }}

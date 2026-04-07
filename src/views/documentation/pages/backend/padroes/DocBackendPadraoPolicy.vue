@@ -9,7 +9,7 @@
 
     <h2>Trait partilhado</h2>
     <p>
-      Ficheiro: <code>app/Policies/Concerns/ChecksTenantPermissions.php</code>. Exemplo de uso no corpo
+      Arquivo: <code>app/Policies/Concerns/ChecksTenantPermissions.php</code>. Exemplo de uso no corpo
       da policy:
     </p>
     <pre class="doc-pre"><code>use App\Policies\Concerns\ChecksTenantPermissions;
@@ -29,7 +29,7 @@ class CompanyPolicy
     }
 }</code></pre>
 
-    <h2>Exceção: utilizador a si próprio</h2>
+    <h2>Exceção: usuário a si próprio</h2>
     <p>
       Em <code>UserPolicy</code>, <code>view</code> e <code>update</code> devolvem
       <code>true</code> quando <code>$auth-&gt;id === $target-&gt;id</code>, sem exigir
@@ -38,7 +38,7 @@ class CompanyPolicy
     </p>
 
     <h2>Controller</h2>
-    <p>Ficheiro base: <code>app/Http/Controllers/Concerns/AuthorizesApiResources.php</code>.</p>
+    <p>Arquivo base: <code>app/Http/Controllers/Concerns/AuthorizesApiResources.php</code>.</p>
     <pre class="doc-pre"><code>// Listagem
 if ($r = $this-&gt;apiDenyUnless('list', 'viewAny', Company::class)) {
     return $r;
@@ -51,7 +51,7 @@ if ($r = $this-&gt;apiDenyUnless('read', 'view', $company)) {
 
     <h2>Referência completa</h2>
     <p>
-      <code>backend/docs/padroes/autorizacao-policy-gate.md</code> — registo das policies, tabela por
+      <code>backend/docs/padroes/autorizacao-policy-gate.md</code> — registro das policies, tabela por
       model, <code>Gate::before</code> e relação com <code>ScopeService</code>.
     </p>
   </article>

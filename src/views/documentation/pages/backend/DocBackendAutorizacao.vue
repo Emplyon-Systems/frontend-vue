@@ -3,7 +3,7 @@
     <h1>Autorização (backend)</h1>
     <p class="doc-lead">
       Papéis (<code>roles</code>) e permissões (<code>permissions</code>) na base de dados, ligados ao
-      utilizador; em cima disso, <strong>Policies</strong> por model e um
+      usuário; em cima disso, <strong>Policies</strong> por model e um
       <strong>Gate::before</strong> para atalhos <code>permission:</code> e <code>role:</code>.
     </p>
 
@@ -40,7 +40,7 @@
     <p>
       Cobertura via testes Feature HTTP:
       <router-link :to="{ name: 'documentation.backend.testes' }">Testes (API e front)</router-link>
-      — e ficheiro <code>backend/docs/padroes/testes-feature-api.md</code>.
+      — e arquivo <code>backend/docs/padroes/testes-feature-api.md</code>.
     </p>
   </article>
 </template>
