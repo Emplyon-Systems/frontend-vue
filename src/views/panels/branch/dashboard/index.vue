@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  markRaw,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
 import { useRouter } from "vue-router";
-import VueApexCharts from "vue3-apexcharts";
+const VueApexCharts = defineAsyncComponent(() => import("vue3-apexcharts"));
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import { branchesApi, sectorsApi } from "@/api/resources";
@@ -20,7 +28,15 @@ const sectors = ref<SectorPluckItem[]>([]);
 const branchId = computed(() => {
   const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
   if (fromContext > 0) return fromContext;
-  return Number(authStore.user?.branches?.[0]?.id ?? 0);
+  const fromPivot = Number(authStore.user?.branches?.[0]?.id ?? 0);
+  if (fromPivot > 0) return fromPivot;
+  for (const r of authStore.user?.roles ?? []) {
+    const id = Number(r.branch_id ?? 0);
+    if (id > 0) return id;
+    const m = String(r.slug ?? "").match(/-b(\d+)$/);
+    if (m) return Number(m[1]);
+  }
+  return 0;
 });
 
 const greeting = computed(() => {
@@ -71,53 +87,68 @@ function formatTime(v?: string): string {
   return m ? `${m[1]}:${m[2]}` : "—";
 }
 
-// ── Gráfico 1: Donut — Composição da Equipe ─────────────────────────────────
-const teamChart = computed(() => {
-  const raw = [
-    { label: "Gerentes",      value: managersCount.value,      color: "#ffc107" },
-    { label: "Colaboradores", value: collaboratorsCount.value, color: "#198754" },
-    { label: "Outros",        value: otherUsersCount.value,    color: "#0dcaf0" },
-  ].filter((e) => e.value > 0);
+// ── Gráficos Apex: shallowRef + markRaw (evita travão no painel filial) ───
+const teamSeries = shallowRef<number[]>([1]);
+const teamOptions = shallowRef<Record<string, unknown>>({});
+const rolesBarSeries = shallowRef<{ name: string; data: number[] }[]>([{ name: "Usuarios", data: [] }]);
+const rolesBarOptions = shallowRef<Record<string, unknown>>({});
+const rolesBarHasData = ref(false);
 
-  const hasData = raw.length > 0;
-
-  return {
-    hasData,
-    series: hasData ? raw.map((e) => e.value) : [1],
-    options: {
+watch(
+  () =>
+    [
+      managersCount.value,
+      collaboratorsCount.value,
+      otherUsersCount.value,
+      usersCount.value,
+    ] as const,
+  ([mgr, coll, oth, total]) => {
+    const raw = [
+      { label: "Gerentes", value: mgr, color: "#ffc107" },
+      { label: "Colaboradores", value: coll, color: "#198754" },
+      { label: "Outros", value: oth, color: "#0dcaf0" },
+    ].filter((e) => e.value > 0);
+    const hasData = raw.length > 0;
+    teamSeries.value = hasData ? raw.map((e) => e.value) : [1];
+    teamOptions.value = markRaw({
       chart: { type: "donut" as const },
       labels: hasData ? raw.map((e) => e.label) : ["Sem dados"],
       colors: hasData ? raw.map((e) => e.color) : ["#dee2e6"],
       legend: { position: "bottom" as const, fontSize: "12px" },
       dataLabels: { enabled: hasData },
       tooltip: { y: { formatter: (v: number) => `${v} usuário${v !== 1 ? "es" : ""}` } },
-      plotOptions: { pie: { donut: { size: "58%", labels: {
-        show: true,
-        total: {
-          show: true,
-          label: "Total",
-          fontSize: "13px",
-          fontWeight: 700,
-          formatter: () => String(usersCount.value),
+      plotOptions: {
+        pie: {
+          donut: {
+            size: "58%",
+            labels: {
+              show: true,
+              total: {
+                show: true,
+                label: "Total",
+                fontSize: "13px",
+                fontWeight: 700,
+                formatter: () => String(total),
+              },
+            },
+          },
         },
-      } } } },
-    },
-  };
-});
+      },
+    });
+  },
+  { immediate: true }
+);
 
-// ── Gráfico 2: Bar — Perfis distintos em uso ────────────────────────────────
-const rolesBarChart = computed(() => {
-  const counts: Record<string, number> = {};
-  for (const user of users.value)
-    for (const role of user.roles ?? [])
-      counts[role.name] = (counts[role.name] ?? 0) + 1;
-
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-
-  return {
-    hasData: entries.length > 0,
-    series: [{ name: "Usuarios", data: entries.map(([, v]) => v) }],
-    options: {
+watch(
+  () => users.value,
+  (list) => {
+    const counts: Record<string, number> = {};
+    for (const u of list)
+      for (const role of u.roles ?? []) counts[role.name] = (counts[role.name] ?? 0) + 1;
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    rolesBarHasData.value = entries.length > 0;
+    rolesBarSeries.value = [{ name: "Usuarios", data: entries.map(([, v]) => v) }];
+    rolesBarOptions.value = markRaw({
       chart: { type: "bar" as const, toolbar: { show: false } },
       colors: ["#0d6efd"],
       dataLabels: { enabled: false },
@@ -129,9 +160,10 @@ const rolesBarChart = computed(() => {
       grid: { strokeDashArray: 4, borderColor: "#f0f0f0" },
       plotOptions: { bar: { borderRadius: 4, columnWidth: "50%", horizontal: entries.length > 5 } },
       tooltip: { y: { formatter: (v: number) => `${v} usuário${v !== 1 ? "es" : ""}` } },
-    },
-  };
-});
+    });
+  },
+  { immediate: true, deep: true }
+);
 
 async function loadData() {
   loadError.value = "";
@@ -272,8 +304,8 @@ onMounted(loadData);
                 <VueApexCharts
                   type="donut"
                   height="280"
-                  :options="teamChart.options"
-                  :series="teamChart.series"
+                  :options="teamOptions"
+                  :series="teamSeries"
                 />
               </b-card-body>
             </b-card>
@@ -287,12 +319,12 @@ onMounted(loadData);
                   <h6 class="fw-semibold mb-0">Usuarios por Perfil</h6>
                   <p class="text-muted small mb-0">Quantidade de Usuarios em cada perfil</p>
                 </div>
-                <template v-if="rolesBarChart.hasData">
+                <template v-if="rolesBarHasData">
                   <VueApexCharts
-                    :type="rolesBarChart.options.plotOptions.bar.horizontal ? 'bar' : 'bar'"
+                    type="bar"
                     height="260"
-                    :options="rolesBarChart.options"
-                    :series="rolesBarChart.series"
+                    :options="rolesBarOptions"
+                    :series="rolesBarSeries"
                   />
                 </template>
                 <div v-else class="d-flex align-items-center justify-content-center h-75 text-muted">

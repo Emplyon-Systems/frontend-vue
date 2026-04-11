@@ -29,12 +29,19 @@ function selectAndContinue(ctx: { company_id: number; branch_id?: number | null;
 }
 
 onMounted(() => {
-  if (!authStore.isAuthenticated || !contextOptions.value.length) {
+  if (!authStore.isAuthenticated) {
     router.replace({ name: "auth.sign-in" });
     return;
   }
-  if (contextOptions.value.length === 1) {
-    selectAndContinue(contextOptions.value[0]);
+  const opts = contextOptions.value;
+  if (!opts.length) {
+    /** Sem opções de contexto (ex.: pivot API incompleto): não devolver ao login — ir ao painel inferido. */
+    const dest = getPanelHomeForUser(authStore.user ?? undefined, authStore.activeContext);
+    router.replace(dest || "/employee");
+    return;
+  }
+  if (opts.length === 1) {
+    selectAndContinue(opts[0]);
   }
 });
 </script>

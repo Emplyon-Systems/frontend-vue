@@ -26,7 +26,19 @@ const loadError = ref("");
 const company = ref<CompanyRecord | null>(null);
 const sectorsTotal = ref(0);
 
-const companyId = computed(() => Number(authStore.user?.companies?.[0]?.id ?? 0));
+const companyId = computed(() => {
+  const fromCtx = Number(authStore.activeContext?.company_id ?? 0);
+  if (fromCtx > 0) return fromCtx;
+  const fromPivot = Number(authStore.user?.companies?.[0]?.id ?? 0);
+  if (fromPivot > 0) return fromPivot;
+  for (const r of authStore.user?.roles ?? []) {
+    const id = Number(r.company_id ?? 0);
+    if (id > 0) return id;
+    const m = String(r.slug ?? "").match(/-c(\d+)$/);
+    if (m) return Number(m[1]);
+  }
+  return 0;
+});
 
 const greeting = computed(() => {
   const h = new Date().getHours();

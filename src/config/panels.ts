@@ -44,6 +44,48 @@ export type PanelContextInput = {
   branch_id?: number | null;
 } | null | undefined;
 
+function inferredCompanyIdsFromRoles(user: UserPanelInput | undefined): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const r of user?.roles ?? []) {
+    const id = Number(r.company_id ?? 0);
+    if (id > 0 && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+    const m = String(r.slug ?? "").match(/-c(\d+)$/);
+    if (m) {
+      const cid = Number(m[1]);
+      if (cid > 0 && !seen.has(cid)) {
+        seen.add(cid);
+        out.push(cid);
+      }
+    }
+  }
+  return out;
+}
+
+function inferredBranchIdsFromRoles(user: UserPanelInput | undefined): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const r of user?.roles ?? []) {
+    const id = Number(r.branch_id ?? 0);
+    if (id > 0 && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+    const m = String(r.slug ?? "").match(/-b(\d+)$/);
+    if (m) {
+      const bid = Number(m[1]);
+      if (bid > 0 && !seen.has(bid)) {
+        seen.add(bid);
+        out.push(bid);
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Redireciona o usuário para a home do painel conforme perfis e vínculos (empresa/filial).
  * Regras: superadmin → owner; só colaborador → employee; tem perfil de filial e está atribuído a filial(ais) → branch;
@@ -56,6 +98,8 @@ export function getPanelHomeForUser(user: UserPanelInput | undefined, context?: 
   const slugs = roles.map((r) => r.slug);
   const hasBranches = (user?.branches?.length ?? 0) > 0;
   const hasCompanies = (user?.companies?.length ?? 0) > 0;
+  const inferredCompanies = inferredCompanyIdsFromRoles(user).length > 0;
+  const inferredBranches = inferredBranchIdsFromRoles(user).length > 0;
 
   const isCollaboratorRole = (slug: string) => slug === "colaborador" || slug.startsWith("colaborador-b");
   const isBranchScopedRole = (slug: string) =>
@@ -72,8 +116,8 @@ export function getPanelHomeForUser(user: UserPanelInput | undefined, context?: 
     if (context.branch_id != null && hasBranchRole()) return PANEL_CONFIG.branch.defaultRoute;
     if (context.company_id && hasCompanyRole()) return PANEL_CONFIG.company.defaultRoute;
   }
-  if (hasBranchRole() && hasBranches) return PANEL_CONFIG.branch.defaultRoute;
-  if (hasCompanyRole() && hasCompanies) return PANEL_CONFIG.company.defaultRoute;
+  if (hasBranchRole() && (hasBranches || inferredBranches)) return PANEL_CONFIG.branch.defaultRoute;
+  if (hasCompanyRole() && (hasCompanies || inferredCompanies)) return PANEL_CONFIG.company.defaultRoute;
 
   return PANEL_CONFIG.employee.defaultRoute;
 }
