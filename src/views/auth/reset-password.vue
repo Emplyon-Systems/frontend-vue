@@ -377,14 +377,13 @@ function goToRequestLink() {
   .login-page {
     flex-direction: column;
   }
-  .login-form-col,
-  .login-brand-col {
+  .login-form-col {
     flex: 1 1 auto;
     max-width: 100%;
+    width: 100%;
   }
   .login-brand-col {
-    min-height: 0;
-    padding-top: 1.5rem;
+    display: none;
   }
 }
 </style>
