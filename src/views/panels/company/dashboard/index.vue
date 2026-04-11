@@ -1,8 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  markRaw,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
 import { useRouter } from "vue-router";
-import VueApexCharts from "vue3-apexcharts";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
+
+/** Carregamento lazy + opções não reativas evitam ciclos Apex/Vue que bloqueiam o browser. */
+const VueApexCharts = defineAsyncComponent(() => import("vue3-apexcharts"));
 import AppAlert from "@/components/AppAlert.vue";
 import { companiesApi, sectorsApi } from "@/api/resources";
 import { useAuthStore } from "@/stores/auth";
@@ -55,52 +65,60 @@ const canViewBranches = computed(() => authStore.hasPermission("branches.index")
 const canViewUsers    = computed(() => authStore.hasPermission("users.index")    || authStore.hasPermission("users.read"));
 const canViewSectors  = computed(() => authStore.hasPermission("sectors.index")  || authStore.hasPermission("sectors.read"));
 
-// ── Gráfico 1: RadialBar — Ocupação do Plano ────────────────────────────────
-const occupancyChart = computed(() => ({
-  series: [userPct.value, branchPct.value],
-  options: {
-    chart: { type: "radialBar" as const, toolbar: { show: false } },
-    plotOptions: {
-      radialBar: {
-        offsetY: 0,
-        startAngle: -135,
-        endAngle: 135,
-        hollow: { size: "30%" },
-        dataLabels: {
-          name: { fontSize: "13px", offsetY: -10 },
-          value: { fontSize: "16px", fontWeight: 700, offsetY: 4, formatter: (v: number) => `${v}%` },
-          total: {
-            show: true,
-            label: "Plano",
-            fontSize: "12px",
-            formatter: () => `${Math.round((userPct.value + branchPct.value) / 2)}%`,
+// ── Gráficos Apex: shallowRef + markRaw (evita “Page unresponsive”) ────────
+const occupancySeries = shallowRef([0, 0]);
+const occupancyOptions = shallowRef<Record<string, unknown>>({});
+const donutSeries = shallowRef([1]);
+const donutOptions = shallowRef<Record<string, unknown>>({});
+
+watch(
+  () => [userPct.value, branchPct.value] as const,
+  ([up, bp]) => {
+    occupancySeries.value = [up, bp];
+    occupancyOptions.value = markRaw({
+      chart: { type: "radialBar" as const, toolbar: { show: false } },
+      plotOptions: {
+        radialBar: {
+          offsetY: 0,
+          startAngle: -135,
+          endAngle: 135,
+          hollow: { size: "30%" },
+          dataLabels: {
+            name: { fontSize: "13px", offsetY: -10 },
+            value: { fontSize: "16px", fontWeight: 700, offsetY: 4, formatter: (v: number) => `${v}%` },
+            total: {
+              show: true,
+              label: "Plano",
+              fontSize: "12px",
+              formatter: () => `${Math.round((up + bp) / 2)}%`,
+            },
           },
         },
       },
-    },
-    colors: [
-      userPct.value > 85 ? "#dc3545" : userPct.value > 65 ? "#ffc107" : "#198754",
-      branchPct.value > 85 ? "#dc3545" : branchPct.value > 65 ? "#ffc107" : "#0d6efd",
-    ],
-    labels: ["Usuários", "Filiais"],
-    legend: { show: true, position: "bottom" as const, fontSize: "12px" },
+      colors: [
+        up > 85 ? "#dc3545" : up > 65 ? "#ffc107" : "#198754",
+        bp > 85 ? "#dc3545" : bp > 65 ? "#ffc107" : "#0d6efd",
+      ],
+      labels: ["Usuários", "Filiais"],
+      legend: { show: true, position: "bottom" as const, fontSize: "12px" },
+    });
   },
-}));
+  { immediate: true }
+);
 
-// ── Gráfico 2: Donut — Usuarios por Perfil ──────────────────────────────
-const userRolesChart = computed(() => {
-  const counts: Record<string, number> = {};
-  for (const user of company.value?.users ?? []) {
-    const roles = user.roles ?? [];
-    const label = roles.length ? roles[0].name : "Sem perfil";
-    counts[label] = (counts[label] ?? 0) + 1;
-  }
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);
-  const hasData = entries.some(([, v]) => v > 0);
-  return {
-    hasData,
-    series: hasData ? entries.map(([, v]) => v) : [1],
-    options: {
+watch(
+  () => company.value,
+  (c) => {
+    const counts: Record<string, number> = {};
+    for (const u of c?.users ?? []) {
+      const roles = u.roles ?? [];
+      const label = roles.length ? roles[0].name : "Sem perfil";
+      counts[label] = (counts[label] ?? 0) + 1;
+    }
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);
+    const hasData = entries.some(([, v]) => v > 0);
+    donutSeries.value = hasData ? entries.map(([, v]) => v) : [1];
+    donutOptions.value = markRaw({
       chart: { type: "donut" as const },
       labels: hasData ? entries.map(([k]) => k) : ["Sem dados"],
       colors: hasData
@@ -110,9 +128,10 @@ const userRolesChart = computed(() => {
       dataLabels: { enabled: hasData },
       tooltip: { y: { formatter: (v: number) => `${v} usuário${v !== 1 ? "es" : ""}` } },
       plotOptions: { pie: { donut: { size: "58%" } } },
-    },
-  };
-});
+    });
+  },
+  { immediate: true }
+);
 
 async function loadData() {
   loadError.value = "";
@@ -243,8 +262,8 @@ onMounted(loadData);
 
         </b-row>
 
-        <!-- Linha 2: Gráficos ───────────────────────────────────────────── -->
-        <b-row class="g-3 mb-4">
+        <!-- Linha 2: Gráficos (só com empresa carregada — evita Apex em estado vazio) -->
+        <b-row v-if="company" class="g-3 mb-4">
 
           <!-- RadialBar: Ocupação do Plano -->
           <b-col lg="5">
@@ -257,8 +276,8 @@ onMounted(loadData);
                 <VueApexCharts
                   type="radialBar"
                   height="300"
-                  :options="occupancyChart.options"
-                  :series="occupancyChart.series"
+                  :options="occupancyOptions"
+                  :series="occupancySeries"
                 />
                 <div class="d-flex justify-content-around mt-1">
                   <div class="text-center">
@@ -285,8 +304,8 @@ onMounted(loadData);
                 <VueApexCharts
                   type="donut"
                   height="300"
-                  :options="userRolesChart.options"
-                  :series="userRolesChart.series"
+                  :options="donutOptions"
+                  :series="donutSeries"
                 />
               </b-card-body>
             </b-card>

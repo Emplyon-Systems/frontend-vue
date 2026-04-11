@@ -1,8 +1,41 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import router from "@/router";
-import type { User } from "@/types/auth";
+import type { Permission, Role, User } from "@/types/auth";
 import { AUTH_STORAGE_KEYS } from "@/helpers/constants";
+
+/**
+ * Remove listas aninhadas `role.permissions` (login superadmin pode trazer milhares de linhas).
+ * Mantém permissões deduplicadas em `user.permissions` para hasPermission / menu / guards.
+ * Evita localStorage gigante, JSON.parse lento e reatividade Vue pesada (freeze do browser).
+ */
+function slimUserForSession(user: User): User {
+  const seen = new Set<string>();
+  const flat: Permission[] = [];
+  const takePerm = (p: Permission) => {
+    if (!p.slug || seen.has(p.slug)) return;
+    seen.add(p.slug);
+    flat.push({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      description: p.description,
+    });
+  };
+  for (const p of user.permissions ?? []) takePerm(p);
+  for (const r of user.roles ?? []) {
+    for (const p of r.permissions ?? []) takePerm(p);
+  }
+  const slimRoles: Role[] = (user.roles ?? []).map((r) => {
+    const { permissions: _nested, ...rest } = r;
+    return rest;
+  });
+  return {
+    ...user,
+    roles: slimRoles,
+    permissions: flat,
+  };
+}
 
 export interface AuthContext {
   company_id: number;
@@ -89,20 +122,25 @@ export const useAuthStore = defineStore("auth", () => {
       const rawUser = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
       const rawToken = localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
       const rawContext = localStorage.getItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
-      if (rawUser) user.value = JSON.parse(rawUser) as User;
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser) as User;
+        user.value = slimUserForSession(parsed);
+        localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(user.value));
+      }
       if (rawToken) token.value = rawToken;
       if (rawContext) activeContext.value = JSON.parse(rawContext) as AuthContext;
-      syncActiveContext(getContextOptions());
+      getContextOptions();
     } catch {
       clearSession();
     }
   }
 
   function saveSession(newUser: User, newToken: string) {
-    user.value = newUser;
+    const slim = slimUserForSession(newUser);
+    user.value = slim;
     token.value = newToken;
     activeContext.value = null;
-    localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(newUser));
+    localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(slim));
     localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, newToken);
     localStorage.removeItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
   }
