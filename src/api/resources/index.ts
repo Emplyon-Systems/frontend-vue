@@ -1,3 +1,4 @@
+export * as authApi from "./auth";
 export * as auditsApi from "./audits";
 export * as branchesApi from "./branches";
 export * as companiesApi from "./companies";

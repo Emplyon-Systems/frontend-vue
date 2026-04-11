@@ -39,6 +39,14 @@ const authRoutes = [
     component: () => import("@/views/auth/reset-pass.vue"),
   },
   {
+    path: "/auth/reset-password",
+    name: "auth.reset-password",
+    meta: {
+      title: setTitle("Nova senha"),
+    },
+    component: () => import("@/views/auth/reset-password.vue"),
+  },
+  {
     path: "/auth/error-404",
     name: "error.404",
     meta: {

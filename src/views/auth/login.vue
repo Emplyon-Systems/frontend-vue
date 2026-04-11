@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import { required, email } from "@vuelidate/validators";
+import { ref, reactive, computed, watch } from "vue";
+import { helpers, required, email } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
 import httpClient from "@/helpers/http-client";
 import { useAuthStore } from "@/stores/auth";
@@ -16,8 +16,13 @@ const credentials = reactive({
 });
 
 const vuelidateRules = computed(() => ({
-  email: { required, email },
-  password: { required },
+  email: {
+    required: helpers.withMessage("O e-mail é obrigatório.", required),
+    email: helpers.withMessage("Informe um e-mail válido.", email),
+  },
+  password: {
+    required: helpers.withMessage("A senha é obrigatória.", required),
+  },
 }));
 
 const v = useVuelidate(vuelidateRules, credentials);
@@ -26,6 +31,15 @@ const route = useRoute();
 const error = ref("");
 const loading = ref(false);
 const showPassword = ref(false);
+const resetSuccess = ref(false);
+
+watch(
+  () => route.query.senhaAlterada,
+  (v) => {
+    resetSuccess.value = v === "1";
+  },
+  { immediate: true }
+);
 
 /** Só aceita paths internos (evita open redirect). */
 function isInternalPath(path: unknown): path is string {
@@ -90,8 +104,16 @@ async function handleLogin() {
           <img src="/logohorizontal.svg" alt="Emplyon" class="login-form-logo-img" />
         </router-link>
         <p class="login-subtitle">
-          Inicie sessão na sua conta para começar a usar a Emplyon
+          Faça login na sua conta para começar a usar a Emplyon
         </p>
+
+        <div
+          v-if="resetSuccess"
+          class="alert alert-success py-2 mb-3"
+          role="status"
+        >
+          Senha alterada com sucesso. Entre com a nova senha.
+        </div>
 
         <b-form class="login-form" @submit.prevent="handleLogin">
           <b-form-group label="E-mail" label-for="email" class="mb-3">
@@ -157,7 +179,7 @@ async function handleLogin() {
             class="login-btn w-100"
             :disabled="loading"
           >
-            <span v-if="loading">A iniciar sessão…</span>
+            <span v-if="loading">Entrando…</span>
             <span v-else>Entrar</span>
           </b-button>
         </b-form>
