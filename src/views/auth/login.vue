@@ -4,7 +4,7 @@ import { helpers, required, email } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
 import httpClient from "@/helpers/http-client";
 import { useAuthStore } from "@/stores/auth";
-import { useRoute } from "vue-router";
+import { useRoute, type RouteLocationRaw } from "vue-router";
 import router from "@/router";
 import { getPanelHomeForUser } from "@/config/panels";
 import type { LoginResponse } from "@/types/auth";
@@ -67,19 +67,25 @@ async function handleLogin() {
       }
       authStore.saveSession(data.user, data.token);
       const from = route.query.redirectedFrom;
+      let destination: RouteLocationRaw;
       if (isInternalPath(from)) {
-        await router.push(from);
-      } else if (
-        !authStore.hasRole("superadmin") &&
-        authStore.hasMultipleContexts()
-      ) {
-        await router.push({ name: "auth.select-context" });
+        destination = from;
+      } else if (!authStore.hasRole("superadmin") && authStore.hasMultipleContexts()) {
+        destination = { name: "auth.select-context" };
       } else {
         const opts = authStore.getContextOptions();
         const selected = opts.length === 1 ? opts[0] : null;
         if (selected) authStore.selectContext(selected);
-        await router.push(getPanelHomeForUser(data.user, selected) || "/");
+        destination = getPanelHomeForUser(data.user, selected) || "/";
       }
+      // Desbloquear o formulário antes da navegação: se router.push ficar pendente
+      // (chunk lento, guard, rede), o utilizador não fica preso em "Entrando…".
+      loading.value = false;
+      void router.push(destination).catch((navErr: unknown) => {
+        console.error(navErr);
+        error.value =
+          "Login OK, mas não foi possível abrir o painel. Atualize a página (F5) ou limpe os dados do site para este domínio.";
+      });
     } else {
       error.value = data.msg || "Resposta inválida.";
     }

@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, type RouteLocationRaw } from "vue-router";
 import { allRoute } from "@/router/routes";
 import { useAuthStore } from "@/stores/auth";
 import { getPanelHomeForUser } from "@/config/panels";
@@ -8,7 +8,11 @@ const router = createRouter({
   routes: allRoute,
 });
 
-router.beforeEach(async (to, _from, next) => {
+/**
+ * Guards sem callback `next()` (API recomendada no Vue Router 4).
+ * Evita promessas de navegação que nunca resolvem quando se mistura `async` com `return next()`.
+ */
+router.beforeEach(async (to, _from) => {
   const title = to.meta.title;
   if (title) {
     document.title = title.toString();
@@ -18,7 +22,10 @@ router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore();
 
   if (authRequired && !auth.isAuthenticated) {
-    return next({ name: "auth.sign-in", query: { redirectedFrom: to.fullPath } });
+    return {
+      name: "auth.sign-in",
+      query: { redirectedFrom: to.fullPath },
+    } satisfies RouteLocationRaw;
   }
 
   const isSelectContext = to.name === "auth.select-context";
@@ -30,21 +37,18 @@ router.beforeEach(async (to, _from, next) => {
     auth.hasMultipleContexts() &&
     !auth.activeContext
   ) {
-    return next({ name: "auth.select-context" });
+    return { name: "auth.select-context" } satisfies RouteLocationRaw;
   }
 
   const panelOwner = to.matched.some((r) => r.meta.panel === "owner");
   if (authRequired && auth.isAuthenticated && panelOwner && !auth.hasRole("superadmin")) {
-    return next(getPanelHomeForUser(auth.user, auth.activeContext) || "/employee");
+    return (getPanelHomeForUser(auth.user ?? undefined, auth.activeContext) || "/employee") satisfies RouteLocationRaw;
   }
 
   const permission = to.meta.permission as string | string[] | undefined;
   const role = to.meta.role as string | string[] | undefined;
   const rolePrefix = to.meta.rolePrefix as string[] | undefined;
-  if (auth.isAuthenticated && (permission || role || rolePrefix)) {
-    if (auth.hasRole("superadmin")) {
-      return next();
-    }
+  if (auth.isAuthenticated && (permission || role || rolePrefix) && !auth.hasRole("superadmin")) {
     const perms = Array.isArray(permission) ? permission : permission ? [permission] : [];
     const roles = Array.isArray(role) ? role : role ? [role] : [];
     const prefixes = Array.isArray(rolePrefix) ? rolePrefix : [];
@@ -53,17 +57,15 @@ router.beforeEach(async (to, _from, next) => {
     const hasRoleByPrefix = prefixes.length > 0 && (auth.user?.roles ?? []).some((r) =>
       prefixes.some((p) => (r.slug ?? "").startsWith(p))
     );
-    // Aceita perfis com escopo de filial (ex.: assistente-b123) quando a rota permite filial-b*
     const allowsBranchScoped = prefixes.some((p) => p === "filial-b");
     const hasBranchScopedRole = allowsBranchScoped && (auth.user?.roles ?? []).some(
       (r) => /-b\d+$/.test(r.slug ?? "")
     );
     if (!hasPerm && !hasRole && !hasRoleByPrefix && !hasBranchScopedRole) {
-      return next({ name: "error.403" });
+      return { name: "error.403" } satisfies RouteLocationRaw;
     }
   }
 
-  // Criação de filial no painel empresa: bloquear rota se o limite já foi atingido
   if (to.name === "company.branches.create" && auth.isAuthenticated) {
     const companyId = Number(auth.user?.companies?.[0]?.id ?? 0);
     if (companyId > 0) {
@@ -75,7 +77,7 @@ router.beforeEach(async (to, _from, next) => {
           const used = c.branches_used ?? c.branches?.length ?? 0;
           const limit = c.branch_limit ?? 0;
           if (limit > 0 && used >= limit) {
-            return next({ name: "company.branches", replace: true });
+            return { name: "company.branches", replace: true } satisfies RouteLocationRaw;
           }
         }
       } catch {
@@ -84,7 +86,6 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-  // Novo usuário (contexto empresa ou filial): mesmo limite da empresa — inclui quem só está ligado a filiais
   if (to.name === "owner.users.create" && auth.isAuthenticated && !auth.hasRole("superadmin")) {
     const companyId = Number(auth.activeContext?.company_id ?? 0);
     if (companyId > 0) {
@@ -96,7 +97,7 @@ router.beforeEach(async (to, _from, next) => {
           const used = c.users_used ?? c.users?.length ?? 0;
           const limit = c.user_limit ?? 0;
           if (limit > 0 && used >= limit) {
-            return next({ name: "owner.users", replace: true });
+            return { name: "owner.users", replace: true } satisfies RouteLocationRaw;
           }
         }
       } catch {
@@ -105,7 +106,7 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-  return next();
+  return true;
 });
 
 export default router;
