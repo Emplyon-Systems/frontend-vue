@@ -99,6 +99,10 @@ export type EmployeeEditData = z.output<typeof employeeEditSchema>;
 export type EmployeeFormMode = "create" | "edit";
 export type EmployeeFieldErrors = Partial<Record<keyof EmployeeFormData | "assignments" | `assignments.${number}`, string>>;
 
+export type EmployeeFormValidationOptions = {
+  tenantEmailDomain?: string | null;
+};
+
 export function employeeInitialForm(): EmployeeFormData {
   return {
     company_id: 0,
@@ -131,7 +135,8 @@ function toFieldErrors(error: z.ZodError): EmployeeFieldErrors {
 
 export function validateEmployeeForm(
   form: EmployeeFormData,
-  mode: EmployeeFormMode
+  mode: EmployeeFormMode,
+  options?: EmployeeFormValidationOptions
 ):
   | { success: true; data: EmployeeCreateData | EmployeeEditData }
   | { success: false; errors: EmployeeFieldErrors } {
@@ -140,6 +145,21 @@ export function validateEmployeeForm(
 
   if (!parsed.success) {
     return { success: false, errors: toFieldErrors(parsed.error) };
+  }
+
+  const domain = (options?.tenantEmailDomain ?? "").trim().toLowerCase();
+  if (domain) {
+    const email = (parsed.data.email ?? "").trim();
+    const at = email.lastIndexOf("@");
+    const host = at >= 0 ? email.slice(at + 1).toLowerCase() : "";
+    if (host !== domain) {
+      return {
+        success: false,
+        errors: {
+          email: `Para funcionários desta empresa, o e-mail deve terminar em @${domain} (ex.: joao@${domain}).`,
+        },
+      };
+    }
   }
 
   return { success: true, data: parsed.data };

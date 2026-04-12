@@ -32,10 +32,6 @@ export interface BranchCreatePayload {
   zip_code: string;
   city: string;
   state: string;
-  expedient_start_time: string;
-  expedient_end_time: string;
-  store_open_time: string;
-  store_close_time: string;
 }
 
 export interface BranchUpdatePayload {

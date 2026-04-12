@@ -13,7 +13,9 @@ const props = withDefaults(
     modelValue: EmployeeFormData;
     errors?: Record<string, string>;
     mode?: "create" | "edit" | "view";
-    companyOptions?: Array<{ id: number; name: string }>;
+    companyOptions?: Array<{ id: number; name: string; internal_email_domain?: string }>;
+    /** Domínio sintético da empresa selecionada (usuario@slug.com). */
+    tenantEmailDomain?: string | null;
     branchOptions?: Array<{ id: number; name: string; company_id?: number }>;
     /** Usuárioes da empresa (`company_id` do formulário) para vínculo opcional */
     userOptions?: Array<{ id: number; name: string; email?: string }>;
@@ -53,6 +55,7 @@ const props = withDefaults(
     branchAccessAccountState: "normal",
     hideCompanyField: false,
     hideBranchAssignmentField: false,
+    tenantEmailDomain: null,
   }
 );
 
@@ -166,6 +169,63 @@ function updateField<K extends keyof EmployeeFormData>(field: K, value: Employee
   };
   emit("clear-error", field);
 }
+
+const tenantDomainNormalized = computed(() => (props.tenantEmailDomain ?? "").trim().toLowerCase());
+const useSplitTenantEmail = computed(() => Boolean(tenantDomainNormalized.value) && !isView.value);
+
+function parseEmailLocal(full: string, domain: string): string {
+  const f = full.trim();
+  const d = domain.toLowerCase();
+  if (!f || !d) return f.replace(/@/g, "");
+  const at = f.lastIndexOf("@");
+  if (at < 0) return f.replace(/@/g, "");
+  const host = f.slice(at + 1).toLowerCase();
+  const local = f.slice(0, at);
+  if (host === d) return local;
+  return local.replace(/@/g, "");
+}
+
+function sanitizeEmailLocalInput(raw: string, domain: string): string {
+  let s = String(raw ?? "").trim();
+  const suffix = `@${domain.toLowerCase()}`;
+  const lower = s.toLowerCase();
+  if (lower.endsWith(suffix)) {
+    s = s.slice(0, s.length - suffix.length).trim();
+  }
+  return s.replace(/@/g, "").trim();
+}
+
+const emailLocalModel = computed({
+  get: () => parseEmailLocal(props.modelValue.email ?? "", tenantDomainNormalized.value),
+  set: (v: string) => {
+    const d = tenantDomainNormalized.value;
+    if (!d) {
+      updateField("email", v);
+      return;
+    }
+    const cleaned = sanitizeEmailLocalInput(v, d);
+    updateField("email", cleaned ? `${cleaned}@${d}` : "");
+  },
+});
+
+watch(
+  () => tenantDomainNormalized.value,
+  (domain, prev) => {
+    if (!domain || isView.value) return;
+    const email = (props.modelValue.email ?? "").trim();
+    if (!email) return;
+    const lower = email.toLowerCase();
+    if (prev && lower.endsWith(`@${prev}`)) {
+      const local = email.slice(0, email.length - prev.length - 1).trim();
+      const next = local ? `${local}@${domain}` : "";
+      if (next !== email) updateField("email", next);
+      return;
+    }
+    if (!email.includes("@")) {
+      updateField("email", `${email}@${domain}`);
+    }
+  }
+);
 
 function toggleNewUserPassword() {
   showNewUserPassword.value = !showNewUserPassword.value;
@@ -673,11 +733,29 @@ onBeforeUnmount(() => {
         </b-form-group>
       </b-col>
       <b-col md="6">
-        <b-form-group label-for="emp-email">
+        <b-form-group :label-for="useSplitTenantEmail ? 'emp-email-local' : 'emp-email'">
           <template #label>
-            E-mail<span v-if="req" class="text-danger ms-1" aria-hidden="true">*</span>
+            {{ useSplitTenantEmail ? "E-mail (usuário)" : "E-mail"
+            }}<span v-if="req" class="text-danger ms-1" aria-hidden="true">*</span>
+          </template>
+          <template v-if="useSplitTenantEmail">
+            <b-input-group>
+              <b-form-input
+                id="emp-email-local"
+                v-model="emailLocalModel"
+                type="text"
+                placeholder="joao.silva"
+                autocomplete="off"
+                :class="{ 'is-invalid': errors?.email }"
+              />
+              <b-input-group-text class="text-body-secondary user-select-all">
+                @{{ tenantEmailDomain }}
+              </b-input-group-text>
+            </b-input-group>
+            <b-form-text class="d-block">O domínio é fixo para esta empresa. Digite só o nome antes do @.</b-form-text>
           </template>
           <b-form-input
+            v-else
             id="emp-email"
             :model-value="modelValue.email"
             type="email"

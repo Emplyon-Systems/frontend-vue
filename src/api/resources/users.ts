@@ -84,7 +84,7 @@ export async function plucks() {
       plucks: {
         users?: { id: number; name?: string; email?: string }[];
         roles?: { id: number; name?: string; slug?: string }[];
-        companies?: { id: number; name?: string; cnpj?: string }[];
+        companies?: { id: number; name?: string; cnpj?: string; internal_email_domain?: string }[];
         branches?: { id: number; company_id?: number; name?: string; cnpj?: string }[];
       };
     }

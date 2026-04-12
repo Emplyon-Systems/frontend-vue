@@ -54,7 +54,7 @@ const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors(
   notifyOnGenericApiMessage: false,
   notifyOnEmptyResponse: false,
 });
-const companyOptions = ref<Array<{ id: number; name: string }>>([]);
+const companyOptions = ref<Array<{ id: number; name: string; internal_email_domain?: string }>>([]);
 const branchOptions = ref<Array<{ id: number; name: string; company_id?: number }>>([]);
 const userOptions = ref<Array<{ id: number; name: string; email: string }>>([]);
 const branchUserFlow = computed(() => branchScoped.value);
@@ -67,6 +67,38 @@ const employeePhotoUrl = ref<string | null>(null);
 const employeePhotoUploading = ref(false);
 
 const hideCreateUserOption = computed(() => form.value.user_id > 0);
+
+const resolvedTenantEmailDomain = computed((): string | null => {
+  const cid = Number(form.value.company_id ?? 0);
+  if (cid <= 0) return null;
+  const c = companyOptions.value.find((x) => x.id === cid);
+  const d = (c?.internal_email_domain ?? "").trim();
+  return d || null;
+});
+
+watch(
+  () => form.value.company_id,
+  async (cid) => {
+    if (cid <= 0) return;
+    const row = companyOptions.value.find((c) => c.id === cid);
+    if (row?.internal_email_domain) return;
+    try {
+      const res = await companiesApi.getById(cid);
+      const dom = res.company?.internal_email_domain?.trim();
+      const name = res.company?.name?.trim() ?? `Empresa #${cid}`;
+      if (!companyOptions.value.some((c) => c.id === cid)) {
+        companyOptions.value = [...companyOptions.value, { id: cid, name, internal_email_domain: dom }];
+      } else {
+        companyOptions.value = companyOptions.value.map((c) =>
+          c.id === cid ? { ...c, name: c.name || name, internal_email_domain: dom || c.internal_email_domain } : c
+        );
+      }
+    } catch {
+      //
+    }
+  },
+  { immediate: true }
+);
 
 watch(
   () => form.value.user_id,
@@ -219,7 +251,9 @@ function fillFormFromEmployee(data: Awaited<ReturnType<typeof employeesApi.getBy
   };
   const c = e.company;
   if (c?.id != null && (c.name ?? "").trim()) {
-    companyOptions.value = [{ id: c.id, name: c.name!.trim() }];
+    companyOptions.value = [
+      { id: c.id, name: c.name!.trim(), internal_email_domain: c.internal_email_domain },
+    ];
   } else if (branchScoped.value && (e.company_id ?? 0) > 0) {
     companyOptions.value = [{ id: e.company_id, name: `Empresa #${e.company_id}` }];
   }
@@ -260,7 +294,9 @@ function loadEmployee() {
 
 function submit() {
   resetErrors();
-  const validation = validateEmployeeForm(form.value, "edit");
+  const validation = validateEmployeeForm(form.value, "edit", {
+    tenantEmailDomain: resolvedTenantEmailDomain.value,
+  });
   if (!validation.success) {
     errors.value = validation.errors;
     return;
@@ -418,8 +454,12 @@ onMounted(async () => {
       .sort((a, b) => a.name.localeCompare(b.name));
   } else {
     const [companies, branches] = await Promise.all([companiesApi.plucks(), branchesApi.plucks()]);
-    companyOptions.value = (companies as { id: number; name?: string }[])
-      .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
+    companyOptions.value = (companies as { id: number; name?: string; internal_email_domain?: string }[])
+      .map((c) => ({
+        id: c.id,
+        name: c.name ?? `Empresa #${c.id}`,
+        internal_email_domain: c.internal_email_domain,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
     branchOptions.value = (branches as { id: number; name?: string; company_id?: number }[])
       .map((b) => ({ id: b.id, name: b.name ?? `Filial #${b.id}`, company_id: b.company_id }))
@@ -456,6 +496,7 @@ onMounted(async () => {
           v-model="form"
           :errors="errors"
           :company-options="companyOptions"
+          :tenant-email-domain="resolvedTenantEmailDomain"
           :branch-options="branchOptions"
           :user-options="userOptions"
           :lock-company-id="effectiveLockCompanyId"

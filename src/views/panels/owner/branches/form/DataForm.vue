@@ -13,12 +13,15 @@ const props = withDefaults(
     mode?: "create" | "edit" | "view";
     companyOptions?: Array<{ id: number; name: string }>;
     lockCompanyId?: number | null;
+    /** Expediente / horário da loja: só no fluxo do gerente de filial (configuração inicial). */
+    showOperatingHours?: boolean;
   }>(),
   {
     errors: () => ({}),
     mode: "create",
     companyOptions: () => [],
     lockCompanyId: null,
+    showOperatingHours: false,
   }
 );
 
@@ -235,11 +238,11 @@ onBeforeUnmount(() => {
                 <p class="text-muted mb-0 small">Estado</p>
                 <p class="mb-0 fw-medium">{{ localForm.state || "—" }}</p>
               </b-col>
-              <b-col cols="12" md="6">
+              <b-col v-if="showOperatingHours" cols="12" md="6">
                 <p class="text-muted mb-0 small">Horário expediente (funcionários)</p>
                 <p class="mb-0 fw-medium">{{ formatTime(localForm.expedient_start_time) }} – {{ formatTime(localForm.expedient_end_time) }}</p>
               </b-col>
-              <b-col cols="12" md="6">
+              <b-col v-if="showOperatingHours" cols="12" md="6">
                 <p class="text-muted mb-0 small">Horário loja (clientes)</p>
                 <p class="mb-0 fw-medium">{{ formatTime(localForm.store_open_time) }} – {{ formatTime(localForm.store_close_time) }}</p>
               </b-col>
@@ -412,7 +415,7 @@ onBeforeUnmount(() => {
       </b-col>
     </b-row>
 
-    <b-row>
+    <b-row v-if="showOperatingHours">
       <b-col md="6">
         <b-form-group label-for="branch-expedient-start" class="mb-3">
           <template #label>Início do expediente (funcionários) <span class="text-danger">*</span></template>

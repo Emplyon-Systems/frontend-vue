@@ -19,7 +19,7 @@ const loading = ref(false);
 const loadError = ref("");
 const roleOptions = ref<{ id: number; name: string; slug?: string; permission_ids?: number[] }[]>([]);
 const permissionOptions = ref<{ id: number; name: string; slug?: string }[]>([]);
-const companyOptions = ref<{ id: number; name: string }[]>([]);
+const companyOptions = ref<{ id: number; name: string; internal_email_domain?: string }[]>([]);
 const branchOptions = ref<{ id: number; company_id?: number; name: string; company_name?: string }[]>([]);
 const sectorOptions = ref<{ id: number; branch_id: number; name: string; slug?: string }[]>([]);
 const form = ref<UserFormData>(userInitialForm("edit"));
@@ -59,9 +59,38 @@ const filteredBranchOptions = computed(() => {
   );
 });
 
+const resolvedTenantEmailDomain = computed((): string | null => {
+  if (selectedCompanyIds.value.length === 1) {
+    const c = companyOptions.value.find((x) => x.id === selectedCompanyIds.value[0]);
+    const d = (c?.internal_email_domain ?? "").trim();
+    return d || null;
+  }
+  const branchCompanyIds = new Set<number>();
+  for (const bid of selectedBranchIds.value) {
+    const b = filteredBranchOptions.value.find((x) => x.id === bid);
+    const cid = Number(b?.company_id ?? 0);
+    if (cid > 0) branchCompanyIds.add(cid);
+  }
+  if (branchCompanyIds.size === 1) {
+    const cid = [...branchCompanyIds][0];
+    const c = companyOptions.value.find((x) => x.id === cid);
+    const d = (c?.internal_email_domain ?? "").trim();
+    return d || null;
+  }
+  return null;
+});
+
+/** Perfil empresa-c* (dono): e-mail comercial livre, alinhado ao backend. */
+const allowSyntheticEmailBypass = computed(() => {
+  const selected = new Set(form.value.roles ?? []);
+  return roleOptions.value.some((r) => selected.has(r.id) && (r.slug ?? "").startsWith("empresa-c"));
+});
+
 function submit() {
   resetErrors();
-  const validation = validateUserForm(form.value, "edit");
+  const validation = validateUserForm(form.value, "edit", {
+    tenantEmailDomain: allowSyntheticEmailBypass.value ? null : resolvedTenantEmailDomain.value,
+  });
   if (!validation.success) {
     onClientValidationFailed(validation.errors);
     return;
@@ -163,7 +192,11 @@ onMounted(() => {
       permissionOptions.value = (permissions ?? []).map((p) => ({ id: p.id, name: p.name, slug: p.slug }));
       isSuperadmin.value = authStore.hasRole("superadmin");
       companyOptions.value = (plucks.companies ?? [])
-        .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
+        .map((c) => ({
+          id: c.id,
+          name: c.name ?? `Empresa #${c.id}`,
+          internal_email_domain: c.internal_email_domain,
+        }))
         .sort((a, b) => a.name.localeCompare(b.name));
       const companyMap = new Map((plucks.companies ?? []).map((c) => [c.id, c.name ?? `Empresa #${c.id}`]));
       const userCompanyIds = new Set((authStore.user?.companies ?? []).map((c) => c.id));
@@ -365,6 +398,7 @@ watch(
             :sector-options="sectorOptions"
             :fixed-branch-id="fixedBranchId"
             :show-company-selector="isSuperadmin"
+            :tenant-email-domain="allowSyntheticEmailBypass ? null : resolvedTenantEmailDomain ?? null"
             @clear-error="clearError"
           />
           <b-row v-if="formReady">

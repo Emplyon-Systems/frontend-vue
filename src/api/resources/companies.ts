@@ -88,6 +88,8 @@ export async function remove(id: number | string) {
 }
 
 export async function plucks() {
-  const res = await http.get<ApiResponse & { plucks: { id: number; name?: string }[] }>(`${base}/plucks`);
+  const res = await http.get<
+    ApiResponse & { plucks: { id: number; name?: string; internal_email_domain?: string }[] }
+  >(`${base}/plucks`);
   return res.data.plucks ?? [];
 }

@@ -134,6 +134,8 @@ export interface CompanyRecord {
   logo_disk?: string | null;
   logo_path?: string | null;
   logo_url?: string | null;
+  /** Domínio sintético para e-mail de colaboradores (slug do nome + .com). */
+  internal_email_domain?: string;
   users?: Array<{
     id: number;
     name: string;
@@ -220,6 +222,7 @@ export interface EmployeeRecord {
   company?: {
     id: number;
     name?: string;
+    internal_email_domain?: string;
   } | null;
   user?: {
     id: number;

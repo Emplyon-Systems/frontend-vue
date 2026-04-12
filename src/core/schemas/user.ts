@@ -42,6 +42,12 @@ export const userEditSchema = userBaseSchema.extend({
   password_confirmation: z.string().optional(),
 });
 
+/** Opções extras para alinhar e-mail ao domínio sintético da empresa (usuario@slugempresa.com). */
+export type UserFormValidationOptions = {
+  /** Ex.: alfatecnologialtda.com; omita ou null para não restringir (ex.: dono com perfil empresa-c*). */
+  tenantEmailDomain?: string | null;
+};
+
 /** Dados do formulário (create: password obrigatório; edit: password opcional) */
 export type UserFormData = z.input<typeof userEditSchema>;
 export type UserCreateData = z.output<typeof userCreateSchema>;
@@ -78,13 +84,29 @@ function toFieldErrors(error: z.ZodError): UserFieldErrors {
 
 export function validateUserForm(
   form: UserFormData,
-  mode: UserFormMode
+  mode: UserFormMode,
+  options?: UserFormValidationOptions
 ): { success: true; data: UserCreateData | UserEditData } | { success: false; errors: UserFieldErrors } {
   const schema = mode === "create" ? userCreateSchema : userEditSchema;
   const parsed = schema.safeParse(form);
 
   if (!parsed.success) {
     return { success: false, errors: toFieldErrors(parsed.error) };
+  }
+
+  const domain = (options?.tenantEmailDomain ?? "").trim().toLowerCase();
+  if (domain) {
+    const email = (parsed.data.email ?? "").trim();
+    const at = email.lastIndexOf("@");
+    const host = at >= 0 ? email.slice(at + 1).toLowerCase() : "";
+    if (host !== domain) {
+      return {
+        success: false,
+        errors: {
+          email: `Para utilizadores da empresa, o e-mail deve terminar em @${domain} (ex.: joao@${domain}).`,
+        },
+      };
+    }
   }
 
   return { success: true, data: parsed.data };

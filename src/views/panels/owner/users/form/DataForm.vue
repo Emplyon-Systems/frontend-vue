@@ -20,7 +20,9 @@ const props = withDefaults(
     roleOptions: { id: number; name: string; permission_ids?: number[] }[];
     permissionOptions?: { id: number; name: string; slug?: string }[];
     companyOptions?: { id: number; name: string }[];
-    branchOptions?: { id: number; name: string; company_name?: string }[];
+    branchOptions?: { id: number; name: string; company_name?: string; company_id?: number }[];
+    /** Domínio sintético (ex.: alfatecnologialtda.com) quando o utilizador fica numa única empresa. */
+    tenantEmailDomain?: string | null;
     sectorOptions?: { id: number; branch_id: number; name: string; slug?: string }[];
     fixedBranchId?: number | null;
     showCompanySelector?: boolean;
@@ -35,6 +37,7 @@ const props = withDefaults(
     sectorOptions: () => [],
     fixedBranchId: null,
     showCompanySelector: false,
+    tenantEmailDomain: null,
   }
 );
 
@@ -85,7 +88,7 @@ watch(
     activeTabIndex.value = hasTab0 ? 0 : 1;
     await nextTick();
     const first = document.querySelector<HTMLElement>(
-      "#user-name.is-invalid, #user-email.is-invalid, .user-selectr-field--invalid .selectr-selected"
+      "#user-name.is-invalid, #user-email.is-invalid, #user-email-local.is-invalid, .user-selectr-field--invalid .selectr-selected"
     );
     first?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -134,6 +137,66 @@ function updateField<K extends keyof UserFormData>(field: K, value: UserFormData
   localForm.value = { ...localForm.value, [field]: value };
   emit("clear-error", field);
 }
+
+/** Domínio sintético normalizado (ex.: tecwebdigital.com). */
+const tenantDomainNormalized = computed(() => (props.tenantEmailDomain ?? "").trim().toLowerCase());
+
+/** E-mail em duas partes: só a parte local é editável; @domínio vem do banco. */
+const useSplitTenantEmail = computed(() => Boolean(tenantDomainNormalized.value) && !isView);
+
+function parseEmailLocal(full: string, domain: string): string {
+  const f = full.trim();
+  const d = domain.toLowerCase();
+  if (!f || !d) return f.replace(/@/g, "");
+  const at = f.lastIndexOf("@");
+  if (at < 0) return f.replace(/@/g, "");
+  const host = f.slice(at + 1).toLowerCase();
+  const local = f.slice(0, at);
+  if (host === d) return local;
+  return local.replace(/@/g, "");
+}
+
+function sanitizeEmailLocalInput(raw: string, domain: string): string {
+  let s = String(raw ?? "").trim();
+  const suffix = `@${domain.toLowerCase()}`;
+  const lower = s.toLowerCase();
+  if (lower.endsWith(suffix)) {
+    s = s.slice(0, s.length - suffix.length).trim();
+  }
+  return s.replace(/@/g, "").trim();
+}
+
+const emailLocalModel = computed({
+  get: () => parseEmailLocal(props.modelValue.email ?? "", tenantDomainNormalized.value),
+  set: (v: string) => {
+    const d = tenantDomainNormalized.value;
+    if (!d) {
+      updateField("email", v);
+      return;
+    }
+    const cleaned = sanitizeEmailLocalInput(v, d);
+    updateField("email", cleaned ? `${cleaned}@${d}` : "");
+  },
+});
+
+watch(
+  () => tenantDomainNormalized.value,
+  (domain, prev) => {
+    if (!domain || isView) return;
+    const email = (props.modelValue.email ?? "").trim();
+    if (!email) return;
+    const lower = email.toLowerCase();
+    if (prev && lower.endsWith(`@${prev}`)) {
+      const local = email.slice(0, email.length - prev.length - 1).trim();
+      const next = local ? `${local}@${domain}` : "";
+      if (next !== email) updateField("email", next);
+      return;
+    }
+    if (!email.includes("@")) {
+      updateField("email", `${email}@${domain}`);
+    }
+  }
+);
 
 function clearRoleSelection() {
   updateField("roles", []);
@@ -571,15 +634,39 @@ function generateRandomPassword(length = 12): void {
             </b-form-group>
           </b-col>
           <b-col md="6">
-            <b-form-group label="E-mail" label-for="user-email" class="mb-3">
-              <b-form-input
-                id="user-email"
-                :model-value="modelValue.email"
-                type="email"
-                placeholder="email@exemplo.com"
-                :state="errors.email ? false : null"
-                @update:model-value="updateField('email', $event)"
-              />
+            <b-form-group
+              :label="useSplitTenantEmail ? 'E-mail (usuário)' : 'E-mail'"
+              :label-for="useSplitTenantEmail ? 'user-email-local' : 'user-email'"
+              class="mb-3"
+            >
+              <template v-if="useSplitTenantEmail">
+                <b-input-group>
+                  <b-form-input
+                    id="user-email-local"
+                    v-model="emailLocalModel"
+                    type="text"
+                    placeholder="joao.silva"
+                    autocomplete="off"
+                    :state="errors.email ? false : null"
+                  />
+                  <b-input-group-text class="text-body-secondary user-select-all">
+                    @{{ tenantEmailDomain }}
+                  </b-input-group-text>
+                </b-input-group>
+                <b-form-text class="d-block">
+                  O domínio é fixo para esta empresa. Digite só o nome antes do @.
+                </b-form-text>
+              </template>
+              <template v-else>
+                <b-form-input
+                  id="user-email"
+                  :model-value="modelValue.email"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  :state="errors.email ? false : null"
+                  @update:model-value="updateField('email', $event)"
+                />
+              </template>
               <b-form-invalid-feedback v-if="errors.email">{{ errors.email }}</b-form-invalid-feedback>
             </b-form-group>
           </b-col>

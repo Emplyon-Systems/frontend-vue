@@ -14,7 +14,8 @@ function toHhMm(time: string): string {
   return m ? `${m[1]}:${m[2]}` : "08:00";
 }
 
-const branchBaseSchema = z.object({
+/** Dados cadastrais e endereço (criação / edição pelo painel dono). */
+const branchBasicSchema = z.object({
   company_id: z.number({ error: "Empresa é obrigatória." }).int().positive("Empresa é obrigatória."),
   name: requiredText("Nome", 255),
   cnpj: requiredText("CNPJ", 18),
@@ -24,19 +25,23 @@ const branchBaseSchema = z.object({
   neighborhood: requiredText("Bairro", 255),
   city: requiredText("Município", 255),
   state: requiredText("Estado", 2),
+});
+
+const branchTimesFields = {
   expedient_start_time: timeSchema,
   expedient_end_time: timeSchema,
   store_open_time: timeSchema,
   store_close_time: timeSchema,
-});
+};
 
-export const branchCreateSchema = branchBaseSchema;
-export const branchEditSchema = branchBaseSchema;
+export const branchCreateSchema = branchBasicSchema;
+export const branchOwnerEditSchema = branchBasicSchema;
+export const branchManagerEditSchema = branchBasicSchema.extend(branchTimesFields);
 
-export type BranchFormData = z.input<typeof branchCreateSchema>;
-export type BranchCreateData = z.output<typeof branchCreateSchema>;
-export type BranchEditData = z.output<typeof branchEditSchema>;
-export type BranchFormMode = "create" | "edit";
+export type BranchFormData = z.input<typeof branchManagerEditSchema>;
+export type BranchFormMode = "create" | "edit" | "edit-with-hours";
+export type BranchBasicPayload = z.output<typeof branchBasicSchema>;
+export type BranchManagerPayload = z.output<typeof branchManagerEditSchema>;
 export type BranchFieldErrors = Partial<Record<keyof BranchFormData, string>>;
 
 export const branchInitialForm = (): BranchFormData => ({
@@ -69,9 +74,10 @@ export function validateBranchForm(
   form: BranchFormData,
   mode: BranchFormMode,
 ):
-  | { success: true; data: BranchCreateData | BranchEditData }
+  | { success: true; data: BranchBasicPayload }
+  | { success: true; data: BranchManagerPayload }
   | { success: false; errors: BranchFieldErrors } {
-  const schema = mode === "create" ? branchCreateSchema : branchEditSchema;
+  const schema = mode === "edit-with-hours" ? branchManagerEditSchema : branchBasicSchema;
   const parsed = schema.safeParse(form);
 
   if (!parsed.success) {
@@ -80,14 +86,19 @@ export function validateBranchForm(
 
   const data = parsed.data;
 
-  return {
-    success: true,
-    data: {
-      ...data,
-      expedient_start_time: toHhMm(data.expedient_start_time),
-      expedient_end_time: toHhMm(data.expedient_end_time),
-      store_open_time: toHhMm(data.store_open_time),
-      store_close_time: toHhMm(data.store_close_time),
-    },
-  };
+  if (mode === "edit-with-hours") {
+    const d = data as BranchManagerPayload;
+    return {
+      success: true,
+      data: {
+        ...d,
+        expedient_start_time: toHhMm(d.expedient_start_time),
+        expedient_end_time: toHhMm(d.expedient_end_time),
+        store_open_time: toHhMm(d.store_open_time),
+        store_close_time: toHhMm(d.store_close_time),
+      },
+    };
+  }
+
+  return { success: true, data };
 }

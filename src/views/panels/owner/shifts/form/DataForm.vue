@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import Selectr from "@/lib/selectr";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import AppAlert from "@/components/AppAlert.vue";
-import type { ShiftFormData } from "@/core/schemas";
+import { SHIFT_NAMES, type ShiftFormData } from "@/core/schemas";
 
 const props = withDefaults(
   defineProps<{
@@ -47,6 +47,23 @@ function updateField<K extends keyof ShiftFormData>(field: K, value: ShiftFormDa
   };
   emit("clear-error", field);
 }
+
+const standardShiftNameList: readonly string[] = SHIFT_NAMES;
+
+const shiftNameSelectOptions = computed(() => {
+  const current = String(props.modelValue.name ?? "").trim();
+  const base = SHIFT_NAMES.map((n) => ({ value: n, text: n }));
+  if (current && !standardShiftNameList.includes(current)) {
+    return [
+      {
+        value: current,
+        text: `${current} (atual — escolha Manhã, Tarde ou Noite)`,
+      },
+      ...base,
+    ];
+  }
+  return base;
+});
 
 function onBranchChange(event: Event) {
   const value = (event.target as HTMLSelectElement | null)?.value ?? "";
@@ -139,14 +156,21 @@ onBeforeUnmount(() => {
       </b-col>
       <b-col :md="isView && !isBranchLocked ? 6 : 12">
         <b-form-group label="Nome" label-for="shift-name">
+          <b-form-select
+            v-if="!isView"
+            id="shift-name"
+            :model-value="modelValue.name"
+            :options="shiftNameSelectOptions"
+            :class="{ 'is-invalid': errors?.name }"
+            @update:model-value="updateField('name', String($event ?? '') as ShiftFormData['name'])"
+          />
           <b-form-input
+            v-else
             id="shift-name"
             :model-value="modelValue.name"
             type="text"
-            placeholder="Ex: Manhã"
-            :readonly="isView"
+            readonly
             :class="{ 'is-invalid': errors?.name }"
-            @update:model-value="updateField('name', String($event ?? ''))"
           />
           <b-form-invalid-feedback v-if="errors?.name">{{ errors.name }}</b-form-invalid-feedback>
         </b-form-group>

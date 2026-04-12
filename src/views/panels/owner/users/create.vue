@@ -5,7 +5,7 @@ import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import DataForm from "./form/DataForm.vue";
 import { usersApi, rolesApi, sectorsApi, branchesApi, permissionsApi } from "@/api/resources";
-import { userInitialForm, validateUserForm, type UserFormData } from "@/core/schemas";
+import { userInitialForm, validateUserForm, type UserCreateData, type UserFormData } from "@/core/schemas";
 import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
@@ -45,7 +45,7 @@ function buildInitialForm(): UserFormData {
 const loading = ref(false);
 const roleOptions = ref<{ id: number; name: string; slug?: string; permission_ids?: number[] }[]>([]);
 const permissionOptions = ref<{ id: number; name: string; slug?: string }[]>([]);
-const companyOptions = ref<{ id: number; name: string }[]>([]);
+const companyOptions = ref<{ id: number; name: string; internal_email_domain?: string }[]>([]);
 const branchOptions = ref<{ id: number; company_id?: number; name: string; company_name?: string }[]>([]);
 const sectorOptions = ref<{ id: number; branch_id: number; name: string; slug?: string }[]>([]);
 const form = ref<UserFormData>(buildInitialForm());
@@ -81,19 +81,45 @@ const filteredBranchOptions = computed(() => {
   );
 });
 
+/** Uma única empresa (direta ou inferida pelas filiais) → domínio sintético usuario@slug.com. */
+const resolvedTenantEmailDomain = computed((): string | null => {
+  if (selectedCompanyIds.value.length === 1) {
+    const c = companyOptions.value.find((x) => x.id === selectedCompanyIds.value[0]);
+    const d = (c?.internal_email_domain ?? "").trim();
+    return d || null;
+  }
+  const branchCompanyIds = new Set<number>();
+  for (const bid of selectedBranchIds.value) {
+    const b = filteredBranchOptions.value.find((x) => x.id === bid);
+    const cid = Number(b?.company_id ?? 0);
+    if (cid > 0) branchCompanyIds.add(cid);
+  }
+  if (branchCompanyIds.size === 1) {
+    const cid = [...branchCompanyIds][0];
+    const c = companyOptions.value.find((x) => x.id === cid);
+    const d = (c?.internal_email_domain ?? "").trim();
+    return d || null;
+  }
+  return null;
+});
+
 function cancel() {
   router.push({ name: "owner.users" });
 }
 
 function submit() {
   resetErrors();
-  const validation = validateUserForm(form.value, "create");
+  const validation = validateUserForm(form.value, "create", {
+    tenantEmailDomain: resolvedTenantEmailDomain.value,
+  });
   if (!validation.success) {
     onClientValidationFailed(validation.errors);
     return;
   }
 
-  const selectedRoleIds = new Set(validation.data.roles ?? []);
+  const data = validation.data as UserCreateData;
+
+  const selectedRoleIds = new Set(data.roles ?? []);
   const selectedRoles = roleOptions.value.filter((role) => selectedRoleIds.has(role.id));
   const hasManager = selectedRoles.some(
     (role) =>
@@ -115,15 +141,15 @@ function submit() {
   loading.value = true;
   usersApi
     .create({
-      name: validation.data.name,
-      email: validation.data.email,
-      password: validation.data.password,
-      status: validation.data.status,
-      roles: validation.data.roles.length ? validation.data.roles : undefined,
-      direct_permission_ids: validation.data.direct_permission_ids?.length ? validation.data.direct_permission_ids : undefined,
-      company_ids: validation.data.company_ids.length ? validation.data.company_ids : undefined,
-      branch_ids: validation.data.branch_ids.length ? validation.data.branch_ids : undefined,
-      sector_ids: validation.data.sector_ids?.length ? validation.data.sector_ids : undefined,
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      status: data.status,
+      roles: data.roles.length ? data.roles : undefined,
+      direct_permission_ids: data.direct_permission_ids?.length ? data.direct_permission_ids : undefined,
+      company_ids: data.company_ids.length ? data.company_ids : undefined,
+      branch_ids: data.branch_ids.length ? data.branch_ids : undefined,
+      sector_ids: data.sector_ids?.length ? data.sector_ids : undefined,
     })
     .then(() => {
       notifySuccess("Usuário criado com sucesso.");
@@ -188,7 +214,11 @@ onMounted(() => {
     isSuperadmin.value = authStore.hasRole("superadmin");
     permissionOptions.value = (permissions ?? []).map((p) => ({ id: p.id, name: p.name, slug: p.slug }));
     companyOptions.value = (plucks.companies ?? [])
-      .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
+      .map((c) => ({
+        id: c.id,
+        name: c.name ?? `Empresa #${c.id}`,
+        internal_email_domain: c.internal_email_domain,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
     const companyMap = new Map((plucks.companies ?? []).map((c) => [c.id, c.name ?? `Empresa #${c.id}`]));
     const userCompanyIds = new Set((authStore.user?.companies ?? []).map((c) => c.id));
@@ -307,6 +337,7 @@ watch(
             :sector-options="sectorOptions"
             :fixed-branch-id="fixedBranchId"
             :show-company-selector="isSuperadmin"
+            :tenant-email-domain="resolvedTenantEmailDomain"
             @clear-error="clearError"
           />
           <b-row>

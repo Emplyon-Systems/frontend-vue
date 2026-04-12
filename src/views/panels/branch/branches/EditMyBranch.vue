@@ -114,7 +114,7 @@ function loadBranch() {
 
 function submit() {
   resetErrors();
-  const validation = validateBranchForm(form.value, "edit");
+  const validation = validateBranchForm(form.value, "edit-with-hours");
   if (!validation.success) {
     onClientValidationFailed(validation.errors);
     return;
@@ -172,6 +172,7 @@ onMounted(() => {
           :company-options="companyOptions"
           :lock-company-id="companyId || null"
           mode="edit"
+          show-operating-hours
           @clear-error="clearError"
         >
           <template #actions>

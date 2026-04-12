@@ -1,11 +1,12 @@
 import { z } from "zod";
 
-const requiredText = (label: string, max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1, `${label} é obrigatório.`)
-    .max(max, `${label} deve ter no máximo ${max} caracteres.`);
+/** Nomes padrão de turno (single select no formulário). */
+export const SHIFT_NAMES = ["Manhã", "Tarde", "Noite"] as const;
+export type ShiftName = (typeof SHIFT_NAMES)[number];
+
+const shiftNameSchema = z.enum(SHIFT_NAMES, {
+  errorMap: () => ({ message: "Selecione Manhã, Tarde ou Noite." }),
+});
 
 const timeSchema = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato inválido (use HH:mm)");
 
@@ -18,7 +19,7 @@ function toHhMm(time: string): string {
 /** Slug é gerado no backend via observer a partir do nome. Não enviamos no request. */
 const shiftBaseSchema = z.object({
   branch_id: z.number({ required_error: "Filial é obrigatória." }).int().positive("Filial é obrigatória."),
-  name: requiredText("Nome", 255),
+  name: shiftNameSchema,
   slug: z.string().max(255).optional(),
   start_time: timeSchema,
   end_time: timeSchema,
@@ -36,7 +37,7 @@ export type ShiftFieldErrors = Partial<Record<keyof ShiftFormData, string>>;
 
 export const shiftInitialForm = (): ShiftFormData => ({
   branch_id: 0,
-  name: "",
+  name: "Manhã",
   slug: "", // Apenas para exibição; o backend gera a partir do nome
   start_time: "08:00",
   end_time: "17:00",
