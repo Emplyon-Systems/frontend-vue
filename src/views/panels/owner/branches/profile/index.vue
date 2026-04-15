@@ -43,6 +43,9 @@
               <b-tab title="Setores">
                 <BranchSectorsTab :sectors="sectors" />
               </b-tab>
+              <b-tab title="Horários">
+                <BranchScheduleRulesTab :rules="scheduleRules" />
+              </b-tab>
               <b-tab v-if="showEmployeesTab && branchId" title="Funcionários">
                 <BranchEmployeesTab :branch-id="branchId" />
               </b-tab>
@@ -60,7 +63,8 @@ import BranchInformation from "./BranchInformation.vue";
 import BranchUsersTab from "./BranchUsersTab.vue";
 import BranchSectorsTab from "./BranchSectorsTab.vue";
 import BranchEmployeesTab from "./BranchEmployeesTab.vue";
-import type { BranchRecord } from "@/types/api";
+import BranchScheduleRulesTab from "./BranchScheduleRulesTab.vue";
+import type { BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 withDefaults(
   defineProps<{
@@ -85,6 +89,8 @@ withDefaults(
     branchId?: number;
     /** Ex.: superadmin — lista API de funcionários desta filial. */
     showEmployeesTab?: boolean;
+    /** Regras de expediente / loja (aba Horários). */
+    scheduleRules?: BranchScheduleRuleRecord[];
   }>(),
   {
     users: () => [],
@@ -94,6 +100,7 @@ withDefaults(
     usersUsedDisplay: null,
     branchId: 0,
     showEmployeesTab: false,
+    scheduleRules: () => [],
   }
 );
 </script>

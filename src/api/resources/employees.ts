@@ -32,9 +32,9 @@ export interface EmployeeCreatePayload {
   /** Opcional: usuário já existente na mesma empresa (`company_users`) */
   user_id?: number | null;
   name: string;
-  cpf: string;
+  cpf?: string | null;
   email: string;
-  phone: string;
+  phone?: string | null;
   job_title: string;
   street?: string | null;
   street_number?: string | null;

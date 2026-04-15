@@ -13,12 +13,6 @@ import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 import type { EmployeeRecord } from "@/types/api";
 
-function formatCpfDisplay(digits: string): string {
-  const d = String(digits ?? "").replace(/\D/g, "").slice(0, 11);
-  if (d.length !== 11) return digits ?? "";
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
-}
-
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -236,9 +230,7 @@ function fillFormFromEmployee(data: Awaited<ReturnType<typeof employeesApi.getBy
     company_id: e.company_id ?? 0,
     user_id: e.user_id != null && Number(e.user_id) > 0 ? Number(e.user_id) : 0,
     name: e.name ?? "",
-    cpf: formatCpfDisplay(e.cpf ?? ""),
     email: e.email ?? "",
-    phone: e.phone ?? "",
     job_title: e.job_title ?? "",
     street: e.street ?? "",
     street_number: e.street_number ?? "",
@@ -355,9 +347,7 @@ function submit() {
           company_id: d.company_id,
           user_id: uid,
           name: d.name,
-          cpf: d.cpf,
           email: d.email,
-          phone: d.phone,
           job_title: d.job_title,
           street: d.street,
           street_number: d.street_number,
@@ -398,9 +388,7 @@ function submit() {
       company_id: d.company_id,
       user_id: d.user_id > 0 ? d.user_id : null,
       name: d.name,
-      cpf: d.cpf,
       email: d.email,
-      phone: d.phone,
       job_title: d.job_title,
       street: d.street,
       street_number: d.street_number,

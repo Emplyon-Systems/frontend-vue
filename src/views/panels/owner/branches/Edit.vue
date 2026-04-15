@@ -8,9 +8,11 @@ import DataForm from "./form/DataForm.vue";
 import { branchesApi, companiesApi } from "@/api/resources";
 import {
   branchInitialForm,
+  defaultOpenScheduleRuleAllWeek,
   validateBranchForm,
   type BranchFormData,
 } from "@/core/schemas";
+import type { BranchScheduleRuleRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
@@ -53,9 +55,39 @@ function toHhMm(v: string): string {
   return m ? `${m[1]}:${m[2]}` : "08:00";
 }
 
+function mapApiScheduleRule(r: BranchScheduleRuleRecord) {
+  const closed = !!r.is_closed;
+  return {
+    id: r.id,
+    weekdays: [...(r.weekdays ?? [])].sort((a, b) => a - b),
+    is_closed: closed,
+    expedient_start_time: closed ? "" : toHhMm(String(r.expedient_start_time ?? "08:00")),
+    expedient_end_time: closed ? "" : toHhMm(String(r.expedient_end_time ?? "18:00")),
+    store_open_time: closed ? "" : toHhMm(String(r.store_open_time ?? "09:00")),
+    store_close_time: closed ? "" : toHhMm(String(r.store_close_time ?? "18:00")),
+    break_duration_minutes: r.break_duration_minutes ?? null,
+    daily_work_minutes: r.daily_work_minutes ?? null,
+    sort_order: r.sort_order ?? 0,
+  };
+}
+
 function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>>) {
   const branch = data.branch;
   if (!branch) return;
+
+  const legacyRule = {
+    ...defaultOpenScheduleRuleAllWeek(),
+    expedient_start_time: toHhMm(branch.expedient_start_time ?? "08:00"),
+    expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
+    store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
+    store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
+  };
+
+  const schedule_rules =
+    branch.schedule_rules && branch.schedule_rules.length > 0
+      ? [...branch.schedule_rules].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map(mapApiScheduleRule)
+      : [legacyRule];
+
   form.value = {
     company_id: branch.company_id ?? 0,
     name: branch.name ?? "",
@@ -70,6 +102,7 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
     store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
     store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
+    schedule_rules,
   };
   branchLogoUrl.value = branch.logo_url ?? null;
 }
@@ -107,7 +140,7 @@ function loadBranch() {
 
 function submit() {
   resetErrors();
-  const validation = validateBranchForm(form.value, "edit");
+  const validation = validateBranchForm(form.value, "edit-with-hours");
   if (!validation.success) {
     errors.value = validation.errors;
     return;
@@ -166,6 +199,8 @@ onMounted(async () => {
           :company-options="companyOptions ?? []"
           :lock-company-id="companyScoped ? scopedCompanyId : null"
           mode="edit"
+          show-operating-hours
+          edit-tabbed
           @clear-error="clearError"
         >
           <template #actions>

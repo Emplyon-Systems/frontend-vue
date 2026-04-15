@@ -30,16 +30,8 @@
             <b>Nome</b>: {{ employee.name || "—" }}
           </li>
           <li class="mt-2">
-            <i class="iconoir-clipboard me-2 text-secondary fs-18 align-middle"></i>
-            <b>CPF</b>: {{ cpfDisplay }}
-          </li>
-          <li class="mt-2">
             <i class="iconoir-mail text-secondary fs-18 align-middle me-2"></i>
             <b>E-mail</b>: {{ employee.email || "—" }}
-          </li>
-          <li class="mt-2">
-            <i class="iconoir-phone text-secondary fs-18 align-middle me-2"></i>
-            <b>Telefone</b>: {{ employee.phone || "—" }}
           </li>
           <li class="mt-2">
             <i class="iconoir-briefcase me-2 text-secondary fs-18 align-middle"></i>
@@ -68,13 +60,6 @@ const props = defineProps<{
   onEdit?: () => void;
 }>();
 
-function formatCpfDisplay(digits: string): string {
-  const d = String(digits ?? "").replace(/\D/g, "").slice(0, 11);
-  if (d.length !== 11) return digits?.trim() || "—";
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
-}
-
-const cpfDisplay = computed(() => formatCpfDisplay(props.employee.cpf ?? ""));
 const companyName = computed(() => props.employee.company?.name?.trim() || "");
 
 const linkedUserLine = computed(() => {

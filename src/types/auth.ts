@@ -34,11 +34,13 @@ export interface User {
     id: number;
     name: string;
     cnpj?: string | null;
+    setup_completed_at?: string | null;
   }>;
   branches?: Array<{
     id: number;
     name: string;
     company_id?: number;
+    setup_completed_at?: string | null;
     company?: { id: number; name: string };
   }>;
 }

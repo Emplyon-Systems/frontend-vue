@@ -93,3 +93,11 @@ export async function plucks() {
   >(`${base}/plucks`);
   return res.data.plucks ?? [];
 }
+
+export async function completeSetup(id: number | string) {
+  const res = await http.post<ApiResponse & { company: { id: number; setup_completed_at: string | null } }>(
+    `${base}/${id}/complete-setup`,
+    {}
+  );
+  return res.data;
+}

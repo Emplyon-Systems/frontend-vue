@@ -5,7 +5,7 @@ import UIComponentCard from "@/components/UIComponentCard.vue";
 import InputMask from "@/components/InputMask.vue";
 import type { EmployeeFormData } from "@/core/schemas";
 import type { SectorPluckItem } from "@/api/resources/sectors";
-import { sectorsApi } from "@/api/resources";
+import { sectorsApi, usersApi } from "@/api/resources";
 import { notifyError } from "@/helpers/notify";
 
 const props = withDefaults(
@@ -172,6 +172,49 @@ function updateField<K extends keyof EmployeeFormData>(field: K, value: Employee
 
 const tenantDomainNormalized = computed(() => (props.tenantEmailDomain ?? "").trim().toLowerCase());
 const useSplitTenantEmail = computed(() => Boolean(tenantDomainNormalized.value) && !isView.value);
+const branchSyntheticEmailEnabled = computed(
+  () => props.branchUserFlow && props.userAccessMode === "create" && useSplitTenantEmail.value && !isView.value
+);
+
+const primaryAssignmentForAccess = computed(() => {
+  const rows = props.modelValue.assignments ?? [];
+  return rows.find((a) => !!a.is_primary) ?? rows[0] ?? null;
+});
+
+const linkedUserEmail = computed(() => {
+  const uid = Number(props.modelValue.user_id ?? 0);
+  if (uid <= 0) return "";
+  const u = props.userOptions?.find((x) => x.id === uid);
+  return String(u?.email ?? "").trim();
+});
+
+const branchSyntheticPreviewEmail = ref("");
+let branchSyntheticPreviewSeq = 0;
+
+async function refreshBranchSyntheticPreview(): Promise<void> {
+  if (!branchSyntheticEmailEnabled.value) {
+    branchSyntheticPreviewEmail.value = "";
+    return;
+  }
+  const bid = Number(primaryAssignmentForAccess.value?.branch_id ?? 0);
+  const sid = Number(primaryAssignmentForAccess.value?.sector_id ?? 0);
+  if (bid <= 0 || sid <= 0) {
+    branchSyntheticPreviewEmail.value = "";
+    return;
+  }
+  const seq = ++branchSyntheticPreviewSeq;
+  try {
+    const res = await usersApi.syntheticEmailPreview({
+      branch_id: bid,
+      sector_id: sid,
+    });
+    if (seq !== branchSyntheticPreviewSeq) return;
+    branchSyntheticPreviewEmail.value = String(res.preview?.email ?? "").trim();
+  } catch {
+    if (seq !== branchSyntheticPreviewSeq) return;
+    branchSyntheticPreviewEmail.value = "";
+  }
+}
 
 function parseEmailLocal(full: string, domain: string): string {
   const f = full.trim();
@@ -225,6 +268,51 @@ watch(
       updateField("email", `${email}@${domain}`);
     }
   }
+);
+
+watch(
+  () =>
+    [
+      branchSyntheticEmailEnabled.value,
+      tenantDomainNormalized.value,
+      primaryAssignmentForAccess.value?.branch_id ?? 0,
+      primaryAssignmentForAccess.value?.sector_id ?? 0,
+    ] as const,
+  () => {
+    void refreshBranchSyntheticPreview();
+  },
+  { immediate: true }
+);
+
+watch(
+  () =>
+    [
+      branchSyntheticEmailEnabled.value,
+      branchSyntheticPreviewEmail.value,
+      props.userAccessMode,
+      linkedUserEmail.value,
+      props.modelValue.user_id,
+    ] as const,
+  () => {
+    if (isView.value) return;
+    if (props.branchUserFlow && props.userAccessMode === "link") {
+      const linked = linkedUserEmail.value;
+      if (linked && (props.modelValue.email ?? "").trim().toLowerCase() !== linked.toLowerCase()) {
+        updateField("email", linked);
+      }
+      return;
+    }
+    if (!branchSyntheticEmailEnabled.value) return;
+    const synthetic = branchSyntheticPreviewEmail.value.trim();
+    if (!synthetic) {
+      if ((props.modelValue.email ?? "").trim() !== "") updateField("email", "");
+      return;
+    }
+    if ((props.modelValue.email ?? "").trim().toLowerCase() !== synthetic.toLowerCase()) {
+      updateField("email", synthetic);
+    }
+  },
+  { immediate: true }
 );
 
 function toggleNewUserPassword() {
@@ -715,24 +803,7 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors?.name">{{ errors.name }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="6">
-        <b-form-group label-for="emp-cpf">
-          <template #label>
-            CPF<span v-if="req" class="text-danger ms-1" aria-hidden="true">*</span>
-          </template>
-          <InputMask
-            id="emp-cpf"
-            mask="999.999.999-99"
-            :model-value="modelValue.cpf"
-            :readonly="isView"
-            :class="{ 'is-invalid': errors?.cpf }"
-            placeholder="000.000.000-00"
-            @update:model-value="updateField('cpf', String($event ?? ''))"
-          />
-          <b-form-invalid-feedback v-if="errors?.cpf">{{ errors.cpf }}</b-form-invalid-feedback>
-        </b-form-group>
-      </b-col>
-      <b-col md="6">
+      <b-col v-if="!branchUserFlow" md="6">
         <b-form-group :label-for="useSplitTenantEmail ? 'emp-email-local' : 'emp-email'">
           <template #label>
             {{ useSplitTenantEmail ? "E-mail (usuário)" : "E-mail"
@@ -766,24 +837,7 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors?.email">{{ errors.email }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="6">
-        <b-form-group label-for="emp-phone">
-          <template #label>
-            Telefone<span v-if="req" class="text-danger ms-1" aria-hidden="true">*</span>
-          </template>
-          <InputMask
-            id="emp-phone"
-            mask="(99) 9999[9]-9999"
-            :model-value="modelValue.phone"
-            :readonly="isView"
-            placeholder="(99) 99999-9999"
-            :class="{ 'is-invalid': errors?.phone }"
-            @update:model-value="updateField('phone', String($event ?? ''))"
-          />
-          <b-form-invalid-feedback v-if="errors?.phone">{{ errors.phone }}</b-form-invalid-feedback>
-        </b-form-group>
-      </b-col>
-      <b-col md="12">
+      <b-col :md="branchUserFlow ? 6 : 12">
         <b-form-group label-for="emp-job_title">
           <template #label>
             Cargo<span v-if="req" class="text-danger ms-1" aria-hidden="true">*</span>
@@ -1077,6 +1131,53 @@ onBeforeUnmount(() => {
           </template>
           <template v-else>
             <b-row class="g-3">
+              <b-col md="12">
+                <b-form-group :label-for="useSplitTenantEmail ? 'emp-email-create-local' : 'emp-email-create'">
+                  <template #label>
+                    {{ useSplitTenantEmail ? "E-mail (usuário)" : "E-mail"
+                    }}<span v-if="reqAccessUserCreate" class="text-danger ms-1" aria-hidden="true">*</span>
+                  </template>
+                  <template v-if="branchSyntheticEmailEnabled && useSplitTenantEmail">
+                    <b-input-group>
+                      <b-form-input
+                        id="emp-email-create-local"
+                        :model-value="emailLocalModel"
+                        type="text"
+                        readonly
+                        class="bg-body-secondary user-select-all"
+                        :class="{ 'is-invalid': !!errors?.email }"
+                      />
+                      <b-input-group-text class="text-body-secondary user-select-all">@{{ tenantEmailDomain }}</b-input-group-text>
+                    </b-input-group>
+                    <p class="text-muted small mb-0 mt-1">
+                      Gerado automaticamente pela regra de setor + sequência de usuário + filial.
+                    </p>
+                  </template>
+                  <template v-else-if="useSplitTenantEmail">
+                    <b-input-group>
+                      <b-form-input
+                        id="emp-email-create-local"
+                        v-model="emailLocalModel"
+                        type="text"
+                        placeholder="joao.silva"
+                        autocomplete="off"
+                        :class="{ 'is-invalid': !!errors?.email }"
+                      />
+                      <b-input-group-text class="text-body-secondary user-select-all">@{{ tenantEmailDomain }}</b-input-group-text>
+                    </b-input-group>
+                    <p class="text-muted small mb-0 mt-1">O domínio é fixo para esta empresa. Digite só o nome antes do @.</p>
+                  </template>
+                  <b-form-input
+                    v-else
+                    id="emp-email-create"
+                    :model-value="modelValue.email"
+                    type="email"
+                    :class="{ 'is-invalid': !!errors?.email }"
+                    @update:model-value="updateField('email', String($event ?? ''))"
+                  />
+                  <b-form-invalid-feedback v-if="errors?.email" class="d-block">{{ errors.email }}</b-form-invalid-feedback>
+                </b-form-group>
+              </b-col>
               <b-col md="6">
                 <b-form-group label-for="emp-nup">
                   <template #label>

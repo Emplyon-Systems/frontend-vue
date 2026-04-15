@@ -63,6 +63,20 @@ export async function getById(id: number | string) {
   return res.data;
 }
 
+export interface SyntheticEmailPreviewPayload {
+  branch_id: number;
+  sector_id?: number;
+  sector_name?: string;
+  role_ids?: number[];
+}
+
+export async function syntheticEmailPreview(payload: SyntheticEmailPreviewPayload) {
+  const res = await http.post<
+    ApiResponse & { preview?: { email: string; local: string; domain: string } }
+  >(`${base}/synthetic-email-preview`, payload);
+  return res.data;
+}
+
 export async function create(payload: UserCreatePayload) {
   const res = await http.post<ApiResponse & { user: UserRecord }>(`${base}/create`, payload);
   return res.data;

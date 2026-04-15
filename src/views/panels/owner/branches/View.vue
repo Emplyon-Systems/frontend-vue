@@ -7,7 +7,7 @@ import ProfilePage from "./profile/index.vue";
 import { branchesApi, companiesApi } from "@/api/resources";
 import { branchInitialForm, type BranchFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
-import type { BranchRecord } from "@/types/api";
+import type { BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
@@ -39,6 +39,7 @@ const usersCount = ref(0);
 const branchUserLimit = ref<number | null>(null);
 const branchUsersUsedDisplay = ref<number | null>(null);
 const sectors = ref<BranchRecord["sectors"]>([]);
+const scheduleRulesView = ref<BranchScheduleRuleRecord[]>([]);
 const branchLogoUrl = ref<string | null>(null);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
 /** Aba Funcionários na vista da filial: superadmin (pedido de produto). */
@@ -74,9 +75,31 @@ function toHhMm(v: string): string {
   return m ? `${m[1]}:${m[2]}` : "08:00";
 }
 
+function buildScheduleRulesForDisplay(branch: BranchRecord): BranchScheduleRuleRecord[] {
+  if (branch.schedule_rules && branch.schedule_rules.length > 0) {
+    return [...branch.schedule_rules].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }
+  return [
+    {
+      id: 0,
+      branch_id: branch.id,
+      weekdays: [1, 2, 3, 4, 5, 6, 7],
+      is_closed: false,
+      expedient_start_time: branch.expedient_start_time ?? "08:00",
+      expedient_end_time: branch.expedient_end_time ?? "18:00",
+      store_open_time: branch.store_open_time ?? "09:00",
+      store_close_time: branch.store_close_time ?? "18:00",
+      break_duration_minutes: null,
+      daily_work_minutes: null,
+      sort_order: 0,
+    },
+  ];
+}
+
 function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>>) {
   const branch = data.branch as BranchRecord | undefined;
   if (!branch) return;
+  scheduleRulesView.value = buildScheduleRulesForDisplay(branch);
   form.value = {
     company_id: branch.company_id ?? 0,
     name: branch.name ?? "",
@@ -169,6 +192,7 @@ onMounted(async () => {
         :onEdit="canEditBranch ? goEdit : undefined"
         :branch-id="branchId"
         :show-employees-tab="showBranchEmployeesTab"
+        :schedule-rules="scheduleRulesView"
       />
     </div>
   </DefaultLayout>

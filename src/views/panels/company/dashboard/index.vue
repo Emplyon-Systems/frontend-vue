@@ -14,6 +14,7 @@ import DefaultLayout from "@/layouts/DefaultLayout.vue";
 /** Carregamento lazy + opções não reativas evitam ciclos Apex/Vue que bloqueiam o browser. */
 const VueApexCharts = defineAsyncComponent(() => import("vue3-apexcharts"));
 import AppAlert from "@/components/AppAlert.vue";
+import CompanyFirstStepsWizard from "@/views/panels/company/setup/CompanyFirstStepsWizard.vue";
 import { companiesApi, sectorsApi } from "@/api/resources";
 import { useAuthStore } from "@/stores/auth";
 import type { CompanyRecord } from "@/types/api";
@@ -168,11 +169,26 @@ async function loadData() {
   }
 }
 
+const showCompanyFirstSteps = computed(
+  () => Boolean(company.value && !company.value.setup_completed_at && companyId.value > 0)
+);
+
+function onCompanyFirstStepsCompleted() {
+  loadData();
+}
+
 onMounted(loadData);
 </script>
 
 <template>
   <DefaultLayout>
+
+    <CompanyFirstStepsWizard
+      v-if="showCompanyFirstSteps"
+      :company-id="companyId"
+      @completed="onCompanyFirstStepsCompleted"
+    />
+
     <div class="py-4">
 
       <!-- Header -->

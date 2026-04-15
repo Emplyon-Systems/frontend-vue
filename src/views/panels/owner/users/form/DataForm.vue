@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { usersApi } from "@/api/resources";
 import Selectr from "@/lib/selectr";
 import type { UserFormData } from "@/core/schemas";
 import {
@@ -26,6 +27,8 @@ const props = withDefaults(
     sectorOptions?: { id: number; branch_id: number; name: string; slug?: string }[];
     fixedBranchId?: number | null;
     showCompanySelector?: boolean;
+    /** Ordem da filial na empresa (01, 02…) para e-mail sintético no contexto filial. */
+    branchOrderIndex?: number;
   }>(),
   {
     errors: () => ({}),
@@ -38,6 +41,7 @@ const props = withDefaults(
     fixedBranchId: null,
     showCompanySelector: false,
     tenantEmailDomain: null,
+    branchOrderIndex: 1,
   }
 );
 
@@ -49,6 +53,8 @@ const emit = defineEmits<{
 const isCreate = props.mode === "create";
 const isView = props.mode === "view";
 const showUserPassword = ref(false);
+/** Modal «Como funciona?» — e-mail sintético no contexto filial. */
+const showSyntheticEmailHelp = ref(false);
 const roleSelectRef = ref<HTMLSelectElement | null>(null);
 const companySelectRef = ref<HTMLSelectElement | null>(null);
 const branchSelectRef = ref<HTMLSelectElement | null>(null);
@@ -141,8 +147,154 @@ function updateField<K extends keyof UserFormData>(field: K, value: UserFormData
 /** Domínio sintético normalizado (ex.: tecwebdigital.com). */
 const tenantDomainNormalized = computed(() => (props.tenantEmailDomain ?? "").trim().toLowerCase());
 
+/** Nome da empresa quando há um único tenant resolvido (texto «Como funciona?»). */
+const resolvedSingleTenantCompanyName = computed((): string | null => {
+  const companies = props.companyOptions ?? [];
+  const findName = (companyId: number): string | null => {
+    const n = companies.find((c) => c.id === companyId)?.name?.trim();
+    return n || null;
+  };
+
+  if (props.fixedBranchId != null) {
+    const b = props.branchOptions.find((x) => x.id === props.fixedBranchId);
+    const cid = Number(b?.company_id ?? 0);
+    if (cid > 0) return findName(cid);
+  }
+
+  const direct = (props.modelValue.company_ids ?? []).filter((id) => Number.isFinite(id) && id > 0);
+  if (direct.length === 1) return findName(direct[0]);
+
+  const branchIds = (props.modelValue.branch_ids ?? []).filter((id) => Number.isFinite(id) && id > 0);
+  const companyIdSet = new Set<number>();
+  for (const bid of branchIds) {
+    const br = props.branchOptions.find((x) => x.id === bid);
+    const cid = Number(br?.company_id ?? 0);
+    if (cid > 0) companyIdSet.add(cid);
+  }
+  if (companyIdSet.size === 1) return findName([...companyIdSet][0]);
+
+  return null;
+});
+
 /** E-mail em duas partes: só a parte local é editável; @domínio vem do banco. */
 const useSplitTenantEmail = computed(() => Boolean(tenantDomainNormalized.value) && !isView);
+
+/** Cadastro na filial com domínio sintético: setor obrigatório e e-mail definido pelo servidor (pré-visualização via API). */
+const branchContextSyntheticEmail = computed(
+  () => isCreate && props.fixedBranchId != null && useSplitTenantEmail.value
+);
+
+function normalizeSectorToEmailLocal(value: string): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/** Primeiro setor na ordem de atribuição (`sector_ids`) define a parte local do e-mail sintético. */
+const primarySectorForSyntheticEmail = computed(() => {
+  const ids = props.modelValue.sector_ids ?? [];
+  const fid = props.fixedBranchId;
+  if (!ids.length || fid == null) return null;
+  const byId = new Map(
+    props.sectorOptions
+      .filter((s) => Number(s.branch_id) === Number(fid))
+      .map((s) => [s.id, s])
+  );
+  for (const id of ids) {
+    const s = byId.get(id);
+    if (s) return s;
+  }
+  return null;
+});
+
+/** Pré-visualização alinhada ao backend (setor + nº global empresa + ordem filial). */
+const branchSyntheticPreviewEmail = ref("");
+let branchSyntheticPreviewSeq = 0;
+
+async function runBranchSyntheticPreview() {
+  if (!branchContextSyntheticEmail.value || !tenantDomainNormalized.value) {
+    branchSyntheticPreviewEmail.value = "";
+    return;
+  }
+  const bid = props.fixedBranchId;
+  const sector = primarySectorForSyntheticEmail.value;
+  if (bid == null || !sector) {
+    branchSyntheticPreviewEmail.value = "";
+    return;
+  }
+  const seq = ++branchSyntheticPreviewSeq;
+  try {
+    const res = await usersApi.syntheticEmailPreview({
+      branch_id: bid,
+      sector_id: sector.id,
+    });
+    if (seq !== branchSyntheticPreviewSeq) return;
+    branchSyntheticPreviewEmail.value = (res.preview?.email ?? "").trim();
+  } catch {
+    if (seq !== branchSyntheticPreviewSeq) return;
+    branchSyntheticPreviewEmail.value = "";
+  }
+}
+
+const branchSyntheticPreviewLocal = computed(() => {
+  const full = branchSyntheticPreviewEmail.value;
+  const d = tenantDomainNormalized.value;
+  if (!full || !d) return "";
+  const suf = `@${d.toLowerCase()}`;
+  const lower = full.toLowerCase();
+  if (!lower.endsWith(suf)) return full;
+  return full.slice(0, full.length - suf.length);
+});
+
+const syntheticEmailHowItWorksText = computed(() => {
+  const dom = tenantDomainNormalized.value;
+  if (!dom) {
+    return "Configure o domínio interno da empresa para este formato automático.";
+  }
+  const companyName = resolvedSingleTenantCompanyName.value;
+  const domainLine = companyName
+    ? `O domínio é interno no formato @nomedaempresa.com (derivado do nome da empresa); neste caso @${dom} — ${companyName}. `
+    : `O domínio é interno no formato @nomedaempresa.com; neste caso @${dom}. `;
+  return (
+    "E-mail automático, sem edição manual. " +
+    domainLine +
+    "Antes do @: nomeDoSetor + númeroDoUtilizador + númeroDaFilial. " +
+    `Ex.: financeiro0301@${dom}. ` +
+    "Vários setores: vale o primeiro escolhido para a filial."
+  );
+});
+
+watch(
+  () =>
+    [
+      branchContextSyntheticEmail.value,
+      tenantDomainNormalized.value,
+      props.fixedBranchId,
+      primarySectorForSyntheticEmail.value?.id,
+    ] as const,
+  () => {
+    void runBranchSyntheticPreview();
+  },
+  { immediate: true }
+);
+
+const layoutOrder = computed(() => {
+  const syn = branchContextSyntheticEmail.value;
+  return {
+    name: "order-1",
+    /** Mesma linha que setores: e-mail à esquerda (vem primeiro no DOM). */
+    email: syn ? "order-2" : "order-2",
+    sectors: syn ? "order-2" : "order-8",
+    /** Linha seguinte: senhas lado a lado. */
+    pwd: syn ? "order-3" : "order-3",
+    pwd2: syn ? "order-3" : "order-4",
+    company: syn ? "order-4" : "order-5",
+    companyEmpty: syn ? "order-4" : "order-5",
+    branch: syn ? "order-5" : "order-6",
+  };
+});
 
 function parseEmailLocal(full: string, domain: string): string {
   const f = full.trim();
@@ -183,6 +335,7 @@ watch(
   () => tenantDomainNormalized.value,
   (domain, prev) => {
     if (!domain || isView) return;
+    if (branchContextSyntheticEmail.value) return;
     const email = (props.modelValue.email ?? "").trim();
     if (!email) return;
     const lower = email.toLowerCase();
@@ -196,6 +349,24 @@ watch(
       updateField("email", `${email}@${domain}`);
     }
   }
+);
+
+watch(
+  () =>
+    [branchContextSyntheticEmail.value, branchSyntheticPreviewEmail.value, tenantDomainNormalized.value] as const,
+  () => {
+    if (!branchContextSyntheticEmail.value) return;
+    const d = tenantDomainNormalized.value;
+    const full = branchSyntheticPreviewEmail.value.trim();
+    if (!d || !full) {
+      if ((props.modelValue.email ?? "").trim() !== "") updateField("email", "");
+      return;
+    }
+    if ((props.modelValue.email ?? "").trim().toLowerCase() !== full.toLowerCase()) {
+      updateField("email", full);
+    }
+  },
+  { immediate: true }
 );
 
 function clearRoleSelection() {
@@ -619,8 +790,8 @@ function generateRandomPassword(length = 12): void {
   <template v-if="!isView">
     <b-tabs v-model="activeTabIndex" content-class="pt-3">
       <b-tab title="Informações pessoais">
-        <b-row>
-          <b-col md="6">
+        <b-row class="flex-wrap user-form-personal-grid">
+          <b-col :md="branchContextSyntheticEmail ? 12 : 6" :class="layoutOrder.name">
             <b-form-group label="Nome" label-for="user-name" class="mb-3">
               <b-form-input
                 id="user-name"
@@ -633,13 +804,44 @@ function generateRandomPassword(length = 12): void {
               <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
             </b-form-group>
           </b-col>
-          <b-col md="6">
+          <b-col md="6" :class="layoutOrder.email">
             <b-form-group
-              :label="useSplitTenantEmail ? 'E-mail (usuário)' : 'E-mail'"
-              :label-for="useSplitTenantEmail ? 'user-email-local' : 'user-email'"
+              :label="branchContextSyntheticEmail ? undefined : useSplitTenantEmail ? 'E-mail (usuário)' : 'E-mail'"
+              :label-for="branchContextSyntheticEmail ? undefined : useSplitTenantEmail ? 'user-email-local' : 'user-email'"
               class="mb-3"
             >
-              <template v-if="useSplitTenantEmail">
+              <template v-if="branchContextSyntheticEmail && useSplitTenantEmail">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
+                  <label
+                    class="form-label fw-semibold mb-0"
+                    for="user-email-local-synthetic"
+                    style="color: var(--bs-label-color)"
+                  >
+                    E-mail (usuário)
+                  </label>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm text-primary text-decoration-underline p-0 align-baseline shadow-none"
+                    @click="showSyntheticEmailHelp = true"
+                  >
+                    Como funciona?
+                  </button>
+                </div>
+                <b-input-group>
+                  <div
+                    id="user-email-local-synthetic"
+                    class="form-control bg-body-secondary user-select-all d-flex align-items-center"
+                    style="cursor: default; min-height: calc(1.5em + 0.75rem + 2px)"
+                  >
+                    {{ branchSyntheticPreviewLocal || "—" }}
+                  </div>
+                  <b-input-group-text class="text-body-secondary user-select-all">
+                    @{{ tenantEmailDomain }}
+                  </b-input-group-text>
+                </b-input-group>
+                <p class="form-text mb-0 fs-13">E-mail gerado automaticamente.</p>
+              </template>
+              <template v-else-if="useSplitTenantEmail">
                 <b-input-group>
                   <b-form-input
                     id="user-email-local"
@@ -671,7 +873,7 @@ function generateRandomPassword(length = 12): void {
             </b-form-group>
           </b-col>
 
-          <b-col md="6">
+          <b-col md="6" :class="layoutOrder.pwd">
             <b-form-group :label="isCreate ? 'Senha' : 'Nova senha'" label-for="user-password" class="mb-3">
               <b-input-group>
                 <b-form-input
@@ -702,7 +904,7 @@ function generateRandomPassword(length = 12): void {
               <b-form-invalid-feedback v-if="errors.password">{{ errors.password }}</b-form-invalid-feedback>
             </b-form-group>
           </b-col>
-          <b-col v-if="isCreate" md="6">
+          <b-col v-if="isCreate" md="6" :class="layoutOrder.pwd2">
             <b-form-group label="Confirmar senha" label-for="user-password-confirmation" class="mb-3">
               <b-form-input
                 id="user-password-confirmation"
@@ -718,7 +920,7 @@ function generateRandomPassword(length = 12): void {
             </b-form-group>
           </b-col>
 
-          <b-col v-if="showCompanySelector && companyOptions.length" md="6">
+          <b-col v-if="showCompanySelector && companyOptions.length" md="6" :class="layoutOrder.company">
             <b-form-group label="Empresa" class="mb-3">
               <div
                 class="user-selectr-field"
@@ -758,14 +960,18 @@ function generateRandomPassword(length = 12): void {
               <b-form-invalid-feedback v-if="errors.company_ids" class="d-block">{{ errors.company_ids }}</b-form-invalid-feedback>
             </b-form-group>
           </b-col>
-          <b-col v-if="showCompanySelector && !companyOptions.length" md="6">
+          <b-col v-if="showCompanySelector && !companyOptions.length" md="6" :class="layoutOrder.companyEmpty">
             <b-form-group label="Empresa" class="mb-3">
               <span class="text-muted">Nenhuma empresa disponível.</span>
             </b-form-group>
           </b-col>
-          <b-col :md="showCompanySelector ? 6 : 12">
+          <b-col
+            v-if="!fixedBranchId"
+            :md="showCompanySelector ? 6 : 12"
+            :class="layoutOrder.branch"
+          >
             <b-form-group label="Filial" class="mb-3">
-              <template v-if="branchOptions.length && !fixedBranchId">
+              <template v-if="branchOptions.length">
                 <div
                   class="user-selectr-field"
                   :class="{ 'user-selectr-field--invalid': Boolean(errors.branch_ids) }"
@@ -803,15 +1009,19 @@ function generateRandomPassword(length = 12): void {
                 </div>
                 <b-form-invalid-feedback v-if="errors.branch_ids" class="d-block">{{ errors.branch_ids }}</b-form-invalid-feedback>
               </template>
-              <template v-else-if="fixedBranchId">
-                <div class="form-control bg-light">{{ branchOptions.find((b) => b.id === fixedBranchId)?.name ?? `Filial #${fixedBranchId}` }}</div>
-                <small class="text-muted">Filial definida pelo contexto atual.</small>
-              </template>
               <span v-else class="text-muted">Nenhuma filial disponível.</span>
             </b-form-group>
           </b-col>
-          <b-col v-if="(modelValue.branch_ids ?? []).length && sectorOptions.length" md="12">
-            <b-form-group label="Setores" class="mb-3">
+          <b-col
+            v-if="(modelValue.branch_ids ?? []).length && sectorOptions.length"
+            :md="branchContextSyntheticEmail ? 6 : 12"
+            :class="layoutOrder.sectors"
+          >
+            <b-form-group class="mb-3">
+              <template #label>
+                <span>Setores</span>
+                <span v-if="branchContextSyntheticEmail" class="text-danger">*</span>
+              </template>
               <div
                 class="user-selectr-field"
                 :class="{ 'user-selectr-field--invalid': Boolean(errors.sector_ids) }"
@@ -847,16 +1057,27 @@ function generateRandomPassword(length = 12): void {
                   Limpar seleção
                 </b-button>
               </div>
-              <small class="text-muted">Setores das filiais selecionadas.</small>
+              <small class="text-muted d-block">
+                {{
+                  branchContextSyntheticEmail
+                    ? "Obrigatório: o e-mail do utilizador é gerado a partir do setor."
+                    : "Setores das filiais selecionadas."
+                }}
+              </small>
+              <b-form-invalid-feedback v-if="errors.sector_ids" class="d-block">{{ errors.sector_ids }}</b-form-invalid-feedback>
             </b-form-group>
           </b-col>
-          <b-col v-else-if="(modelValue.branch_ids ?? []).length && !sectorOptions.length" md="12">
+          <b-col
+            v-else-if="(modelValue.branch_ids ?? []).length && !sectorOptions.length"
+            md="12"
+            :class="layoutOrder.sectors"
+          >
             <b-form-group label="Setores" class="mb-3">
               <span class="text-muted">Nenhum setor disponível para as filiais selecionadas.</span>
             </b-form-group>
           </b-col>
 
-          <b-col md="12">
+          <b-col md="12" class="user-form-status-at-bottom">
             <b-form-group label="Status" class="mb-3">
               <div class="d-flex align-items-center gap-2">
                 <span class="text-muted small">Inativo</span>
@@ -1076,6 +1297,17 @@ function generateRandomPassword(length = 12): void {
         </b-row>
       </b-tab>
     </b-tabs>
+
+    <b-modal
+      v-model="showSyntheticEmailHelp"
+      title="Como funciona o e-mail?"
+      centered
+      size="md"
+      ok-only
+      ok-title="Entendi"
+    >
+      <p class="mb-0 fs-13 text-body-secondary">{{ syntheticEmailHowItWorksText }}</p>
+    </b-modal>
   </template>
 
   <b-row v-else>
@@ -1174,6 +1406,11 @@ function generateRandomPassword(length = 12): void {
 </template>
 
 <style scoped>
+/* Status sempre no fim do separador «Informações pessoais» (flex order > restantes colunas). */
+.user-form-personal-grid .user-form-status-at-bottom {
+  order: 50;
+}
+
 /* Selectr: não usar is-invalid no <select> — o BS desenha borda/sombra no elemento nativo e o plugin deixa-o minúsculo; o erro ficava a “abraçar” tags como uma caixa. Só marcamos .selectr-selected. */
 .user-selectr-field--invalid :deep(.selectr-selected) {
   border-color: var(--bs-danger) !important;

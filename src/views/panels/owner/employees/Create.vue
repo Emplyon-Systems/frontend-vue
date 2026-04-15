@@ -211,6 +211,21 @@ function cancel() {
 
 function submit() {
   resetErrors();
+  if (branchScoped.value && userAccessMode.value === "link") {
+    const uid = Number(form.value.user_id ?? 0);
+    if (uid <= 0) {
+      errors.value = { ...errors.value, user_id: "Selecione um usuário ou crie uma conta." };
+      return;
+    }
+    const linked = userOptions.value.find((u) => u.id === uid);
+    const linkedEmail = (linked?.email ?? "").trim();
+    if (!linkedEmail) {
+      errors.value = { ...errors.value, user_id: "Usuário selecionado sem e-mail de acesso válido." };
+      return;
+    }
+    form.value.email = linkedEmail;
+  }
+
   const validation = validateEmployeeForm(form.value, "create", {
     tenantEmailDomain: resolvedTenantEmailDomain.value,
   });
@@ -275,9 +290,7 @@ function submit() {
             company_id: d.company_id,
             user_id: uid,
             name: d.name,
-            cpf: d.cpf,
             email: d.email,
-            phone: d.phone,
             job_title: d.job_title,
             street: d.street,
             street_number: d.street_number,
@@ -312,9 +325,7 @@ function submit() {
   const payload: EmployeeCreatePayload = {
     company_id: d.company_id,
     name: d.name,
-    cpf: d.cpf,
     email: d.email,
-    phone: d.phone,
     job_title: d.job_title,
     street: d.street,
     street_number: d.street_number,

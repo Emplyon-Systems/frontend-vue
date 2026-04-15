@@ -4,7 +4,7 @@
  */
 
 import http from "@/helpers/http-client";
-import type { ApiPaginated, ApiResponse, BranchRecord } from "@/types/api";
+import type { ApiPaginated, ApiResponse, BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 const base = "/branches";
 
@@ -48,7 +48,34 @@ export interface BranchUpdatePayload {
   expedient_end_time?: string;
   store_open_time?: string;
   store_close_time?: string;
+  schedule_rules?: BranchScheduleRulePayloadItem[];
 }
+
+export interface BranchSetupSubmitPayload {
+  schedule_rules: BranchScheduleRulePayloadItem[];
+  sector_name: string;
+  employee: {
+    name: string;
+    email: string;
+    job_title: string;
+    password: string;
+    password_confirmation: string;
+  };
+}
+
+/** Payload de regras de horário (PUT filial). Espelha o validador Laravel. */
+export type BranchScheduleRulePayloadItem = Pick<
+  BranchScheduleRuleRecord,
+  | "weekdays"
+  | "is_closed"
+  | "expedient_start_time"
+  | "expedient_end_time"
+  | "store_open_time"
+  | "store_close_time"
+  | "break_duration_minutes"
+  | "daily_work_minutes"
+  | "sort_order"
+>;
 
 export async function list(params?: BranchesListParams) {
   const res = await http.post<ApiResponse & { branches: ApiPaginated<BranchRecord> }>(base, params ?? {});
@@ -80,6 +107,22 @@ export async function uploadLogo(id: number | string, file: File) {
 
 export async function remove(id: number | string) {
   const res = await http.delete<ApiResponse>(`${base}/${id}`);
+  return res.data;
+}
+
+export async function completeSetup(id: number | string) {
+  const res = await http.post<ApiResponse & { branch: { id: number; setup_completed_at: string | null } }>(
+    `${base}/${id}/complete-setup`,
+    {}
+  );
+  return res.data;
+}
+
+export async function submitSetup(id: number | string, payload: BranchSetupSubmitPayload) {
+  const res = await http.post<ApiResponse & { branch: { id: number; setup_completed_at: string | null } }>(
+    `${base}/${id}/submit-setup`,
+    payload
+  );
   return res.data;
 }
 

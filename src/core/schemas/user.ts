@@ -46,6 +46,8 @@ export const userEditSchema = userBaseSchema.extend({
 export type UserFormValidationOptions = {
   /** Ex.: alfatecnologialtda.com; omita ou null para não restringir (ex.: dono com perfil empresa-c*). */
   tenantEmailDomain?: string | null;
+  /** Contexto filial + domínio sintético: exige setor antes do e-mail automático. */
+  requireSectorIds?: boolean;
 };
 
 /** Dados do formulário (create: password obrigatório; edit: password opcional) */
@@ -87,6 +89,13 @@ export function validateUserForm(
   mode: UserFormMode,
   options?: UserFormValidationOptions
 ): { success: true; data: UserCreateData | UserEditData } | { success: false; errors: UserFieldErrors } {
+  if (options?.requireSectorIds && !(form.sector_ids?.length)) {
+    return {
+      success: false,
+      errors: { sector_ids: "Selecione pelo menos um setor. O e-mail é gerado a partir do setor escolhido." },
+    };
+  }
+
   const schema = mode === "create" ? userCreateSchema : userEditSchema;
   const parsed = schema.safeParse(form);
 

@@ -58,7 +58,7 @@ const {
   onClientValidationFailed,
   onApiError,
 } = useFormValidationErrors({
-  toastFieldPriority: ["roles", "company_ids", "general"],
+  toastFieldPriority: ["sector_ids", "roles", "company_ids", "general"],
   bumpSubmitAttemptOnApiError: true,
   bumpSubmitAttemptOnClientValidation: true,
 });
@@ -111,6 +111,7 @@ function submit() {
   resetErrors();
   const validation = validateUserForm(form.value, "create", {
     tenantEmailDomain: resolvedTenantEmailDomain.value,
+    requireSectorIds: Boolean(fixedBranchId.value && resolvedTenantEmailDomain.value),
   });
   if (!validation.success) {
     onClientValidationFailed(validation.errors);
@@ -203,11 +204,33 @@ async function ensureFixedBranchName(branchId: number) {
       b.id === branchId ? { ...b, name: branchName ?? b.name } : b
     );
   } else {
-    branchOptions.value = [...branchOptions.value, { id: branchId, company_id: undefined, name: branchName, company_name: undefined }].sort(
-      (a, b) => (a.name ?? "").localeCompare(b.name ?? "")
-    );
+    const cid = Number(authStore.activeContext?.company_id ?? 0);
+    branchOptions.value = [
+      ...branchOptions.value,
+      {
+        id: branchId,
+        company_id: cid > 0 ? cid : undefined,
+        name: branchName,
+        company_name: undefined,
+      },
+    ].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
   }
 }
+
+/** Ordem da filial na empresa (1 = 1.ª, 2 = 2.ª…) para sufixo do e-mail sintético (ex.: financeiro01). */
+const branchOrderIndexForSyntheticEmail = computed(() => {
+  const bid = fixedBranchId.value;
+  if (!bid) return 1;
+  const row = branchOptions.value.find((x) => x.id === bid);
+  let cid = Number(row?.company_id ?? 0);
+  if (!cid && form.value.company_ids?.length) cid = form.value.company_ids[0];
+  if (!cid) return 1;
+  const sameCompany = branchOptions.value
+    .filter((x) => Number(x.company_id ?? 0) === cid)
+    .sort((a, b) => a.id - b.id);
+  const idx = sameCompany.findIndex((x) => x.id === bid);
+  return idx >= 0 ? idx + 1 : 1;
+});
 
 onMounted(() => {
   Promise.all([usersApi.plucks(), permissionsApi.plucks().catch(() => [])]).then(async ([plucks, permissions]) => {
@@ -338,6 +361,7 @@ watch(
             :fixed-branch-id="fixedBranchId"
             :show-company-selector="isSuperadmin"
             :tenant-email-domain="resolvedTenantEmailDomain"
+            :branch-order-index="branchOrderIndexForSyntheticEmail"
             @clear-error="clearError"
           />
           <b-row>

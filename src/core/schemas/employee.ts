@@ -26,15 +26,7 @@ const employeeBaseSchema = z.object({
   /** 0 = sem usuário da aplicação vinculado */
   user_id: z.number().int().nonnegative(),
   name: requiredText("Nome", 255),
-  cpf: z
-    .string()
-    .trim()
-    .min(1, "CPF é obrigatório.")
-    .max(14, "CPF inválido.")
-    .transform((s) => s.replace(/\D/g, ""))
-    .refine((s) => s.length >= 11 && s.length <= 11, "CPF deve ter 11 dígitos."),
   email: z.string().trim().min(1, "E-mail é obrigatório.").email("E-mail inválido.").max(255),
-  phone: requiredText("Telefone", 30),
   job_title: requiredText("Cargo", 255),
   street: optionalText(255),
   street_number: optionalText(30),
@@ -108,9 +100,7 @@ export function employeeInitialForm(): EmployeeFormData {
     company_id: 0,
     user_id: 0,
     name: "",
-    cpf: "",
     email: "",
-    phone: "",
     job_title: "",
     street: "",
     street_number: "",

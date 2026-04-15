@@ -136,6 +136,8 @@ export interface CompanyRecord {
   logo_url?: string | null;
   /** Domínio sintético para e-mail de colaboradores (slug do nome + .com). */
   internal_email_domain?: string;
+  /** Primeiros passos da empresa (filial + gerente) concluídos. */
+  setup_completed_at?: string | null;
   users?: Array<{
     id: number;
     name: string;
@@ -155,6 +157,23 @@ export interface CompanyRecord {
   }>;
 }
 
+/** 1=segunda … 7=domingo (ISO). */
+export interface BranchScheduleRuleRecord {
+  id: number;
+  branch_id?: number;
+  weekdays: number[];
+  is_closed: boolean;
+  expedient_start_time?: string | null;
+  expedient_end_time?: string | null;
+  store_open_time?: string | null;
+  store_close_time?: string | null;
+  break_duration_minutes?: number | null;
+  daily_work_minutes?: number | null;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface BranchRecord {
   id: number;
   company_id: number;
@@ -170,6 +189,8 @@ export interface BranchRecord {
   expedient_end_time?: string;
   store_open_time?: string;
   store_close_time?: string;
+  setup_completed_at?: string | null;
+  schedule_rules?: BranchScheduleRuleRecord[];
   users_used?: number;
   created_at?: string;
   updated_at?: string;
@@ -202,9 +223,9 @@ export interface EmployeeRecord {
   company_id: number;
   user_id?: number | null;
   name: string;
-  cpf: string;
+  cpf?: string | null;
   email: string;
-  phone: string;
+  phone?: string | null;
   job_title: string;
   street?: string | null;
   street_number?: string | null;

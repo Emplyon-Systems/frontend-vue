@@ -12,6 +12,7 @@ import { useRouter } from "vue-router";
 const VueApexCharts = defineAsyncComponent(() => import("vue3-apexcharts"));
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import BranchSetupWizard from "@/views/panels/branch/setup/BranchSetupWizard.vue";
 import { branchesApi, sectorsApi } from "@/api/resources";
 import { useAuthStore } from "@/stores/auth";
 import type { BranchRecord, UserRole } from "@/types/api";
@@ -165,6 +166,8 @@ watch(
   { immediate: true, deep: true }
 );
 
+const showSetupWizard = ref(false);
+
 async function loadData() {
   loadError.value = "";
   loading.value = true;
@@ -180,7 +183,11 @@ async function loadData() {
     ]);
     branch.value  = branchRes.branch ?? null;
     sectors.value = sectorsRes;
-    if (!branch.value) loadError.value = "Filial não encontrada.";
+    if (!branch.value) {
+      loadError.value = "Filial não encontrada.";
+    } else if (!branch.value.setup_completed_at) {
+      showSetupWizard.value = true;
+    }
   } catch {
     loadError.value = "Não foi possível carregar os dados da filial.";
   } finally {
@@ -188,11 +195,20 @@ async function loadData() {
   }
 }
 
+function onSetupCompleted() {
+  showSetupWizard.value = false;
+  loadData();
+}
+
 onMounted(loadData);
 </script>
 
 <template>
   <DefaultLayout>
+
+    <!-- Wizard de configuração inicial (modal sobre o dashboard) -->
+    <BranchSetupWizard v-if="showSetupWizard" @completed="onSetupCompleted" />
+
     <div class="py-4">
 
       <!-- Header -->
