@@ -1,50 +1,3 @@
-<template>
-  <ListagemCard
-    :columns="columns"
-    :data="pagedUsers"
-    :loading="false"
-    :pagination="pagination"
-    :per-page-options="[5, 10, 15, 25]"
-    :result-label="resultLabel"
-    :has-active-filters="false"
-    empty-message="Nenhum usuário vinculado."
-    result-badge-class="result-badge-default"
-    @update:per-page="onPerPageChange"
-    @update:page="onPageChange"
-  >
-    <template #row="{ item }">
-      <b-tr>
-        <b-td>{{ (item as CompanyUser).id }}</b-td>
-        <b-td>
-          {{ (item as CompanyUser).name }}
-          <b-badge v-if="(item as CompanyUser).pivot?.is_primary" variant="success" class="ms-2">
-            Principal
-          </b-badge>
-        </b-td>
-        <b-td>{{ (item as CompanyUser).email }}</b-td>
-        <b-td>
-          <span v-if="(item as CompanyUser).roles?.length">
-            <b-badge
-              v-for="role in (item as CompanyUser).roles"
-              :key="role.id"
-              variant="light"
-              class="text-dark me-1"
-            >
-              {{ role.name }}
-            </b-badge>
-          </span>
-          <span v-else class="text-muted">—</span>
-        </b-td>
-        <b-td class="text-end">
-          <b-button size="sm" variant="outline-primary" @click="goView((item as CompanyUser).id)">
-            Ver usuário
-          </b-button>
-        </b-td>
-      </b-tr>
-    </template>
-  </ListagemCard>
-</template>
-
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -105,3 +58,50 @@ function goView(id: number) {
   router.push({ name: "owner.users.view", params: { id: String(id) } });
 }
 </script>
+
+<template>
+  <ListagemCard
+    :columns="columns"
+    :data="pagedUsers"
+    :loading="false"
+    :pagination="pagination"
+    :per-page-options="[5, 10, 15, 25]"
+    :result-label="resultLabel"
+    :has-active-filters="false"
+    empty-message="Nenhum usuário vinculado."
+    result-badge-class="result-badge-default"
+    @update:per-page="onPerPageChange"
+    @update:page="onPageChange"
+  >
+    <template #row="{ item }">
+      <b-tr>
+        <b-td>{{ (item as CompanyUser).id }}</b-td>
+        <b-td>
+          {{ (item as CompanyUser).name }}
+          <b-badge v-if="(item as CompanyUser).pivot?.is_primary" variant="success" class="ms-2">
+            Principal
+          </b-badge>
+        </b-td>
+        <b-td>{{ (item as CompanyUser).email }}</b-td>
+        <b-td>
+          <span v-if="(item as CompanyUser).roles?.length">
+            <b-badge
+              v-for="role in (item as CompanyUser).roles"
+              :key="role.id"
+              variant="light"
+              class="text-dark me-1"
+            >
+              {{ role.name }}
+            </b-badge>
+          </span>
+          <span v-else class="text-muted">—</span>
+        </b-td>
+        <b-td class="text-end">
+          <b-button size="sm" variant="outline-primary" @click="goView((item as CompanyUser).id)">
+            Ver usuário
+          </b-button>
+        </b-td>
+      </b-tr>
+    </template>
+  </ListagemCard>
+</template>

@@ -5,46 +5,23 @@ import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import DataForm from "./form/DataForm.vue";
 import { companiesApi } from "@/api/resources";
 import { companyInitialForm, validateCompanyForm, type CompanyFormData } from "@/core/schemas";
-import { notifyError, notifySuccess } from "@/helpers/notify";
+import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 
 const router = useRouter();
 const loading = ref(false);
 const form = ref<CompanyFormData>(companyInitialForm());
-const errors = ref<Record<string, string>>({});
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[] | string> | string; msg?: string } } }) {
-  const responseData = err.response?.data;
-  const data = responseData?.errors;
-  if (!data) {
-    if (responseData?.msg && responseData.msg !== "fail") notifyError(responseData.msg);
-    else notifyError("Não foi possível criar a empresa.");
-    return;
-  }
-
-  if (typeof data === "string") {
-    notifyError(data);
-    return;
-  }
-
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-
-  const nonFieldMessage = map.general ?? map.error ?? map.company ?? map.profile ?? "";
-  if (nonFieldMessage) notifyError(nonFieldMessage);
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  toastFieldPriority: ["general", "error", "company", "profile"],
+  fallbackMessage: "Não foi possível criar a empresa.",
+});
 
 function cancel() {
   router.push({ name: "owner.companies" });
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateCompanyForm(form.value, "create");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -58,7 +35,7 @@ function submit() {
       notifySuccess("Empresa criada com sucesso.");
       router.push({ name: "owner.companies" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 </script>
@@ -69,7 +46,7 @@ function submit() {
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Nova empresa</h1>
-          <p class="text-muted mb-0 small">Criar empresa e utilizador principal.</p>
+          <p class="text-muted mb-0 small">Criar empresa e usuário principal.</p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
       </div>
@@ -78,7 +55,7 @@ function submit() {
         <DataForm v-model="form" :errors="errors" mode="create" @clear-error="clearError">
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

@@ -7,15 +7,15 @@ import DataForm from "./form/DataForm.vue";
 import { sectorsApi, branchesApi } from "@/api/resources";
 import { sectorInitialForm, validateSectorForm, type SectorFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
-import { useAuthStore } from "@/stores/auth";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const sectorId = computed(() => Number(route.params.id));
-const routeName = computed(() => String(route.name ?? ""));
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
+const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped, currentBranchId } = usePanelScope();
 
 function sectorsListRoute() {
   return branchScoped.value ? "branch.sectors" : companyScoped.value ? "company.sectors" : "owner.sectors";
@@ -25,21 +25,12 @@ const loading = ref(false);
 const loadingSector = ref(true);
 const loadError = ref("");
 const form = ref<SectorFormData>(sectorInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 const branchOptions = ref<Array<{ id: number; name: string }>>([]);
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
 
 function cancel() {
   router.push({ name: sectorsListRoute() });
@@ -72,7 +63,7 @@ function loadSector() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateSectorForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -86,7 +77,7 @@ function submit() {
       notifySuccess("Setor atualizado com sucesso.");
       router.push({ name: sectorsListRoute() });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -100,7 +91,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -111,24 +102,24 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingSector" class="text-muted">A carregar setor...</div>
+      <div v-else-if="loadingSector" class="text-muted">Carregando setor...</div>
       <b-form v-else @submit.prevent="submit">
         <DataForm
           v-model="form"
           :errors="errors"
           :branch-options="branchOptions"
-          :lock-branch-id="null"
+          :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
           mode="edit"
           @clear-error="clearError"
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>
         </DataForm>
       </b-form>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

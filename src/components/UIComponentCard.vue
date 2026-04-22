@@ -1,3 +1,11 @@
+<script setup lang="ts">
+type CardPropsType = {
+  title: string;
+};
+
+defineProps<CardPropsType>();
+</script>
+
 <template>
   <b-card no-body>
     <b-card-header>
@@ -15,11 +23,3 @@
     </b-card-body>
   </b-card>
 </template>
-
-<script setup lang="ts">
-type CardPropsType = {
-  title: string;
-};
-
-defineProps<CardPropsType>();
-</script>

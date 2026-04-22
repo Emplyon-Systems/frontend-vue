@@ -51,6 +51,7 @@ function update<K extends keyof CompaniesFilterModel>(field: K, value: Companies
           />
         </b-form-group>
       </b-col>
+      <div class="w-100" aria-hidden="true" />
       <b-col md="6">
         <b-form-group label="Data de cadastro de" label-for="filter-created-from">
           <b-form-input

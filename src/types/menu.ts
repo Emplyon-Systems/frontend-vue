@@ -5,6 +5,8 @@ export type MenuItemType = {
   label: string;
   isTitle?: boolean;
   icon?: string;
+  /** Se definido, o item fica ativo quando `route.name` começa por este prefixo (ex.: páginas filhas da documentação). */
+  activeRouteNamePrefix?: string;
   route?: RouteType;
   url?: string;
   badge?: {

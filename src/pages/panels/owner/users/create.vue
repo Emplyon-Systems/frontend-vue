@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import UsersCreateView from "@/views/panels/owner/users/Create.vue";
+import UsersCreateView from "@/views/panels/owner/users/create.vue";
 </script>
 
 <template>

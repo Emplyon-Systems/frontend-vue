@@ -1,3 +1,9 @@
+<script setup lang="ts">
+import TopBar from "@/layouts/components/TopBar.vue";
+import LeftSideBar from "@/layouts/components/LeftSideBar.vue";
+import Footer from "@/layouts/components/Footer.vue";
+</script>
+
 <template>
   <TopBar />
 
@@ -13,9 +19,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import TopBar from "@/layouts/components/TopBar.vue";
-import LeftSideBar from "@/layouts/components/LeftSideBar.vue";
-import Footer from "@/layouts/components/Footer.vue";
-</script>

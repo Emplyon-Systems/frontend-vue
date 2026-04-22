@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import FilterTriggerButton from "@/components/filters/FilterTriggerButton.vue";
@@ -8,18 +8,33 @@ import ListagemCard from "@/components/ListagemCard.vue";
 import TableActionButtons from "@/components/TableActionButtons.vue";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal.vue";
 import UsersFilter from "@/views/panels/owner/users/Filter.vue";
-import { usersApi, sectorsApi } from "@/api/resources";
+import { usersApi, sectorsApi, companiesApi, branchesApi } from "@/api/resources";
 import type { UserRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { usePanelScope } from "@/composables/usePanelScope";
 
+const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const userPermissions = useModulePermissions("users");
+const employeePermissions = useModulePermissions("employees");
+const {
+  routeName,
+  isOwnerWorkspace,
+  isCompanyBranchWorkspace,
+  companyBranchWorkspaceId: companyBranchWsId,
+  workspaceCompanyId,
+} = usePanelScope();
 const loading = ref(true);
 const users = ref<UserRecord[]>([]);
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
 const initialFilters = () => ({
   search: "",
+  status: "",
   role_id: "",
   company_ids: [] as string[],
   branch_ids: [] as string[],
@@ -40,10 +55,43 @@ const companyOptions = ref<{ value: string; text: string }[]>([]);
 const branchOptions = ref<{ value: string; text: string; company_id?: number }[]>([]);
 const sectorOptions = ref<{ value: string; text: string; branch_id?: number }[]>([]);
 const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
-const hasCompanyLevelAccess = computed(() =>
-  authStore.getContextOptions().some((o) => o.branch_id == null)
+const isCompanyContext = computed(() =>
+  !isSuperadmin.value &&
+  !!authStore.activeContext?.company_id &&
+  authStore.activeContext?.branch_id == null
 );
+const isBranchContext = computed(() =>
+  !isSuperadmin.value &&
+  authStore.activeContext?.branch_id != null
+);
+const scopedCompanyId = computed(() =>
+  isCompanyContext.value ? Number(authStore.activeContext?.company_id ?? 0) : 0
+);
+/** Alinhado ao meta das rotas `owner.users.*`: permissão OU perfis empresa/filial por slug. */
+const canCreate = computed(() => {
+  if (userPermissions.canCreate.value) return true;
+  const slugs = (authStore.user?.roles ?? []).map((r) => r.slug ?? "");
+  const exact = new Set(["branch_manager", "branch", "filial", "admin", "empresa"]);
+  const prefixes = ["gerente-filial", "gerente-c", "empresa-c", "filial-b", "setor-b"];
+  return slugs.some((s) => exact.has(s) || prefixes.some((p) => s.startsWith(p)));
+});
+/** Contexto empresa: limite de usuários já atingido. */
+const userLimitReached = ref(false);
 const filteredBranchOptions = computed(() => {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    return branchOptions.value.filter((b) => Number(b.value) === companyBranchWsId.value);
+  }
+
+  if (isBranchContext.value && authStore.activeContext?.branch_id) {
+    const branchId = Number(authStore.activeContext.branch_id);
+    return branchOptions.value.filter((b) => Number(b.value) === branchId);
+  }
+
+  if (isCompanyContext.value && authStore.activeContext?.company_id) {
+    const companyId = Number(authStore.activeContext.company_id);
+    return branchOptions.value.filter((b) => Number(b.company_id ?? 0) === companyId);
+  }
+
   if (!isSuperadmin.value) return branchOptions.value;
   const companyIds = (filters.value.company_ids ?? []).map((id) => Number(id)).filter((id) => id > 0);
   if (!companyIds.length) return branchOptions.value;
@@ -52,6 +100,7 @@ const filteredBranchOptions = computed(() => {
 const hasActiveFilters = computed(
   () =>
     !!appliedFilters.value.search.trim() ||
+    !!appliedFilters.value.status ||
     !!appliedFilters.value.role_id ||
     (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
     (appliedFilters.value.branch_ids?.length ?? 0) > 0 ||
@@ -60,14 +109,24 @@ const hasActiveFilters = computed(
     !!appliedFilters.value.created_at_until
 );
 
-const listagemColumns = [
+const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "email", label: "E-mail", sortable: true, align: "start" as const },
+  { key: "status", label: "Status", sortable: false, align: "start" as const },
   { key: "company", label: "Empresa", sortable: false, align: "start" as const },
   { key: "roles", label: "Perfis", sortable: false, align: "start" as const },
+  ...(isBranchContext.value || isCompanyBranchWorkspace.value
+    ? [{ key: "employee", label: "Funcionário", sortable: false, align: "start" as const }]
+    : []),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
-];
+]);
+const canOpenEmployee = computed(
+  () =>
+    employeePermissions.canRead.value ||
+    employeePermissions.canList.value ||
+    employeePermissions.canUpdate.value
+);
 
 const resultLabel = computed(() => {
   const n = pagination.value.total;
@@ -76,14 +135,44 @@ const resultLabel = computed(() => {
   return `${n} resultados encontrados`;
 });
 
+async function loadCompanyUserQuota() {
+  if (isSuperadmin.value) {
+    userLimitReached.value = false;
+    return;
+  }
+  const quotaCompanyId = Number(authStore.activeContext?.company_id ?? 0);
+  if (quotaCompanyId <= 0) {
+    userLimitReached.value = false;
+    return;
+  }
+  try {
+    const res = await companiesApi.getById(quotaCompanyId);
+    const c = res.company;
+    if (!c) {
+      userLimitReached.value = false;
+      return;
+    }
+    const used = c.users_used ?? c.users?.length ?? 0;
+    const limit = c.user_limit ?? 0;
+    userLimitReached.value = limit > 0 && used >= limit;
+  } catch {
+    userLimitReached.value = false;
+  }
+}
+
 function loadList(page = 1) {
   loading.value = true;
-  const companyIds = (appliedFilters.value.company_ids ?? [])
-    .map((id) => Number(id))
-    .filter((id) => Number.isFinite(id) && id > 0);
-  const branchIds = (appliedFilters.value.branch_ids ?? [])
-    .map((id) => Number(id))
-    .filter((id) => Number.isFinite(id) && id > 0);
+  const companyIds = isOwnerWorkspace.value && workspaceCompanyId.value > 0
+    ? [workspaceCompanyId.value]
+    : (appliedFilters.value.company_ids ?? [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+  const branchIds =
+    isCompanyBranchWorkspace.value && companyBranchWsId.value > 0
+      ? [companyBranchWsId.value]
+      : (appliedFilters.value.branch_ids ?? [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0);
   const sectorIds = (appliedFilters.value.sector_ids ?? [])
     .map((id) => Number(id))
     .filter((id) => Number.isFinite(id) && id > 0);
@@ -92,6 +181,7 @@ function loadList(page = 1) {
       page,
       per_page: pagination.value.per_page,
       search: appliedFilters.value.search.trim() || undefined,
+      status: (appliedFilters.value.status || undefined) as "active" | "inactive" | undefined,
       role_id: appliedFilters.value.role_id ? Number(appliedFilters.value.role_id) : undefined,
       company_ids: companyIds.length ? companyIds : undefined,
       branch_ids: branchIds.length ? branchIds : undefined,
@@ -113,24 +203,46 @@ function loadList(page = 1) {
     .finally(() => (loading.value = false));
 }
 
-function loadPlucks() {
-  usersApi.plucks().then((plucks) => {
-    roleOptions.value = (plucks.roles ?? []).map((role) => ({
-      value: String(role.id),
-      text: role.name || `Perfil #${role.id}`,
-    }));
+async function loadPlucks() {
+  const plucks = await usersApi.plucks();
+  roleOptions.value = (plucks.roles ?? []).map((role) => ({
+    value: String(role.id),
+    text: role.name || `Perfil #${role.id}`,
+  }));
 
-    companyOptions.value = (plucks.companies ?? []).map((company) => ({
-      value: String(company.id),
-      text: company.name || `Empresa #${company.id}`,
-    }));
+  companyOptions.value = (plucks.companies ?? []).map((company) => ({
+    value: String(company.id),
+    text: company.name || `Empresa #${company.id}`,
+  }));
 
-    branchOptions.value = (plucks.branches ?? []).map((branch) => ({
-      value: String(branch.id),
-      text: branch.name || `Filial #${branch.id}`,
-      company_id: branch.company_id,
-    }));
-  });
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    try {
+      const res = await branchesApi.getById(companyBranchWsId.value);
+      const nm = res.branch?.name?.trim() || `Filial #${companyBranchWsId.value}`;
+      branchOptions.value = [
+        {
+          value: String(companyBranchWsId.value),
+          text: nm,
+          company_id: res.branch?.company_id,
+        },
+      ];
+    } catch {
+      branchOptions.value = [
+        {
+          value: String(companyBranchWsId.value),
+          text: `Filial #${companyBranchWsId.value}`,
+          company_id: undefined,
+        },
+      ];
+    }
+    return;
+  }
+
+  branchOptions.value = (plucks.branches ?? []).map((branch) => ({
+    value: String(branch.id),
+    text: branch.name || `Filial #${branch.id}`,
+    company_id: branch.company_id,
+  }));
 }
 
 function formatSectorLabel(s: { name?: string; id: number; branch_name?: string }): string {
@@ -170,8 +282,12 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  filters.value = initialFilters();
-  appliedFilters.value = initialFilters();
+  const next = initialFilters();
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    next.branch_ids = [String(companyBranchWsId.value)];
+  }
+  filters.value = next;
+  appliedFilters.value = { ...next };
   loadList(1);
 }
 
@@ -196,13 +312,40 @@ function doDelete() {
   usersApi.remove(deleteId.value).then(() => {
     deleteModal.value = false;
     deleteId.value = null;
-    notifySuccess("Utilizador eliminado com sucesso.");
+    notifySuccess("Usuário eliminado com sucesso.");
+    void loadCompanyUserQuota();
     loadList(pagination.value.current_page);
   });
 }
 
 function goCreate() {
-  router.push({ name: "owner.users.create" });
+  if (!canCreate.value) return;
+  const q: Record<string, string> = {};
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    q.branch_id = String(companyBranchWsId.value);
+    const cid =
+      Number(authStore.activeContext?.company_id ?? 0) ||
+      Number(branchOptions.value[0]?.company_id ?? 0);
+    if (cid > 0) q.company_id = String(cid);
+    void router.push({ name: "owner.users.create", query: q }).catch(() => {});
+    return;
+  }
+  if (isOwnerWorkspace.value && workspaceCompanyId.value > 0) {
+    q.company_id = String(workspaceCompanyId.value);
+  } else if (isBranchContext.value) {
+    const cid = Number(authStore.activeContext?.company_id ?? 0);
+    const bid = Number(authStore.activeContext?.branch_id ?? 0);
+    if (cid > 0) q.company_id = String(cid);
+    if (bid > 0) q.branch_id = String(bid);
+  } else if (isCompanyContext.value) {
+    const cid = Number(authStore.activeContext?.company_id ?? 0);
+    if (cid > 0) q.company_id = String(cid);
+  }
+  void router
+    .push({ name: "owner.users.create", query: Object.keys(q).length ? q : undefined })
+    .catch(() => {
+      /* navegação duplicada ou interrompida */
+    });
 }
 
 function goView(id: number) {
@@ -234,6 +377,11 @@ function companiesForDisplay(user: UserRecord) {
   return Array.from(unique.values());
 }
 
+function statusMeta(status?: UserRecord["status"]) {
+  if (status === "inactive") return { label: "Inativo", variant: "danger" as const };
+  return { label: "Ativo", variant: "success" as const };
+}
+
 watch(
   () => filters.value.branch_ids,
   (branchIds) => {
@@ -242,26 +390,59 @@ watch(
   { immediate: true }
 );
 
-onMounted(() => {
-  loadPlucks();
+watch(
+  () => [authStore.activeContext?.company_id, authStore.activeContext?.branch_id],
+  () => {
+    void loadCompanyUserQuota();
+  }
+);
+
+watch(companyBranchWsId, async (bid, prev) => {
+  if (!isCompanyBranchWorkspace.value || bid <= 0) return;
+  if (prev === undefined) return;
+  filters.value.branch_ids = [String(bid)];
+  appliedFilters.value.branch_ids = [String(bid)];
+  await loadPlucks();
+  loadList(1);
+});
+
+onMounted(async () => {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    const s = String(companyBranchWsId.value);
+    filters.value.branch_ids = [s];
+    appliedFilters.value.branch_ids = [s];
+  }
+  await loadPlucks();
+  void loadCompanyUserQuota();
   loadList();
 });
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
+  <component :is="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div :class="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Usuários</h1>
-          <p class="text-muted mb-0 small">Listar, criar e editar usuários do sistema.</p>
+          <p class="text-muted mb-0 small">
+            {{
+              isCompanyBranchWorkspace
+                ? "Usuários vinculados a esta filial."
+                : isOwnerWorkspace
+                  ? "Listar e criar usuários desta empresa."
+                  : "Listar, criar e editar usuários do sistema."
+            }}
+          </p>
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" label="Filtros" />
-          <b-button variant="primary" @click="goCreate">
-            <i class="iconoir-plus me-1"></i>
-            Novo utilizador
-          </b-button>
+          <template v-if="canCreate">
+            <b-button v-if="!userLimitReached" type="button" variant="primary" @click="goCreate">
+              <i class="iconoir-plus me-1"></i>
+              Novo usuário
+            </b-button>
+            <span v-else class="text-muted small">Limite de usuários atingido</span>
+          </template>
         </div>
       </div>
 
@@ -269,9 +450,9 @@ onMounted(() => {
         <UsersFilter
           v-model="filters"
           :active="hasActiveFilters"
-          :show-company-filter="isSuperadmin"
-          :show-branch-filter="isSuperadmin || hasCompanyLevelAccess"
-          :show-sector-filter="isSuperadmin || hasCompanyLevelAccess"
+          :show-company-filter="isSuperadmin && !isOwnerWorkspace"
+          :show-branch-filter="(isSuperadmin || isCompanyContext) && !isCompanyBranchWorkspace"
+          :show-sector-filter="isSuperadmin || isCompanyContext || isBranchContext"
           :role-options="roleOptions"
           :company-options="companyOptions"
           :branch-options="filteredBranchOptions"
@@ -291,7 +472,7 @@ onMounted(() => {
         :order-dir="orderDir"
         :result-label="resultLabel"
         :has-active-filters="hasActiveFilters"
-        empty-message="Nenhum utilizador encontrado."
+        empty-message="Nenhum usuário encontrado."
         result-badge-class="result-badge-default"
         @update:per-page="onPerPageChange"
         @update:sort="onSortChange"
@@ -302,6 +483,11 @@ onMounted(() => {
             <b-td>{{ (item as UserRecord).id }}</b-td>
             <b-td>{{ (item as UserRecord).name }}</b-td>
             <b-td>{{ (item as UserRecord).email }}</b-td>
+            <b-td>
+              <b-badge :variant="statusMeta((item as UserRecord).status).variant">
+                {{ statusMeta((item as UserRecord).status).label }}
+              </b-badge>
+            </b-td>
             <b-td>
               <span v-if="companiesForDisplay(item as UserRecord).length">
                 <b-badge
@@ -328,12 +514,35 @@ onMounted(() => {
               </span>
               <span v-else class="text-muted">—</span>
             </b-td>
+            <b-td v-if="isBranchContext || isCompanyBranchWorkspace">
+              <template v-if="(item as UserRecord).employee?.id">
+                <router-link
+                  v-if="canOpenEmployee"
+                  :to="
+                    isCompanyBranchWorkspace
+                      ? {
+                          name: 'company.employees.view',
+                          params: { id: String((item as UserRecord).employee!.id) },
+                        }
+                      : {
+                          name: 'branch.employees.view',
+                          params: { id: String((item as UserRecord).employee!.id) },
+                        }
+                  "
+                  class="text-decoration-none"
+                >
+                  {{ (item as UserRecord).employee?.name ?? `Funcionário #${(item as UserRecord).employee?.id}` }}
+                </router-link>
+                <span v-else>{{ (item as UserRecord).employee?.name ?? `Funcionário #${(item as UserRecord).employee?.id}` }}</span>
+              </template>
+              <span v-else class="text-muted">—</span>
+            </b-td>
             <b-td class="text-end">
               <TableActionButtons
                 :item-id="(item as UserRecord).id"
                 view-title="Ver"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const user = users.find((x) => x.id === id); if (user) confirmDelete(user); }"
@@ -346,9 +555,9 @@ onMounted(() => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar utilizador"
-      message="Tem a certeza que deseja eliminar este utilizador?"
+      title="Excluir usuário"
+      message="Tem certeza de que deseja excluir este usuário?"
       @confirm="doDelete"
     />
-  </DefaultLayout>
+  </component>
 </template>

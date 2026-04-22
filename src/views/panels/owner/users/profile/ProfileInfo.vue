@@ -1,3 +1,26 @@
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    name?: string;
+    email?: string;
+    subtitle?: string;
+    avatarSrc?: string;
+    companyNames?: string[];
+    branchNames?: string[];
+    sectorNames?: string[];
+    roleNames?: string[];
+    permissionCount?: number;
+  }>(),
+  {
+    companyNames: () => [],
+    branchNames: () => [],
+    sectorNames: () => [],
+    roleNames: () => [],
+    permissionCount: 0,
+  }
+);
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body>
@@ -86,25 +109,3 @@
     </b-card>
   </b-col>
 </template>
-<script setup lang="ts">
-withDefaults(
-  defineProps<{
-    name?: string;
-    email?: string;
-    subtitle?: string;
-    avatarSrc?: string;
-    companyNames?: string[];
-    branchNames?: string[];
-    sectorNames?: string[];
-    roleNames?: string[];
-    permissionCount?: number;
-  }>(),
-  {
-    companyNames: () => [],
-    branchNames: () => [],
-    sectorNames: () => [],
-    roleNames: () => [],
-    permissionCount: 0,
-  }
-);
-</script>

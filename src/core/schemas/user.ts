@@ -10,7 +10,9 @@ const requiredText = (label: string, max: number) =>
 const userBaseSchema = z.object({
   name: requiredText("Nome", 255),
   email: z.string().trim().min(1, "E-mail é obrigatório.").email("E-mail inválido.").max(255),
-  roles: z.array(z.number()).default([]),
+  status: z.enum(["active", "inactive"]).default("active"),
+  roles: z.array(z.number()).min(1, "Selecione pelo menos um perfil."),
+  direct_permission_ids: z.array(z.number()).default([]),
   company_ids: z.array(z.number()).default([]),
   branch_ids: z.array(z.number()).default([]),
   sector_ids: z.array(z.number()).default([]),
@@ -19,18 +21,18 @@ const userBaseSchema = z.object({
 export const userCreateSchema = userBaseSchema.extend({
   password: z
     .string()
-    .min(1, "Palavra-passe é obrigatória.")
-    .min(6, "Palavra-passe deve ter no mínimo 6 caracteres."),
+    .min(1, "Senha é obrigatória.")
+    .min(6, "Senha deve ter no mínimo 6 caracteres."),
   password_confirmation: z
     .string()
-    .min(1, "Confirmação da palavra-passe é obrigatória.")
-    .min(6, "Confirmação da palavra-passe deve ter no mínimo 6 caracteres."),
+    .min(1, "Confirmação da senha é obrigatória.")
+    .min(6, "Confirmação da senha deve ter no mínimo 6 caracteres."),
 }).superRefine((data, ctx) => {
   if (data.password !== data.password_confirmation) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["password_confirmation"],
-      message: "A confirmação da palavra-passe não confere.",
+      message: "A confirmação da senha não confere.",
     });
   }
 });
@@ -40,6 +42,14 @@ export const userEditSchema = userBaseSchema.extend({
   password_confirmation: z.string().optional(),
 });
 
+/** Opções extras para alinhar e-mail ao domínio sintético da empresa (usuario@slugempresa.com). */
+export type UserFormValidationOptions = {
+  /** Ex.: alfatecnologialtda.com; omita ou null para não restringir (ex.: dono com perfil empresa-c*). */
+  tenantEmailDomain?: string | null;
+  /** Contexto filial + domínio sintético: exige setor antes do e-mail automático. */
+  requireSectorIds?: boolean;
+};
+
 /** Dados do formulário (create: password obrigatório; edit: password opcional) */
 export type UserFormData = z.input<typeof userEditSchema>;
 export type UserCreateData = z.output<typeof userCreateSchema>;
@@ -48,7 +58,16 @@ export type UserFormMode = "create" | "edit";
 export type UserFieldErrors = Partial<Record<keyof UserFormData, string>>;
 
 export function userInitialForm(mode: UserFormMode): UserFormData {
-  const base = { name: "", email: "", roles: [] as number[], company_ids: [] as number[], branch_ids: [] as number[], sector_ids: [] as number[] };
+  const base = {
+    name: "",
+    email: "",
+    status: "active" as const,
+    roles: [] as number[],
+    direct_permission_ids: [] as number[],
+    company_ids: [] as number[],
+    branch_ids: [] as number[],
+    sector_ids: [] as number[],
+  };
   return mode === "create"
     ? { ...base, password: "", password_confirmation: "" }
     : { ...base, password: undefined, password_confirmation: undefined };
@@ -58,21 +77,45 @@ function toFieldErrors(error: z.ZodError): UserFieldErrors {
   const fields: UserFieldErrors = {};
   for (const issue of error.issues) {
     const field = issue.path[0];
-    if (typeof field !== "string" || fields[field as keyof UserFormData]) continue;
-    fields[field as keyof UserFormData] = issue.message;
+    if (typeof field !== "string") continue;
+    const key = field as keyof UserFormData;
+    if (!fields[key]) fields[key] = issue.message;
   }
   return fields;
 }
 
 export function validateUserForm(
   form: UserFormData,
-  mode: UserFormMode
+  mode: UserFormMode,
+  options?: UserFormValidationOptions
 ): { success: true; data: UserCreateData | UserEditData } | { success: false; errors: UserFieldErrors } {
+  if (options?.requireSectorIds && !(form.sector_ids?.length)) {
+    return {
+      success: false,
+      errors: { sector_ids: "Selecione pelo menos um setor. O e-mail é gerado a partir do setor escolhido." },
+    };
+  }
+
   const schema = mode === "create" ? userCreateSchema : userEditSchema;
   const parsed = schema.safeParse(form);
 
   if (!parsed.success) {
     return { success: false, errors: toFieldErrors(parsed.error) };
+  }
+
+  const domain = (options?.tenantEmailDomain ?? "").trim().toLowerCase();
+  if (domain) {
+    const email = (parsed.data.email ?? "").trim();
+    const at = email.lastIndexOf("@");
+    const host = at >= 0 ? email.slice(at + 1).toLowerCase() : "";
+    if (host !== domain) {
+      return {
+        success: false,
+        errors: {
+          email: `Para utilizadores da empresa, o e-mail deve terminar em @${domain} (ex.: joao@${domain}).`,
+        },
+      };
+    }
   }
 
   return { success: true, data: parsed.data };

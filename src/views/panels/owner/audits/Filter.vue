@@ -50,7 +50,8 @@ function update<K extends keyof AuditsFilterModel>(field: K, value: AuditsFilter
           />
         </b-form-group>
       </b-col>
-      <b-col md="2">
+      <div class="w-100" aria-hidden="true" />
+      <b-col md="6">
         <b-form-group label="Data de cadastro de" label-for="filter-audits-created-from">
           <b-form-input
             id="filter-audits-created-from"
@@ -60,7 +61,7 @@ function update<K extends keyof AuditsFilterModel>(field: K, value: AuditsFilter
           />
         </b-form-group>
       </b-col>
-      <b-col md="2">
+      <b-col md="6">
         <b-form-group label="Data de cadastro até" label-for="filter-audits-created-until">
           <b-form-input
             id="filter-audits-created-until"

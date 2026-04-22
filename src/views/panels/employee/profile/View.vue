@@ -33,6 +33,7 @@ const sectorNames = ref<string[]>([]);
 const branches = ref<UserRecord["branches"]>([]);
 const sectors = ref<UserRecord["sectors"]>([]);
 const permissions = ref<PermissionItem[]>([]);
+const directPermissions = ref<PermissionItem[]>([]);
 const roleNames = ref<string[]>([]);
 const primaryCompanyName = computed(() => companyNames.value[0] ?? "");
 
@@ -62,7 +63,14 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
   branches.value = user.branches ?? [];
   sectors.value = user.sectors ?? [];
 
-  const map = new Map<string, PermissionItem>();
+  const directMap = new Map<string, PermissionItem>();
+  for (const permission of user.permissions ?? []) {
+    if (!permission?.slug || !permission?.name) continue;
+    directMap.set(permission.slug, { slug: permission.slug, name: permission.name });
+  }
+  directPermissions.value = [...directMap.values()];
+
+  const map = new Map<string, PermissionItem>(directMap);
   for (const permission of (user.roles ?? []).flatMap((role) => role.permissions ?? [])) {
     if (!permission?.slug || !permission?.name) continue;
     map.set(permission.slug, { slug: permission.slug, name: permission.name });
@@ -73,7 +81,7 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
 async function hydratePermissionsByRoles(roleIds: number[]) {
   if (!roleIds.length) return;
   const roleResponses = await Promise.all(roleIds.map((id) => rolesApi.getById(id)));
-  const map = new Map<string, PermissionItem>();
+  const map = new Map<string, PermissionItem>((directPermissions.value ?? []).map((p) => [p.slug, p]));
   for (const permission of roleResponses.flatMap((res) => res.role?.permissions ?? [])) {
     if (!permission?.slug || !permission?.name) continue;
     map.set(permission.slug, { slug: permission.slug, name: permission.name });
@@ -85,7 +93,7 @@ function loadUser() {
   loadError.value = "";
   loadingUser.value = true;
   if (!userId.value) {
-    loadError.value = "Utilizador não identificado.";
+    loadError.value = "Usuário não identificado.";
     loadingUser.value = false;
     return;
   }
@@ -120,7 +128,7 @@ onMounted(loadUser);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingUser" class="text-muted">A carregar perfil...</div>
+      <div v-else-if="loadingUser" class="text-muted">Carregando perfil...</div>
       <ProfilePage
         v-else
         :name="form.name"
@@ -132,6 +140,7 @@ onMounted(loadUser);
         :branches="branches"
         :sectors="sectors"
         :permissions="permissions"
+        :direct-permissions="directPermissions"
         :subtitle="primaryCompanyName || form.email"
         :onEdit="goEdit"
       />

@@ -3,10 +3,18 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "@/views/panels/owner/branches/form/DataForm.vue";
-import { branchesApi } from "@/api/resources";
-import { branchInitialForm, validateBranchForm, type BranchFormData } from "@/core/schemas";
+import { branchesApi, companiesApi } from "@/api/resources";
+import {
+  branchInitialForm,
+  defaultOpenScheduleRuleAllWeek,
+  validateBranchForm,
+  type BranchFormData,
+} from "@/core/schemas";
+import type { BranchScheduleRuleRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
@@ -15,8 +23,18 @@ const authStore = useAuthStore();
 const loading = ref(false);
 const loadingBranch = ref(true);
 const loadError = ref("");
-const form = ref<BranchFormData>(branchInitialForm());
-const errors = ref<Record<string, string>>({});
+const form = ref<BranchFormData>({
+  ...branchInitialForm(),
+  schedule_rules: [defaultOpenScheduleRuleAllWeek()],
+});
+const branchLogoUrl = ref<string | null>(null);
+const branchLogoUploading = ref(false);
+const { errors, clearError, resetErrors, onApiError, onClientValidationFailed } = useFormValidationErrors({
+  notifyOnApiFieldErrors: true,
+  notifyOnGenericApiMessage: true,
+  notifyOnEmptyResponse: true,
+  fallbackMessage: "Não foi possível salvar a filial. Verifique a ligação ou tente novamente.",
+});
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 
 const branchId = computed(() => {
@@ -38,26 +56,48 @@ const companyName = computed(() => {
   return authStore.user?.branches?.[0]?.company?.name ?? "Minha empresa";
 });
 
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
-
 function cancel() {
   router.push({ name: "panels.branch.dashboard" });
+}
+
+function toHhMm(v: string): string {
+  const m = String(v ?? "").trim().match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : "08:00";
+}
+
+function mapApiScheduleRule(r: BranchScheduleRuleRecord) {
+  const closed = !!r.is_closed;
+  return {
+    id: r.id,
+    weekdays: [...(r.weekdays ?? [])].sort((a, b) => a - b),
+    is_closed: closed,
+    expedient_start_time: closed ? "" : toHhMm(String(r.expedient_start_time ?? "08:00")),
+    expedient_end_time: closed ? "" : toHhMm(String(r.expedient_end_time ?? "18:00")),
+    store_open_time: closed ? "" : toHhMm(String(r.store_open_time ?? "09:00")),
+    store_close_time: closed ? "" : toHhMm(String(r.store_close_time ?? "18:00")),
+    break_duration_minutes: r.break_duration_minutes ?? null,
+    daily_work_minutes: r.daily_work_minutes ?? null,
+    sort_order: r.sort_order ?? 0,
+  };
 }
 
 function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>>) {
   const branch = data.branch;
   if (!branch) return;
+
+  const legacyRule = {
+    ...defaultOpenScheduleRuleAllWeek(),
+    expedient_start_time: toHhMm(branch.expedient_start_time ?? "08:00"),
+    expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
+    store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
+    store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
+  };
+
+  const schedule_rules =
+    branch.schedule_rules && branch.schedule_rules.length > 0
+      ? [...branch.schedule_rules].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map(mapApiScheduleRule)
+      : [legacyRule];
+
   form.value = {
     company_id: branch.company_id ?? 0,
     name: branch.name ?? "",
@@ -68,7 +108,27 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     neighborhood: branch.neighborhood ?? "",
     city: branch.city ?? "",
     state: branch.state ?? "",
+    expedient_start_time: toHhMm(branch.expedient_start_time ?? "08:00"),
+    expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
+    store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
+    store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
+    schedule_rules,
   };
+  branchLogoUrl.value = branch.logo_url ?? null;
+}
+
+async function onBranchLogoSelect(file: File) {
+  if (!branchId.value) return;
+  branchLogoUploading.value = true;
+  try {
+    const res = await branchesApi.uploadLogo(branchId.value, file);
+    branchLogoUrl.value = res.branch?.logo_url ?? null;
+    notifySuccess("Logo da filial atualizado.");
+  } catch (e) {
+    onApiError(e);
+  } finally {
+    branchLogoUploading.value = false;
+  }
 }
 
 function loadBranch() {
@@ -89,10 +149,10 @@ function loadBranch() {
 }
 
 function submit() {
-  errors.value = {};
-  const validation = validateBranchForm(form.value, "edit");
+  resetErrors();
+  const validation = validateBranchForm(form.value, "edit-with-hours");
   if (!validation.success) {
-    errors.value = validation.errors;
+    onClientValidationFailed(validation.errors);
     return;
   }
 
@@ -108,7 +168,7 @@ function submit() {
       notifySuccess("Filial atualizada com sucesso.");
       router.push({ name: "panels.branch.dashboard" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -132,19 +192,29 @@ onMounted(() => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingBranch" class="text-muted">A carregar filial...</div>
+      <div v-else-if="loadingBranch" class="text-muted">Carregando filial...</div>
       <b-form v-else @submit.prevent="submit">
+        <ImageUploadCard
+          class="mb-3"
+          title="Logo da filial"
+          description="Imagem da filial (armazenada na pasta da empresa e filial no object storage)."
+          :preview-url="branchLogoUrl"
+          :uploading="branchLogoUploading"
+          @select="onBranchLogoSelect"
+        />
         <DataForm
           v-model="form"
           :errors="errors"
           :company-options="companyOptions"
           :lock-company-id="companyId || null"
           mode="edit"
+          show-operating-hours
+          edit-tabbed
           @clear-error="clearError"
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

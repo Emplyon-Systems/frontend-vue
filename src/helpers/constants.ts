@@ -17,7 +17,7 @@ export const basePath = "";
 export const DEFAULT_PAGE_TITLE =
   "Emplyon | Responsive Admin Dashboard Template";
 
-/** Chaves de sessionStorage usadas pela auth (http-client usa para Bearer) */
+/** Chaves de localStorage usadas pela auth (partilhadas entre guias; http-client usa para Bearer) */
 export const AUTH_STORAGE_KEYS = {
   USER: "emplyon_user",
   TOKEN: "emplyon_token",

@@ -8,7 +8,7 @@ function checkPermission(permissions: string | string[]): boolean {
 }
 
 /**
- * Directiva v-permission: remove o elemento do DOM se o utilizador não tiver
+ * Directiva v-permission: remove o elemento do DOM se o usuário não tiver
  * nenhuma das permissões/roles indicadas.
  * Uso: v-permission="'users.index'" ou v-permission="['users.index', 'users.create']"
  */

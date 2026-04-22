@@ -47,12 +47,16 @@ export interface UserRecord {
   id: number;
   name: string;
   email: string;
+  status?: "active" | "inactive";
   email_verified_at?: string | null;
   created_at?: string;
   updated_at?: string;
   roles?: UserRole[];
+  permissions?: RolePermission[];
   companies?: UserCompany[];
   branches?: UserBranch[];
+  /** Funcionário vinculado ao usuário nesta filial (listagem com filtro por filial). */
+  employee?: { id: number; user_id?: number; name?: string } | null;
   sectors?: Array<{
     id: number;
     name: string;
@@ -87,6 +91,24 @@ export interface PermissionRecord {
   description?: string | null;
 }
 
+/** Template de perfil automático (ex.: ao criar filial). */
+export interface RoleTemplateRecord {
+  id: number;
+  key: string;
+  name: string;
+  description?: string | null;
+  provision_scope: string;
+  auto_provision: boolean;
+  slug_prefix: string;
+  sort_order: number;
+  is_locked: boolean;
+  /** Se false, não entra no provisionamento automático (linha mantida na BD). */
+  is_active: boolean;
+  /** Se true (escopo empresa), o usuário criado com a empresa recebe este perfil. */
+  assigns_company_owner?: boolean;
+  permissions?: RolePermission[];
+}
+
 export interface CompanyRecord {
   id: number;
   name: string;
@@ -99,9 +121,23 @@ export interface CompanyRecord {
   state: string;
   email: string;
   phone: string;
+  branch_limit: number;
+  user_limit: number;
+  /** Filiais existentes (contagem). */
+  branches_used?: number;
+  /** Usuarios com acesso à empresa (vínculo direto ou filial). */
+  users_used?: number;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
+  /** MinIO/S3 — logo institucional. */
+  logo_disk?: string | null;
+  logo_path?: string | null;
+  logo_url?: string | null;
+  /** Domínio sintético para e-mail de colaboradores (slug do nome + .com). */
+  internal_email_domain?: string;
+  /** Primeiros passos da empresa (filial + gerente) concluídos. */
+  setup_completed_at?: string | null;
   users?: Array<{
     id: number;
     name: string;
@@ -116,8 +152,26 @@ export interface CompanyRecord {
     cnpj: string;
     city: string;
     state: string;
+    logo_url?: string | null;
     pivot?: { is_primary?: boolean };
   }>;
+}
+
+/** 1=segunda … 7=domingo (ISO). */
+export interface BranchScheduleRuleRecord {
+  id: number;
+  branch_id?: number;
+  weekdays: number[];
+  is_closed: boolean;
+  expedient_start_time?: string | null;
+  expedient_end_time?: string | null;
+  store_open_time?: string | null;
+  store_close_time?: string | null;
+  break_duration_minutes?: number | null;
+  daily_work_minutes?: number | null;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface BranchRecord {
@@ -131,9 +185,19 @@ export interface BranchRecord {
   zip_code: string;
   city: string;
   state: string;
+  expedient_start_time?: string;
+  expedient_end_time?: string;
+  store_open_time?: string;
+  store_close_time?: string;
+  setup_completed_at?: string | null;
+  schedule_rules?: BranchScheduleRuleRecord[];
+  users_used?: number;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
+  logo_disk?: string | null;
+  logo_path?: string | null;
+  logo_url?: string | null;
   company?: {
     id: number;
     name: string;
@@ -149,6 +213,57 @@ export interface BranchRecord {
   sectors?: Array<{ id: number; name: string; slug: string }>;
 }
 
+export interface EmployeeBranchPivot {
+  sector_id: number;
+  is_primary?: boolean;
+}
+
+export interface EmployeeRecord {
+  id: number;
+  company_id: number;
+  user_id?: number | null;
+  name: string;
+  cpf?: string | null;
+  email: string;
+  phone?: string | null;
+  job_title: string;
+  street?: string | null;
+  street_number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  zip_code?: string | null;
+  city?: string | null;
+  state?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  photo_disk?: string | null;
+  photo_path?: string | null;
+  photo_url?: string | null;
+  company?: {
+    id: number;
+    name?: string;
+    internal_email_domain?: string;
+  } | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  branches?: Array<{
+    id: number;
+    name?: string;
+    company_id?: number;
+    pivot?: EmployeeBranchPivot;
+    pivot_sector?: {
+      id: number;
+      branch_id?: number;
+      name: string;
+      slug?: string;
+    } | null;
+  }>;
+}
+
 export interface SectorRecord {
   id: number;
   branch_id: number;
@@ -161,6 +276,57 @@ export interface SectorRecord {
     id: number;
     name?: string;
     company_id?: number;
+  } | null;
+}
+
+export interface ShiftRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  start_time: string;
+  end_time: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+    company?: { id: number; name?: string } | null;
+  } | null;
+}
+
+export interface ModalityTypeRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  is_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+    company?: { id: number; name?: string } | null;
+  } | null;
+}
+
+export interface ScaleTypeRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+    company?: { id: number; name?: string } | null;
   } | null;
 }
 
@@ -179,3 +345,36 @@ export interface AuditRecord {
 }
 
 export type PluckItem = { id: number; name?: string; label?: string };
+
+export interface EmployeeVacationRecord {
+  id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  total_period_days: number;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+}
+
+export interface EmployeeMedicalCertificateRecord {
+  id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  total_period_days: number;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+}
+
+export interface EmployeeLeafRecord {
+  id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  total_period_days: number;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+}

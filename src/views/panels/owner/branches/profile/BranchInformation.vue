@@ -1,3 +1,28 @@
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    name?: string;
+    cnpj?: string;
+    companyName?: string;
+    zipCode?: string;
+    street?: string;
+    streetNumber?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    fullWidth?: boolean;
+    onEdit?: () => void;
+    userLimit?: number | string | null;
+    usersUsed?: number | null;
+  }>(),
+  {
+    fullWidth: false,
+    userLimit: null,
+    usersUsed: null,
+  }
+);
+</script>
+
 <template>
   <b-col :cols="fullWidth ? 12 : undefined" :md="fullWidth ? 12 : 4">
     <b-card no-body class="h-100">
@@ -50,6 +75,16 @@
                   <p class="mb-0 fw-medium">{{ companyName || "—" }}</p>
                 </div>
               </div>
+              <div class="d-flex align-items-start mt-3">
+                <i class="iconoir-community me-2 text-secondary fs-18"></i>
+                <div>
+                  <p class="text-muted mb-0 small">Limite de usuários (filial)</p>
+                  <p class="mb-0 fw-medium">
+                    {{ userLimit != null && userLimit !== "" ? userLimit : "—" }}
+                    <span v-if="usersUsed != null" class="text-muted small">({{ usersUsed }} em uso)</span>
+                  </p>
+                </div>
+              </div>
             </div>
           </b-col>
 
@@ -89,24 +124,3 @@
     </b-card>
   </b-col>
 </template>
-
-<script setup lang="ts">
-withDefaults(
-  defineProps<{
-    name?: string;
-    cnpj?: string;
-    companyName?: string;
-    zipCode?: string;
-    street?: string;
-    streetNumber?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    fullWidth?: boolean;
-    onEdit?: () => void;
-  }>(),
-  {
-    fullWidth: false,
-  }
-);
-</script>

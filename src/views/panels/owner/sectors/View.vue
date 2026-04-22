@@ -8,15 +8,18 @@ import type { SectorUser } from "./profile/SectorUsersTab.vue";
 import { sectorsApi, branchesApi } from "@/api/resources";
 import { sectorInitialForm, type SectorFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useModulePermissions } from "@/composables/usePermissions";
 import type { SectorRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const sectorPermissions = useModulePermissions("sectors");
 const sectorId = computed(() => Number(route.params.id));
-const routeName = computed(() => String(route.name ?? ""));
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
+const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped } = usePanelScope();
 
 function sectorsListRoute() {
   return branchScoped.value ? "branch.sectors" : companyScoped.value ? "company.sectors" : "owner.sectors";
@@ -29,7 +32,7 @@ const branchOptions = ref<Array<{ id: number; name: string }>>([]);
 const sectorSlug = ref("");
 const users = ref<SectorUser[]>([]);
 const usersCount = ref(0);
-const canEditSector = computed(() => authStore.hasPermission("sectors.update"));
+const canEditSector = computed(() => authStore.hasRole("superadmin") || sectorPermissions.canUpdate.value);
 
 function back() {
   router.push({ name: sectorsListRoute() });
@@ -85,7 +88,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -99,17 +102,18 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingSector" class="text-muted">A carregar setor...</div>
+      <div v-else-if="loadingSector" class="text-muted">Carregando setor...</div>
       <ProfilePage
         v-else
         :name="form.name"
         :slug="sectorSlug"
         :branch-name="branchName"
-        :subtitle="branchName"
+        :subtitle="branchScoped ? undefined : branchName"
+        :hide-branch-context="branchScoped"
         :users="users"
         :users-count="usersCount"
         :on-edit="canEditSector ? goEdit : undefined"
       />
     </div>
-  </DefaultLayout>
+  </component>
 </template>

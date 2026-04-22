@@ -6,11 +6,14 @@ import DataForm from "./form/DataForm.vue";
 import { sectorsApi, branchesApi } from "@/api/resources";
 import { sectorInitialForm, validateSectorForm, type SectorFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const routeName = computed(() => String(route.name ?? ""));
 const companyScoped = computed(() => routeName.value.startsWith("company."));
 const branchScoped = computed(() => routeName.value.startsWith("branch."));
@@ -23,21 +26,12 @@ const currentBranchId = computed(() => {
 const scopedBranchIds = ref<number[]>([]);
 const loading = ref(false);
 const form = ref<SectorFormData>(sectorInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 const branchOptions = ref<Array<{ id: number; name: string }>>([]);
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
 
 function sectorsListRoute() {
   return branchScoped.value ? "branch.sectors" : companyScoped.value ? "company.sectors" : "owner.sectors";
@@ -48,7 +42,7 @@ function cancel() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateSectorForm(form.value, "create");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -62,7 +56,7 @@ function submit() {
       notifySuccess("Setor criado com sucesso.");
       router.push({ name: sectorsListRoute() });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -92,12 +86,18 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Novo setor</h1>
-          <p class="text-muted mb-0 small">Criar setor vinculado a uma filial. O slug é gerado automaticamente.</p>
+          <p class="text-muted mb-0 small">
+            {{
+              branchScoped
+                ? "Criar setor nesta filial. O slug é gerado automaticamente."
+                : "Criar setor vinculado a uma filial. O slug é gerado automaticamente."
+            }}
+          </p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
       </div>
@@ -113,12 +113,12 @@ onMounted(async () => {
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>
         </DataForm>
       </b-form>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

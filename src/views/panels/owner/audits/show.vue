@@ -43,7 +43,7 @@ onMounted(() => {
   auditsApi
     .getById(id.value)
     .then((data) => (audit.value = data.audit ?? null))
-    .catch(() => (loadError.value = "Registo de auditoria não encontrado."))
+    .catch(() => (loadError.value = "Registro de auditoria não encontrado."))
     .finally(() => (loading.value = false));
 });
 </script>
@@ -86,11 +86,11 @@ onMounted(() => {
                   <code class="small">{{ audit.auditable_type || "—" }}</code>
                 </b-list-group-item>
                 <b-list-group-item class="d-flex justify-content-between align-items-center">
-                  <span class="text-muted">ID do registo</span>
+                  <span class="text-muted">ID do registro</span>
                   <span>{{ audit.auditable_id ?? "—" }}</span>
                 </b-list-group-item>
                 <b-list-group-item class="d-flex justify-content-between align-items-start">
-                  <span class="text-muted">Utilizador</span>
+                  <span class="text-muted">Usuário</span>
                   <span class="text-end">
                     <span v-if="audit.user">{{ audit.user.name }}</span>
                     <span v-else class="text-muted">—</span>
@@ -135,7 +135,7 @@ onMounted(() => {
         </b-row>
       </template>
 
-      <div v-else-if="loading" class="text-center py-5 text-muted">A carregar...</div>
+      <div v-else-if="loading" class="text-center py-5 text-muted">Carregando...</div>
     </div>
   </DefaultLayout>
 </template>
