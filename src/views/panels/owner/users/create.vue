@@ -377,7 +377,7 @@ watch(
             :branch-options="filteredBranchOptions"
             :sector-options="sectorOptions"
             :fixed-branch-id="fixedBranchId"
-            :show-company-selector="isSuperadmin"
+            :show-company-selector="false"
             :tenant-email-domain="resolvedTenantEmailDomain"
             :branch-order-index="branchOrderIndexForSyntheticEmail"
             @clear-error="clearError"
