@@ -5,6 +5,8 @@ import AuthLayout from "@/layouts/AuthLayout.vue";
 import { useAuthStore } from "@/stores/auth";
 import { getPanelHomeForUser } from "@/config/panels";
 
+const AUTH_DEBUG = String(import.meta.env.VITE_AUTH_DEBUG ?? "").toLowerCase() === "true";
+
 const router = useRouter();
 const authStore = useAuthStore();
 
@@ -23,12 +25,25 @@ function contextSubtitle(ctx: { company_name?: string; branch_id?: number | null
 }
 
 function selectAndContinue(ctx: { company_id: number; branch_id?: number | null; label: string }) {
+  if (AUTH_DEBUG) {
+    console.log("[auth-select-context] selected", ctx);
+  }
   authStore.selectContext(ctx);
   const path = getPanelHomeForUser(authStore.user, ctx);
+  if (AUTH_DEBUG) {
+    console.log("[auth-select-context] destination", path || "/");
+  }
   router.push(path || "/");
 }
 
 onMounted(() => {
+  if (AUTH_DEBUG) {
+    console.groupCollapsed("[auth-select-context] mounted");
+    console.log("isAuthenticated", authStore.isAuthenticated);
+    console.log("activeContext", authStore.activeContext);
+    console.log("contextOptions", contextOptions.value);
+    console.groupEnd();
+  }
   if (!authStore.isAuthenticated) {
     router.replace({ name: "auth.sign-in" });
     return;

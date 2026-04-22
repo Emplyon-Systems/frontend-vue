@@ -9,6 +9,8 @@ import router from "@/router";
 import { getPanelHomeForUser } from "@/config/panels";
 import type { LoginResponse } from "@/types/auth";
 
+const AUTH_DEBUG = String(import.meta.env.VITE_AUTH_DEBUG ?? "").toLowerCase() === "true";
+
 const credentials = reactive({
   email: "",
   password: "",
@@ -60,12 +62,22 @@ async function handleLogin() {
     });
     const data = res.data;
     if (data.user && data.token) {
+      if (AUTH_DEBUG) {
+        console.groupCollapsed("[auth-login] login response");
+        console.log("roles", (data.user.roles ?? []).map((r) => r.slug));
+        console.log("companies", (data.user.companies ?? []).map((c) => c.id));
+        console.log("branches", (data.user.branches ?? []).map((b) => b.id));
+        console.groupEnd();
+      }
       const roles = data.user.roles;
       if (!roles?.length) {
         error.value = "Usuário sem acesso. Nenhum perfil atribuído.";
         return;
       }
       authStore.saveSession(data.user, data.token);
+      if (AUTH_DEBUG) {
+        console.log("[auth-login] contextOptions after saveSession", authStore.getContextOptions());
+      }
       const from = route.query.redirectedFrom;
       let destination: RouteLocationRaw;
       if (isInternalPath(from)) {
@@ -77,6 +89,9 @@ async function handleLogin() {
         const selected = opts.length === 1 ? opts[0] : null;
         if (selected) authStore.selectContext(selected);
         destination = getPanelHomeForUser(data.user, selected) || "/";
+      }
+      if (AUTH_DEBUG) {
+        console.log("[auth-login] destination", destination);
       }
       // Desbloquear o formulário antes da navegação: se router.push ficar pendente
       // (chunk lento, guard, rede), o utilizador não fica preso em "Entrando…".
