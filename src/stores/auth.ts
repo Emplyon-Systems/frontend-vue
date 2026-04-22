@@ -53,6 +53,15 @@ export const useAuthStore = defineStore("auth", () => {
   const sameContext = (a: AuthContext | null | undefined, b: AuthContext | null | undefined) =>
     !!a && !!b && a.company_id === b.company_id && (a.branch_id ?? null) === (b.branch_id ?? null);
 
+  const sameContextSnapshot = (
+    a: AuthContext | null | undefined,
+    b: AuthContext | null | undefined
+  ) =>
+    sameContext(a, b) &&
+    (a?.label ?? "") === (b?.label ?? "") &&
+    (a?.company_name ?? "") === (b?.company_name ?? "") &&
+    (a?.branch_name ?? "") === (b?.branch_name ?? "");
+
   function clearActiveContext() {
     activeContext.value = null;
     localStorage.removeItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
@@ -70,7 +79,7 @@ export const useAuthStore = defineStore("auth", () => {
         clearActiveContext();
       } else {
         const canonical = options.find((ctx) => sameContext(ctx, activeContext.value));
-        if (canonical) {
+        if (canonical && !sameContextSnapshot(canonical, activeContext.value)) {
           activeContext.value = canonical;
           localStorage.setItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT, JSON.stringify(canonical));
         }
