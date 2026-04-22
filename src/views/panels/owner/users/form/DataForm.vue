@@ -651,6 +651,15 @@ const hasCompanyContextForRoles = computed(() => {
   return (props.modelValue.company_ids?.length ?? 0) > 0 || props.fixedBranchId != null;
 });
 
+const emptyRolesMessage = computed(() => {
+  if (!props.showCompanySelector) {
+    return "Não existem perfis globais cadastrados.";
+  }
+  return hasCompanyContextForRoles.value
+    ? "Não existem perfis cadastrados nesta empresa."
+    : "Selecione uma empresa para ver os perfis disponíveis.";
+});
+
 /** Só lista de opções (não valores escolhidos) — evita destroy/reinit a cada clique no multiselect. */
 const roleSelectSignature = computed(() =>
   JSON.stringify(props.roleOptions.map((r) => r.id))
@@ -1208,11 +1217,7 @@ function generateRandomPassword(length = 12): void {
                 </div>
               </template>
               <p v-else class="text-muted mb-0">
-                {{
-                  hasCompanyContextForRoles
-                    ? "Não existem perfis cadastrados nesta empresa."
-                    : "Selecione uma empresa para ver os perfis disponíveis."
-                }}
+                {{ emptyRolesMessage }}
               </p>
               <b-form-invalid-feedback v-if="errors.roles" class="d-block">{{ errors.roles }}</b-form-invalid-feedback>
             </b-form-group>
