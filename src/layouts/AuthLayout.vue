@@ -1,3 +1,5 @@
+<script setup lang="ts"></script>
+
 <template>
   <div class="container-xxl">
     <b-row class="vh-100 d-flex justify-content-center">
@@ -11,5 +13,3 @@
     </b-row>
   </div>
 </template>
-
-<script setup lang="ts"></script>

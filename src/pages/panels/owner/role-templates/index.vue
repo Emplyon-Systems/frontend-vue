@@ -8,24 +8,26 @@ import { roleTemplatesApi } from "@/api/resources";
 import type { RoleTemplateRecord } from "@/types/api";
 import { notifyError, notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useModulePermissions } from "@/composables/usePermissions";
 
 const router = useRouter();
 const authStore = useAuthStore();
+const roleTemplatePermissions = useModulePermissions("role_templates");
 const canCreateTemplate = computed(
-  () => authStore.hasRole("superadmin") || authStore.hasPermission("role_templates.create")
+  () => authStore.hasRole("superadmin") || roleTemplatePermissions.canCreate.value
 );
 /** Ver lista/detalhe (módulo só leitura sem update/create/delete). */
 const canViewTemplate = computed(
   () =>
     authStore.hasRole("superadmin") ||
-    authStore.hasPermission("role_templates.index") ||
-    authStore.hasPermission("role_templates.read")
+    roleTemplatePermissions.canList.value ||
+    roleTemplatePermissions.canRead.value
 );
 const canEditTemplate = computed(
-  () => authStore.hasRole("superadmin") || authStore.hasPermission("role_templates.update")
+  () => authStore.hasRole("superadmin") || roleTemplatePermissions.canUpdate.value
 );
 const canDeleteTemplate = computed(
-  () => authStore.hasRole("superadmin") || authStore.hasPermission("role_templates.delete")
+  () => authStore.hasRole("superadmin") || roleTemplatePermissions.canDelete.value
 );
 const loading = ref(true);
 const templates = ref<RoleTemplateRecord[]>([]);

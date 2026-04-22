@@ -5,7 +5,7 @@ import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "./form/DataForm.vue";
-import { branchesApi, companiesApi } from "@/api/resources";
+import { branchesApi } from "@/api/resources";
 import {
   branchInitialForm,
   defaultOpenScheduleRuleAllWeek,
@@ -15,16 +15,16 @@ import {
 import type { BranchScheduleRuleRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
-import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useScopePlucks } from "@/composables/useScopePlucks";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const { loadCompanyOptionsByScope } = useScopePlucks();
 const branchId = computed(() => Number(route.params.id));
-const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
-const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
+const { isCompanyScoped: companyScoped, scopedCompanyId } = usePanelScope();
 const workspaceCompanyId = computed(() => {
   const id = Number(route.query.company_id ?? 0);
   return id > 0 ? id : 0;
@@ -160,15 +160,10 @@ function submit() {
 }
 
 onMounted(async () => {
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
-    companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
-  } else {
-    const companies = await companiesApi.plucks();
-    companyOptions.value = companies
-      .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
+  companyOptions.value = await loadCompanyOptionsByScope({
+    companyScoped: companyScoped.value,
+    scopedCompanyId: scopedCompanyId.value,
+  });
   loadBranch();
 });
 </script>

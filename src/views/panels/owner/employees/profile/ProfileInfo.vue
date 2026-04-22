@@ -1,3 +1,21 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import type { EmployeeRecord } from "@/types/api";
+
+const props = defineProps<{
+  employee: EmployeeRecord;
+}>();
+
+const name = computed(() => props.employee.name ?? "");
+const email = computed(() => props.employee.email ?? "");
+const jobTitle = computed(() => (props.employee.job_title ?? "").trim());
+const subtitle = computed(() => props.employee.company?.name?.trim() || "");
+
+const companyCount = computed(() => ((props.employee.company_id ?? 0) > 0 ? 1 : 0));
+const branchCount = computed(() => props.employee.branches?.length ?? 0);
+const sectorAssignmentCount = computed(() => branchCount.value);
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body>
@@ -55,20 +73,3 @@
     </b-card>
   </b-col>
 </template>
-<script setup lang="ts">
-import { computed } from "vue";
-import type { EmployeeRecord } from "@/types/api";
-
-const props = defineProps<{
-  employee: EmployeeRecord;
-}>();
-
-const name = computed(() => props.employee.name ?? "");
-const email = computed(() => props.employee.email ?? "");
-const jobTitle = computed(() => (props.employee.job_title ?? "").trim());
-const subtitle = computed(() => props.employee.company?.name?.trim() || "");
-
-const companyCount = computed(() => ((props.employee.company_id ?? 0) > 0 ? 1 : 0));
-const branchCount = computed(() => props.employee.branches?.length ?? 0);
-const sectorAssignmentCount = computed(() => branchCount.value);
-</script>

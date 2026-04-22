@@ -1,3 +1,16 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import DefaultLayout from "@/layouts/DefaultLayout.vue";
+import { useAuthStore } from "@/stores/auth";
+import { getPanelHomeForUser } from "@/config/panels";
+
+const authStore = useAuthStore();
+
+const dashboardRoute = computed(() => ({
+  path: getPanelHomeForUser(authStore.user ?? undefined, authStore.activeContext) || "/employee",
+}));
+</script>
+
 <template>
   <DefaultLayout>
     <div class="py-5 text-center">
@@ -14,16 +27,3 @@
     </div>
   </DefaultLayout>
 </template>
-
-<script setup lang="ts">
-import { computed } from "vue";
-import DefaultLayout from "@/layouts/DefaultLayout.vue";
-import { useAuthStore } from "@/stores/auth";
-import { getPanelHomeForUser } from "@/config/panels";
-
-const authStore = useAuthStore();
-
-const dashboardRoute = computed(() => ({
-  path: getPanelHomeForUser(authStore.user ?? undefined, authStore.activeContext) || "/employee",
-}));
-</script>

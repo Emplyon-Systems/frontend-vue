@@ -4,30 +4,27 @@ import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import DataForm from "./form/DataForm.vue";
-import { shiftsApi, branchesApi } from "@/api/resources";
+import { shiftsApi } from "@/api/resources";
 import { shiftInitialForm, type ShiftFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { useScopePlucks } from "@/composables/useScopePlucks";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
-const routeName = computed(() => String(route.name ?? ""));
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
-const currentBranchId = computed(() => {
-  if (!branchScoped.value) return 0;
-  const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
-  if (fromContext > 0) return fromContext;
-  return Number(authStore.user?.branches?.[0]?.id ?? 0);
-});
+const { loadBranchOptionsByScope } = useScopePlucks();
+const shiftPermissions = useModulePermissions("shifts");
+const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped, currentBranchId } = usePanelScope();
 const shiftId = computed(() => Number(route.params.id));
 const loadingShift = ref(true);
 const loadError = ref("");
 const form = ref<ShiftFormData>(shiftInitialForm());
 const branchOptions = ref<Array<{ id: number; name: string; company_name?: string }>>([]);
-const canEditShift = computed(() => authStore.hasPermission("shifts.update"));
+const canEditShift = computed(() => authStore.hasRole("superadmin") || shiftPermissions.canUpdate.value);
 
 function shiftsListRoute() {
   return branchScoped.value ? "branch.shifts" : companyScoped.value ? "company.shifts" : "owner.shifts";
@@ -73,32 +70,11 @@ function loadShift() {
 }
 
 onMounted(async () => {
-  if (branchScoped.value && currentBranchId.value > 0) {
-    let branchName =
-      authStore.activeContext?.branch_id === currentBranchId.value
-        ? authStore.activeContext?.branch_name
-        : authStore.user?.branches?.find((b) => b.id === currentBranchId.value)?.name;
-    if (!branchName) {
-      try {
-        const res = await branchesApi.getById(currentBranchId.value);
-        branchName = res.branch?.name ?? `Filial #${currentBranchId.value}`;
-      } catch {
-        branchName = `Filial #${currentBranchId.value}`;
-      }
-    }
-    branchOptions.value = [
-      { id: currentBranchId.value, name: branchName ?? `Filial #${currentBranchId.value}`, company_name: "" },
-    ];
-  } else {
-    const branches = await branchesApi.plucks();
-    branchOptions.value = (branches as { id: number; name?: string; company_name?: string }[])
-      .map((b) => ({
-        id: b.id,
-        name: b.name ?? `Filial #${b.id}`,
-        company_name: b.company_name ?? "",
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
+  branchOptions.value = await loadBranchOptionsByScope({
+    branchScoped: branchScoped.value,
+    currentBranchId: currentBranchId.value,
+    includeCompanyName: true,
+  });
   loadShift();
 });
 </script>

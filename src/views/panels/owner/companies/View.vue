@@ -9,6 +9,7 @@ import { companyInitialForm, type CompanyFormData } from "@/core/schemas";
 import type { CompanyRecord, UserRecord } from "@/types/api";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false });
 
@@ -23,9 +24,8 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
-const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
-const isOwnerWorkspace = computed(() => String(route.name ?? "").startsWith("owner.company.workspace") || props.embedded);
-const scopedCompanyId = computed(() => Number(authStore.activeContext?.company_id ?? authStore.user?.companies?.[0]?.id ?? 0));
+const { isCompanyScoped: companyScoped, isOwnerWorkspace: panelOwnerWorkspace, scopedCompanyId } = usePanelScope();
+const isOwnerWorkspace = computed(() => panelOwnerWorkspace.value || props.embedded);
 const companyId = computed(() => {
   const fromParam = Number(route.params.id);
   if (Number.isFinite(fromParam) && fromParam > 0) return fromParam;

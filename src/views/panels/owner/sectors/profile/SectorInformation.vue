@@ -1,3 +1,20 @@
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    name?: string;
+    slug?: string;
+    branchName?: string;
+    fullWidth?: boolean;
+    hideBranchContext?: boolean;
+    onEdit?: () => void;
+  }>(),
+  {
+    fullWidth: false,
+    hideBranchContext: false,
+  }
+);
+</script>
+
 <template>
   <b-col :cols="fullWidth ? 12 : undefined" :md="fullWidth ? 12 : 4">
     <b-card no-body class="h-100">
@@ -58,20 +75,3 @@
     </b-card>
   </b-col>
 </template>
-
-<script setup lang="ts">
-withDefaults(
-  defineProps<{
-    name?: string;
-    slug?: string;
-    branchName?: string;
-    fullWidth?: boolean;
-    hideBranchContext?: boolean;
-    onEdit?: () => void;
-  }>(),
-  {
-    fullWidth: false,
-    hideBranchContext: false,
-  }
-);
-</script>

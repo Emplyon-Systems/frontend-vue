@@ -12,14 +12,24 @@ import { branchesApi, companiesApi, rolesApi } from "@/api/resources";
 import type { RoleRecord } from "@/types/api";
 import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useFilterState } from "@/composables/useFilterState";
+import { useListPageState } from "@/composables/useListPageState";
 
 const router = useRouter();
 const authStore = useAuthStore();
+const rolePermissions = useModulePermissions("roles");
+const { scopedCompanyId, currentBranchId } = usePanelScope();
 const loading = ref(true);
 const roles = ref<RoleRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 const branchOptions = ref<Array<{ id: number; company_id?: number; name: string }>>([]);
-const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
+const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
+  perPage: 15,
+  orderBy: "id",
+  orderDir: "desc",
+});
 const initialFilters = () => ({
   search: "",
   company_ids: [] as number[],
@@ -27,36 +37,32 @@ const initialFilters = () => ({
   created_at_from: "",
   created_at_until: "",
 });
-const filters = ref(initialFilters());
-/** Filtros efetivamente aplicados (atualizados ao clicar em "Aplicar filtros") */
-const appliedFilters = ref(initialFilters());
-const orderBy = ref("id");
-const orderDir = ref<"asc" | "desc">("desc");
+const { filters, appliedFilters, hasActiveFilters, applyFilters, resetFilters } = useFilterState(
+  initialFilters,
+  (f) =>
+    !!f.search.trim() ||
+    (f.company_ids?.length ?? 0) > 0 ||
+    (f.branch_ids?.length ?? 0) > 0 ||
+    !!f.created_at_from ||
+    !!f.created_at_until
+);
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
 const showFilters = ref(false);
-const hasActiveFilters = computed(
-  () =>
-    !!appliedFilters.value.search.trim() ||
-    (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
-    (appliedFilters.value.branch_ids?.length ?? 0) > 0 ||
-    !!appliedFilters.value.created_at_from ||
-    !!appliedFilters.value.created_at_until
-);
 const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
 /** Empresa pode editar perfis das suas filiais (incl. Gerente de Filial). */
 const isCompanyContext = computed(
-  () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id == null
+  () => !isSuperadmin.value && scopedCompanyId.value > 0 && currentBranchId.value <= 0
 );
 const isBranchContext = computed(
-  () => !!authStore.activeContext?.company_id && authStore.activeContext?.branch_id != null
+  () => !isSuperadmin.value && scopedCompanyId.value > 0 && currentBranchId.value > 0
 );
 /** Usuário tem opção de contexto empresa (pode editar Gerente Filial mesmo em filial). */
 const hasCompanyLevelAccess = computed(() =>
   authStore.getContextOptions().some((o) => o.branch_id == null)
 );
-const showCompanyFilter = computed(() => isSuperadmin.value);
-const showBranchFilter = computed(() => isSuperadmin.value || isCompanyContext.value);
+const showCompanyFilter = computed(() => isSuperadmin.value || rolePermissions.canList.value);
+const showBranchFilter = computed(() => isSuperadmin.value || isCompanyContext.value || rolePermissions.canList.value);
 const filteredBranchOptions = computed(() => {
   if (isCompanyContext.value && authStore.activeContext?.company_id) {
     const activeCompanyId = Number(authStore.activeContext.company_id);
@@ -81,13 +87,6 @@ const listagemColumns = [
   { key: "permissions", label: "Permissões", sortable: false, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ];
-
-const resultLabel = computed(() => {
-  const n = pagination.value.total;
-  if (n === 0) return "Nenhum resultado";
-  if (n === 1) return "1 resultado encontrado";
-  return `${n} resultados encontrados`;
-});
 
 function loadList(page = 1) {
   loading.value = true;
@@ -121,25 +120,13 @@ function loadList(page = 1) {
     .finally(() => (loading.value = false));
 }
 
-function applyFilters() {
-  appliedFilters.value = { ...filters.value };
-  loadList(1);
-}
-
-function resetFilters() {
-  filters.value = initialFilters();
-  appliedFilters.value = initialFilters();
-  loadList(1);
-}
-
 function onPerPageChange(value: number) {
-  pagination.value.per_page = value;
+  setPerPage(value);
   loadList(1);
 }
 
 function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir: "asc" | "desc" }) {
-  orderBy.value = ob;
-  orderDir.value = od;
+  setSort({ orderBy: ob, orderDir: od });
   loadList(1);
 }
 
@@ -165,10 +152,12 @@ function doDelete() {
 }
 
 function goCreate() {
+  if (!rolePermissions.canCreate.value) return;
   router.push({ name: "owner.roles.form", params: { id: "new" } });
 }
 
 function goEdit(id: number) {
+  if (!rolePermissions.canUpdate.value) return;
   router.push({ name: "owner.roles.form", params: { id: String(id) } });
 }
 
@@ -178,8 +167,14 @@ function isSystemBranchRole(role: RoleRecord): boolean {
   return s.startsWith("filial-b") || s.startsWith("setor-b");
 }
 function canEditRole(role: RoleRecord): boolean {
+  if (!rolePermissions.canUpdate.value) return false;
   if (!isSystemBranchRole(role)) return true;
   return isSuperadmin.value || isCompanyContext.value || hasCompanyLevelAccess.value;
+}
+
+function canDeleteRole(role: RoleRecord): boolean {
+  if (!rolePermissions.canDelete.value) return false;
+  return canEditRole(role);
 }
 
 onMounted(() => loadList());
@@ -212,7 +207,7 @@ onMounted(async () => {
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" label="Filtros" />
-          <b-button variant="primary" @click="goCreate">
+          <b-button v-if="rolePermissions.canCreate" variant="primary" @click="goCreate">
             <i class="iconoir-plus me-1"></i>
             Novo perfil
           </b-button>
@@ -227,8 +222,8 @@ onMounted(async () => {
           :show-branch-filter="showBranchFilter"
           :company-options="companyOptions"
           :branch-options="filteredBranchOptions"
-          @apply="applyFilters"
-          @reset="resetFilters"
+          @apply="() => { applyFilters(); loadList(1); }"
+          @reset="() => { resetFilters(); loadList(1); }"
         />
       </UIComponentCard>
 
@@ -273,7 +268,7 @@ onMounted(async () => {
                 :item-id="(item as RoleRecord).id"
                 :show-view="false"
                 :show-edit="canEditRole(item as RoleRecord)"
-                :show-delete="canEditRole(item as RoleRecord)"
+                :show-delete="canDeleteRole(item as RoleRecord)"
                 edit-title="Editar"
                 delete-title="Excluir"
                 @edit="goEdit"

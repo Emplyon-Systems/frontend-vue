@@ -4,27 +4,20 @@ import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import DataForm from "@/views/panels/owner/modality-types/form/DataForm.vue";
-import { modalityTypesApi, branchesApi } from "@/api/resources";
+import { modalityTypesApi } from "@/api/resources";
 import { modalityTypeInitialForm, validateModalityTypeForm, type ModalityTypeFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
-import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useScopePlucks } from "@/composables/useScopePlucks";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const { loadBranchOptionsByScope } = useScopePlucks();
 const modalityTypeId = computed(() => Number(route.params.id));
-const routeName = computed(() => String(route.name ?? ""));
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
-const currentBranchId = computed(() => {
-  if (!branchScoped.value) return 0;
-  const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
-  if (fromContext > 0) return fromContext;
-  return Number(authStore.user?.branches?.[0]?.id ?? 0);
-});
+const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped, currentBranchId } = usePanelScope();
 
 function modalityTypesListRoute() {
   return branchScoped.value
@@ -97,38 +90,11 @@ function submit() {
 }
 
 onMounted(async () => {
-  if (branchScoped.value && currentBranchId.value > 0) {
-    let branchName =
-      authStore.activeContext?.branch_id === currentBranchId.value
-        ? authStore.activeContext?.branch_name
-        : authStore.user?.branches?.find((b) => b.id === currentBranchId.value)?.name;
-    if (!branchName) {
-      try {
-        const res = await branchesApi.getById(currentBranchId.value);
-        branchName = res.branch?.name ?? `Filial #${currentBranchId.value}`;
-      } catch {
-        branchName = `Filial #${currentBranchId.value}`;
-      }
-    }
-    branchOptions.value = [
-      {
-        id: currentBranchId.value,
-        name: branchName ?? `Filial #${currentBranchId.value}`,
-        company_name: "",
-      },
-    ];
-  } else {
-    const branches = await branchesApi.plucks();
-    branchOptions.value = (
-      branches as { id: number; name?: string; company_name?: string }[]
-    )
-      .map((b) => ({
-        id: b.id,
-        name: b.name ?? `Filial #${b.id}`,
-        company_name: (b as { company_name?: string }).company_name ?? "",
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
+  branchOptions.value = await loadBranchOptionsByScope({
+    branchScoped: branchScoped.value,
+    currentBranchId: currentBranchId.value,
+    includeCompanyName: true,
+  });
   loadModalityType();
 });
 </script>

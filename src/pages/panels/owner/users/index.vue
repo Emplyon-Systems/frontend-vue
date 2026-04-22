@@ -13,18 +13,22 @@ import type { UserRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { usePanelScope } from "@/composables/usePanelScope";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
-const routeName = computed(() => String(route.name ?? ""));
-const isOwnerWorkspace = computed(() => routeName.value.startsWith("owner.company.workspace"));
-const isCompanyBranchWorkspace = computed(() => routeName.value.startsWith("company.branch."));
-const companyBranchWsId = computed(() =>
-  isCompanyBranchWorkspace.value ? Number(route.params.id ?? 0) : 0,
-);
-const workspaceCompanyId = computed(() => isOwnerWorkspace.value ? Number(route.params.id ?? 0) : 0);
+const userPermissions = useModulePermissions("users");
+const employeePermissions = useModulePermissions("employees");
+const {
+  routeName,
+  isOwnerWorkspace,
+  isCompanyBranchWorkspace,
+  companyBranchWorkspaceId: companyBranchWsId,
+  workspaceCompanyId,
+} = usePanelScope();
 const loading = ref(true);
 const users = ref<UserRecord[]>([]);
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
@@ -65,7 +69,7 @@ const scopedCompanyId = computed(() =>
 );
 /** Alinhado ao meta das rotas `owner.users.*`: permissão OU perfis empresa/filial por slug. */
 const canCreate = computed(() => {
-  if (authStore.hasPermission("users.create")) return true;
+  if (userPermissions.canCreate.value) return true;
   const slugs = (authStore.user?.roles ?? []).map((r) => r.slug ?? "");
   const exact = new Set(["branch_manager", "branch", "filial", "admin", "empresa"]);
   const prefixes = ["gerente-filial", "gerente-c", "empresa-c", "filial-b", "setor-b"];
@@ -119,9 +123,9 @@ const listagemColumns = computed(() => [
 ]);
 const canOpenEmployee = computed(
   () =>
-    authStore.hasPermission("employees.read") ||
-    authStore.hasPermission("employees.index") ||
-    authStore.hasPermission("employees.update")
+    employeePermissions.canRead.value ||
+    employeePermissions.canList.value ||
+    employeePermissions.canUpdate.value
 );
 
 const resultLabel = computed(() => {

@@ -1,3 +1,42 @@
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { buildGroupedReadOnlyModules, type PermissionReadItem } from "@/helpers/permissionModuleGroups";
+
+type PermissionItem = { name: string; slug: string };
+
+const props = withDefaults(
+  defineProps<{
+    permissions?: PermissionItem[];
+    directPermissions?: PermissionItem[];
+  }>(),
+  {
+    permissions: () => [],
+    directPermissions: () => [],
+  }
+);
+const groupOpenState = ref<Record<string, boolean>>({});
+
+function isGroupOpen(moduleName: string): boolean {
+  return groupOpenState.value[moduleName] ?? false;
+}
+
+function onGroupToggle(moduleName: string, event: Event): void {
+  const element = event.target;
+  if (!(element instanceof HTMLDetailsElement)) return;
+  groupOpenState.value[moduleName] = element.open;
+}
+
+const groupedPermissions = computed(() => {
+  const directSlugs = new Set((props.directPermissions ?? []).map((p) => p.slug));
+  const merged: PermissionReadItem[] = [];
+  for (const permission of props.permissions) {
+    if (directSlugs.has(permission.slug)) continue;
+    merged.push({ name: permission.name, slug: permission.slug });
+  }
+  return buildGroupedReadOnlyModules(merged);
+});
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body class="h-100">
@@ -92,42 +131,3 @@
     </b-card>
   </b-col>
 </template>
-
-<script setup lang="ts">
-import { computed, ref } from "vue";
-import { buildGroupedReadOnlyModules, type PermissionReadItem } from "@/helpers/permissionModuleGroups";
-
-type PermissionItem = { name: string; slug: string };
-
-const props = withDefaults(
-  defineProps<{
-    permissions?: PermissionItem[];
-    directPermissions?: PermissionItem[];
-  }>(),
-  {
-    permissions: () => [],
-    directPermissions: () => [],
-  }
-);
-const groupOpenState = ref<Record<string, boolean>>({});
-
-function isGroupOpen(moduleName: string): boolean {
-  return groupOpenState.value[moduleName] ?? false;
-}
-
-function onGroupToggle(moduleName: string, event: Event): void {
-  const element = event.target;
-  if (!(element instanceof HTMLDetailsElement)) return;
-  groupOpenState.value[moduleName] = element.open;
-}
-
-const groupedPermissions = computed(() => {
-  const directSlugs = new Set((props.directPermissions ?? []).map((p) => p.slug));
-  const merged: PermissionReadItem[] = [];
-  for (const permission of props.permissions) {
-    if (directSlugs.has(permission.slug)) continue;
-    merged.push({ name: permission.name, slug: permission.slug });
-  }
-  return buildGroupedReadOnlyModules(merged);
-});
-</script>

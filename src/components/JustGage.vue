@@ -1,13 +1,3 @@
-<template>
-  <component
-    :is="is ?? 'div'"
-    :id="id"
-    class="gauge"
-    :class="className"
-    v-bind="$attrs"
-  ></component>
-</template>
-
 <script setup lang="ts">
 import { onMounted } from "vue";
 import JustGage from "justgage";
@@ -28,3 +18,13 @@ onMounted(() => {
   });
 });
 </script>
+
+<template>
+  <component
+    :is="is ?? 'div'"
+    :id="id"
+    class="gauge"
+    :class="className"
+    v-bind="$attrs"
+  ></component>
+</template>

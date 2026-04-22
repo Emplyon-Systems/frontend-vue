@@ -7,16 +7,17 @@ import ProfilePage from "./profile/index.vue";
 import { employeesApi } from "@/api/resources";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useModulePermissions } from "@/composables/usePermissions";
 import type { EmployeeRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const employeePermissions = useModulePermissions("employees");
 const employeeId = computed(() => Number(route.params.id));
-const routeName = computed(() => String(route.name ?? ""));
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
+const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped } = usePanelScope();
 
 function employeesListRoute() {
   return branchScoped.value ? "branch.employees" : companyScoped.value ? "company.employees" : "owner.employees";
@@ -26,7 +27,7 @@ const loadingEmployee = ref(true);
 const loadError = ref("");
 const employee = ref<EmployeeRecord | null>(null);
 
-const canEdit = computed(() => authStore.hasPermission("employees.update"));
+const canEdit = computed(() => authStore.hasRole("superadmin") || employeePermissions.canUpdate.value);
 
 function back() {
   router.push({ name: employeesListRoute() });

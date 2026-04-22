@@ -9,34 +9,42 @@ import TableActionButtons from "@/components/TableActionButtons.vue";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal.vue";
 import ScaleTypesFilter from "@/views/panels/owner/scale-types/Filter.vue";
 import type { ScaleTypesFilterModel } from "@/views/panels/owner/scale-types/Filter.vue";
-import { scaleTypesApi, branchesApi, companiesApi } from "@/api/resources";
+import { scaleTypesApi } from "@/api/resources";
 import type { ScaleTypeRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useFilterState } from "@/composables/useFilterState";
+import { useListPageState } from "@/composables/useListPageState";
+import { useScopePlucks } from "@/composables/useScopePlucks";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
-const routeName = computed(() => String(route.name ?? ""));
+const { loadBranchOptionsByScope, loadCompanyOptionsByScope } = useScopePlucks();
+const scaleTypePermissions = useModulePermissions("scale_types");
+const {
+  routeName,
+  isOwnerWorkspace,
+  workspaceCompanyId,
+  isCompanyScoped: companyScoped,
+  isBranchScoped: branchScoped,
+  isCompanyFixed,
+  currentBranchId,
+} = usePanelScope();
 const isOwnerScaleTypes = computed(() => routeName.value.startsWith("owner.") && !routeName.value.startsWith("owner.company.workspace"));
-const isOwnerWorkspace = computed(() => routeName.value.startsWith("owner.company.workspace"));
-const workspaceCompanyId = computed(() => isOwnerWorkspace.value ? Number(route.params.id ?? 0) : 0);
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
-const isCompanyFixed = computed(() => isOwnerWorkspace.value || companyScoped.value);
-const currentBranchId = computed(() => {
-  if (!branchScoped.value) return 0;
-  const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
-  if (fromContext > 0) return fromContext;
-  return Number(authStore.user?.branches?.[0]?.id ?? 0);
-});
 const loading = ref(true);
 const scaleTypes = ref<ScaleTypeRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 const branchOptions = ref<Array<{ id: number; name: string; company_id?: number; company_name?: string }>>([]);
-const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
+const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
+  perPage: 15,
+  orderBy: "id",
+  orderDir: "desc",
+});
 const initialFilters = (): ScaleTypesFilterModel => ({
   name: "",
   company_ids: [] as number[],
@@ -45,10 +53,15 @@ const initialFilters = (): ScaleTypesFilterModel => ({
   created_at_until: "",
   per_page: 15,
 });
-const filters = ref<ScaleTypesFilterModel>(initialFilters());
-const appliedFilters = ref<ScaleTypesFilterModel>(initialFilters());
-const orderBy = ref("id");
-const orderDir = ref<"asc" | "desc">("desc");
+const { filters, appliedFilters, hasActiveFilters, applyFilters, resetFilters } = useFilterState(
+  initialFilters,
+  (f) =>
+    !!f.name.trim() ||
+    (f.company_ids?.length ?? 0) > 0 ||
+    (f.branch_ids?.length ?? 0) > 0 ||
+    !!f.created_at_from ||
+    !!f.created_at_until
+);
 
 const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
@@ -61,90 +74,28 @@ const listagemColumns = computed(() => [
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
 const showFilters = ref(false);
-const hasActiveFilters = computed(
-  () =>
-    !!appliedFilters.value.name.trim() ||
-    (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
-    (appliedFilters.value.branch_ids?.length ?? 0) > 0 ||
-    !!appliedFilters.value.created_at_from ||
-    !!appliedFilters.value.created_at_until
-);
-
-const resultLabel = computed(() => {
-  const n = pagination.value.total;
-  if (n === 0) return "Nenhum resultado";
-  if (n === 1) return "1 resultado encontrado";
-  return `${n} resultados encontrados`;
-});
 const isSuperadmin = computed(() => authStore.hasRole("superadmin"));
 const hasScaleTypesAccess = computed(
-  () => isSuperadmin.value || authStore.hasPermission("scale_types.index") || authStore.hasPermission("scale_types.read")
+  () => isSuperadmin.value || scaleTypePermissions.canList.value || scaleTypePermissions.canRead.value
 );
-const canCreate = computed(() => isSuperadmin.value || authStore.hasPermission("scale_types.create"));
-const canRead = computed(() => hasScaleTypesAccess.value || authStore.hasPermission("scale_types.read"));
-const canUpdate = computed(() => hasScaleTypesAccess.value || authStore.hasPermission("scale_types.update"));
-const canDelete = computed(() => hasScaleTypesAccess.value || authStore.hasPermission("scale_types.delete"));
+const canCreate = computed(() => isSuperadmin.value || scaleTypePermissions.canCreate.value);
+const canRead = computed(() => hasScaleTypesAccess.value || scaleTypePermissions.canRead.value);
+const canUpdate = computed(() => hasScaleTypesAccess.value || scaleTypePermissions.canUpdate.value);
+const canDelete = computed(() => hasScaleTypesAccess.value || scaleTypePermissions.canDelete.value);
 
 async function loadPlucks() {
-  if (branchScoped.value && currentBranchId.value > 0) {
-    let branchName =
-      authStore.activeContext?.branch_id === currentBranchId.value
-        ? authStore.activeContext?.branch_name
-        : authStore.user?.branches?.find((b) => b.id === currentBranchId.value)?.name;
-    if (!branchName) {
-      try {
-        const res = await branchesApi.getById(currentBranchId.value);
-        branchName = res.branch?.name ?? `Filial #${currentBranchId.value}`;
-      } catch {
-        branchName = `Filial #${currentBranchId.value}`;
-      }
-    }
-    branchOptions.value = [{
-      id: currentBranchId.value,
-      name: branchName ?? `Filial #${currentBranchId.value}`,
-      company_id: undefined,
-      company_name: "",
-    }];
-    return;
-  }
-  if (isOwnerWorkspace.value && workspaceCompanyId.value > 0) {
-    const branches = await branchesApi.plucks();
-    branchOptions.value = (branches as { id: number; name?: string; company_id?: number; company_name?: string }[])
-      .filter((b) => b.company_id === workspaceCompanyId.value)
-      .map((b) => ({ id: b.id, name: b.name ?? `Filial #${b.id}`, company_id: b.company_id, company_name: "" }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    return;
-  }
+  branchOptions.value = await loadBranchOptionsByScope({
+    branchScoped: branchScoped.value,
+    currentBranchId: currentBranchId.value,
+    workspaceCompanyId: workspaceCompanyId.value,
+    companyIdFilter: !isOwnerScaleTypes.value ? Number(authStore.activeContext?.company_id ?? 0) : 0,
+    includeCompanyName: true,
+  });
   if (isOwnerScaleTypes.value) {
-    const [companies, branches] = await Promise.all([
-      companiesApi.plucks(),
-      branchesApi.plucks(),
-    ]);
-    companyOptions.value = (companies as { id: number; name?: string }[])
-      .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    branchOptions.value = (branches as { id: number; name?: string; company_id?: number; company_name?: string }[])
-      .map((b) => ({
-        id: b.id,
-        name: b.name ?? `Filial #${b.id}`,
-        company_id: b.company_id,
-        company_name: (b as { company_name?: string }).company_name ?? "",
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  } else {
-    const branches = await branchesApi.plucks();
-    let allBranches = (branches as { id: number; name?: string; company_id?: number; company_name?: string }[])
-      .map((b) => ({
-        id: b.id,
-        name: b.name ?? `Filial #${b.id}`,
-        company_id: (b as { company_id?: number }).company_id,
-        company_name: (b as { company_name?: string }).company_name ?? "",
-      }));
-    const companyId = Number(authStore.activeContext?.company_id ?? 0);
-    if (companyId > 0) {
-      allBranches = allBranches.filter((b) => b.company_id != null && b.company_id === companyId);
-    }
-    branchOptions.value = allBranches.sort((a, b) => a.name.localeCompare(b.name));
+    companyOptions.value = await loadCompanyOptionsByScope({
+      companyScoped: false,
+      scopedCompanyId: 0,
+    });
   }
 }
 
@@ -196,17 +147,6 @@ function loadList(page = 1) {
     .finally(() => (loading.value = false));
 }
 
-function applyFilters() {
-  appliedFilters.value = { ...filters.value };
-  loadList(1);
-}
-
-function resetFilters() {
-  filters.value = initialFilters();
-  appliedFilters.value = initialFilters();
-  loadList(1);
-}
-
 function confirmDelete(scaleType: ScaleTypeRecord) {
   deleteId.value = scaleType.id;
   deleteModal.value = true;
@@ -246,13 +186,12 @@ function goEdit(id: number) {
 function onPerPageChange(value: number) {
   appliedFilters.value.per_page = value;
   filters.value.per_page = value;
-  pagination.value.per_page = value;
+  setPerPage(value);
   loadList(1);
 }
 
 function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir: "asc" | "desc" }) {
-  orderBy.value = ob;
-  orderDir.value = od;
+  setSort({ orderBy: ob, orderDir: od });
   loadList(1);
 }
 
@@ -293,8 +232,8 @@ onMounted(async () => {
           :branch-options="branchOptions"
           :show-company-filter="isOwnerScaleTypes && !isCompanyFixed"
           :hide-branch-selector="branchScoped"
-          @apply="applyFilters"
-          @reset="resetFilters"
+          @apply="() => { applyFilters(); loadList(1); }"
+          @reset="() => { resetFilters(); loadList(1); }"
         />
       </UIComponentCard>
 

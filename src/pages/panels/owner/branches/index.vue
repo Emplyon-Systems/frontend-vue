@@ -13,15 +13,32 @@ import type { BranchRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useFilterState } from "@/composables/useFilterState";
+import { useListPageState } from "@/composables/useListPageState";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const branchPermissions = useModulePermissions("branches");
+const {
+  isCompanyScoped: companyScoped,
+  scopedCompanyId,
+  isOwnerWorkspace,
+  workspaceCompanyId,
+  isCompanyFixed,
+  effectiveCompanyId,
+} = usePanelScope();
 const loading = ref(true);
 const branches = ref<BranchRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
-const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
+const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
+  perPage: 15,
+  orderBy: "id",
+  orderDir: "desc",
+});
 const initialFilters = () => ({
   name: "",
   cnpj: "",
@@ -30,21 +47,19 @@ const initialFilters = () => ({
   created_at_until: "",
   per_page: 15,
 });
-const filters = ref(initialFilters());
-const appliedFilters = ref(initialFilters());
-const orderBy = ref("id");
-const orderDir = ref<"asc" | "desc">("desc");
+const { filters, appliedFilters, hasActiveFilters, applyFilters, resetFilters } = useFilterState(
+  initialFilters,
+  (f) =>
+    !!f.name.trim() ||
+    !!f.cnpj.trim() ||
+    (f.company_ids?.length ?? 0) > 0 ||
+    !!f.created_at_from ||
+    !!f.created_at_until
+);
 
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
 const showFilters = ref(false);
-const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
-const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
-const isOwnerWorkspace = computed(() => String(route.name ?? "").startsWith("owner.company.workspace"));
-const workspaceCompanyId = computed(() => isOwnerWorkspace.value ? Number(route.params.id ?? 0) : 0);
-const isCompanyFixed = computed(() => isOwnerWorkspace.value || companyScoped.value);
-const effectiveCompanyId = computed(() => isOwnerWorkspace.value ? workspaceCompanyId.value : scopedCompanyId.value);
-
 const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
@@ -54,27 +69,12 @@ const listagemColumns = computed(() => [
   { key: "state", label: "Estado", sortable: true, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
-const hasActiveFilters = computed(
-  () =>
-    !!appliedFilters.value.name.trim() ||
-    !!appliedFilters.value.cnpj.trim() ||
-    (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
-    !!appliedFilters.value.created_at_from ||
-    !!appliedFilters.value.created_at_until
-);
-
-const resultLabel = computed(() => {
-  const n = pagination.value.total;
-  if (n === 0) return "Nenhum resultado";
-  if (n === 1) return "1 resultado encontrado";
-  return `${n} resultados encontrados`;
-});
-const canCreate = computed(() => authStore.hasPermission("branches.create"));
+const canCreate = branchPermissions.canCreate;
 /** Painel empresa: limite de filiais já atingido (botão desativado). */
 const branchLimitReached = ref(false);
-const canRead = computed(() => authStore.hasPermission("branches.read"));
-const canUpdate = computed(() => authStore.hasPermission("branches.update"));
-const canDelete = computed(() => authStore.hasPermission("branches.delete"));
+const canRead = branchPermissions.canRead;
+const canUpdate = branchPermissions.canUpdate;
+const canDelete = branchPermissions.canDelete;
 
 async function loadCompanyBranchQuota() {
   if (!isCompanyFixed.value || effectiveCompanyId.value <= 0) {
@@ -147,17 +147,6 @@ function loadList(page = 1) {
     .finally(() => (loading.value = false));
 }
 
-function applyFilters() {
-  appliedFilters.value = { ...filters.value };
-  loadList(1);
-}
-
-function resetFilters() {
-  filters.value = initialFilters();
-  appliedFilters.value = initialFilters();
-  loadList(1);
-}
-
 function confirmDelete(branch: BranchRecord) {
   deleteId.value = branch.id;
   deleteModal.value = true;
@@ -207,13 +196,12 @@ function goEdit(id: number) {
 function onPerPageChange(value: number) {
   appliedFilters.value.per_page = value;
   filters.value.per_page = value;
-  pagination.value.per_page = value;
+  setPerPage(value);
   loadList(1);
 }
 
 function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir: "asc" | "desc" }) {
-  orderBy.value = ob;
-  orderDir.value = od;
+  setSort({ orderBy: ob, orderDir: od });
   loadList(1);
 }
 
@@ -256,8 +244,8 @@ onMounted(() => {
           :active="hasActiveFilters"
           :company-options="companyOptions"
           :hide-company-selector="isCompanyFixed"
-          @apply="applyFilters"
-          @reset="resetFilters"
+          @apply="() => { applyFilters(); loadList(1); }"
+          @reset="() => { resetFilters(); loadList(1); }"
         />
       </UIComponentCard>
 

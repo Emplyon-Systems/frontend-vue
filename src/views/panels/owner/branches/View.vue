@@ -4,27 +4,29 @@ import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import ProfilePage from "./profile/index.vue";
-import { branchesApi, companiesApi } from "@/api/resources";
+import { branchesApi } from "@/api/resources";
 import { branchInitialForm, type BranchFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useScopePlucks } from "@/composables/useScopePlucks";
 import type { BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
-const branchScoped = computed(() => String(route.name ?? "").startsWith("branch."));
+const { loadCompanyOptionsByScope } = useScopePlucks();
+const { isBranchScoped: branchScoped, isCompanyScoped: companyScoped, currentBranchId } = usePanelScope();
 const branchId = computed(() => {
   const fromParam = Number(route.params.id);
   if (Number.isFinite(fromParam) && fromParam > 0) return fromParam;
   if (branchScoped.value) {
-    const fromContext = Number(authStore.activeContext?.branch_id ?? authStore.user?.branches?.[0]?.id ?? 0);
+    const fromContext = Number(currentBranchId.value ?? 0);
     return fromContext > 0 ? fromContext : 0;
   }
   return 0;
 });
-const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 /** Resumo da filial com abas horizontais no layout (Setores/Funcionários vêm das tabs superiores). */
 const isCompanyBranchOverview = computed(() => String(route.name ?? "") === "company.branch.overview");
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
@@ -150,15 +152,10 @@ function loadBranch() {
 }
 
 onMounted(async () => {
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
-    companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
-  } else {
-    const companies = await companiesApi.plucks();
-    companyOptions.value = companies
-      .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
+  companyOptions.value = await loadCompanyOptionsByScope({
+    companyScoped: companyScoped.value,
+    scopedCompanyId: scopedCompanyId.value,
+  });
   loadBranch();
 });
 </script>

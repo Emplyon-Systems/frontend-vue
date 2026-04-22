@@ -1,3 +1,55 @@
+<script setup lang="ts">
+import { onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import type { EmployeeRecord } from "@/types/api";
+import ProfileInfo from "./ProfileInfo.vue";
+import PersonalInformation from "./PersonalInformation.vue";
+import AssignmentsTab from "./AssignmentsTab.vue";
+import EmployeePeriodRecordsTab from "./EmployeePeriodRecordsTab.vue";
+import MoreTab from "./MoreTab.vue";
+
+defineProps<{
+  employee: EmployeeRecord;
+  onEdit?: () => void;
+}>();
+
+const TAB_QUERIES = ["pessoal", "assignments", "vacations", "medical", "leaves", "more"] as const;
+
+const route = useRoute();
+const router = useRouter();
+const activeTabIndex = ref(0);
+
+function queryToIndex(tab: string | undefined): number {
+  if (!tab) return 0;
+  const i = TAB_QUERIES.indexOf(tab as (typeof TAB_QUERIES)[number]);
+  return i >= 0 ? i : 0;
+}
+
+onMounted(() => {
+  activeTabIndex.value = queryToIndex(
+    typeof route.query.tab === "string" ? route.query.tab : undefined
+  );
+});
+
+watch(activeTabIndex, (idx) => {
+  const q = TAB_QUERIES[idx];
+  const next = { ...route.query } as Record<string, string | string[] | undefined>;
+  if (idx === 0) {
+    delete next.tab;
+  } else {
+    next.tab = q;
+  }
+  router.replace({ query: next });
+});
+
+watch(
+  () => route.query.tab,
+  (t) => {
+    activeTabIndex.value = queryToIndex(typeof t === "string" ? t : undefined);
+  }
+);
+</script>
+
 <template>
   <div>
     <b-row class="justify-content-center">
@@ -54,54 +106,3 @@
     </b-row>
   </div>
 </template>
-<script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import type { EmployeeRecord } from "@/types/api";
-import ProfileInfo from "./ProfileInfo.vue";
-import PersonalInformation from "./PersonalInformation.vue";
-import AssignmentsTab from "./AssignmentsTab.vue";
-import EmployeePeriodRecordsTab from "./EmployeePeriodRecordsTab.vue";
-import MoreTab from "./MoreTab.vue";
-
-defineProps<{
-  employee: EmployeeRecord;
-  onEdit?: () => void;
-}>();
-
-const TAB_QUERIES = ["pessoal", "assignments", "vacations", "medical", "leaves", "more"] as const;
-
-const route = useRoute();
-const router = useRouter();
-const activeTabIndex = ref(0);
-
-function queryToIndex(tab: string | undefined): number {
-  if (!tab) return 0;
-  const i = TAB_QUERIES.indexOf(tab as (typeof TAB_QUERIES)[number]);
-  return i >= 0 ? i : 0;
-}
-
-onMounted(() => {
-  activeTabIndex.value = queryToIndex(
-    typeof route.query.tab === "string" ? route.query.tab : undefined
-  );
-});
-
-watch(activeTabIndex, (idx) => {
-  const q = TAB_QUERIES[idx];
-  const next = { ...route.query } as Record<string, string | string[] | undefined>;
-  if (idx === 0) {
-    delete next.tab;
-  } else {
-    next.tab = q;
-  }
-  router.replace({ query: next });
-});
-
-watch(
-  () => route.query.tab,
-  (t) => {
-    activeTabIndex.value = queryToIndex(typeof t === "string" ? t : undefined);
-  }
-);
-</script>

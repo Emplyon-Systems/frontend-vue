@@ -1,3 +1,17 @@
+<script setup lang="ts">
+defineProps<{
+  name?: string;
+  cnpj?: string;
+  subtitle?: string;
+  /** URL pública do logo da filial (API). */
+  logoSrc?: string;
+  usersCount?: number;
+  userLimit?: number | null;
+  zipCode?: string;
+  state?: string;
+}>();
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body>
@@ -55,20 +69,6 @@
     </b-card>
   </b-col>
 </template>
-
-<script setup lang="ts">
-defineProps<{
-  name?: string;
-  cnpj?: string;
-  subtitle?: string;
-  /** URL pública do logo da filial (API). */
-  logoSrc?: string;
-  usersCount?: number;
-  userLimit?: number | null;
-  zipCode?: string;
-  state?: string;
-}>();
-</script>
 
 <style scoped>
 .profile-logo-frame {

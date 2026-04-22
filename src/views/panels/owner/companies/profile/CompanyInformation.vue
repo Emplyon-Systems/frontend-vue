@@ -1,3 +1,48 @@
+<script setup lang="ts">
+import { computed } from "vue";
+
+const props = withDefaults(
+  defineProps<{
+    name?: string;
+    cnpj?: string;
+    email?: string;
+    phone?: string;
+    zipCode?: string;
+    street?: string;
+    streetNumber?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    branchesUsed?: number;
+    usersUsed?: number;
+    branchLimit?: number;
+    userLimit?: number;
+    fullWidth?: boolean;
+    onEdit?: () => void;
+  }>(),
+  {
+    fullWidth: false,
+  }
+);
+
+const showUsage = computed(
+  () =>
+    props.branchLimit != null &&
+    props.userLimit != null &&
+    props.branchesUsed != null &&
+    props.usersUsed != null
+);
+
+function pct(used: number | undefined, limit: number | undefined): string {
+  const u = Math.max(0, used ?? 0);
+  const l = Math.max(1, limit ?? 1);
+  return `${Math.min(100, Math.round((u / l) * 100))}%`;
+}
+
+const branchBarWidth = computed(() => pct(props.branchesUsed, props.branchLimit));
+const userBarWidth = computed(() => pct(props.usersUsed, props.userLimit));
+</script>
+
 <template>
   <b-col :cols="fullWidth ? 12 : undefined" :md="fullWidth ? 12 : 4">
     <b-card no-body class="h-100">
@@ -136,47 +181,3 @@
     </b-card>
   </b-col>
 </template>
-<script setup lang="ts">
-import { computed } from "vue";
-
-const props = withDefaults(
-  defineProps<{
-    name?: string;
-    cnpj?: string;
-    email?: string;
-    phone?: string;
-    zipCode?: string;
-    street?: string;
-    streetNumber?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    branchesUsed?: number;
-    usersUsed?: number;
-    branchLimit?: number;
-    userLimit?: number;
-    fullWidth?: boolean;
-    onEdit?: () => void;
-  }>(),
-  {
-    fullWidth: false,
-  }
-);
-
-const showUsage = computed(
-  () =>
-    props.branchLimit != null &&
-    props.userLimit != null &&
-    props.branchesUsed != null &&
-    props.usersUsed != null
-);
-
-function pct(used: number | undefined, limit: number | undefined): string {
-  const u = Math.max(0, used ?? 0);
-  const l = Math.max(1, limit ?? 1);
-  return `${Math.min(100, Math.round((u / l) * 100))}%`;
-}
-
-const branchBarWidth = computed(() => pct(props.branchesUsed, props.branchLimit));
-const userBarWidth = computed(() => pct(props.usersUsed, props.userLimit));
-</script>

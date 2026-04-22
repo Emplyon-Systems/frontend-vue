@@ -137,7 +137,7 @@ onMounted(loadCompany);
         <ImageUploadCard
           class="mb-3"
           title="Logo da empresa"
-          description="Imagem institucional (armazenada na pasta da empresa no object storage)."
+          description="Imagem institucional."
           :preview-url="logoUrl"
           :uploading="logoUploading"
           @select="onLogoSelect"

@@ -1,3 +1,28 @@
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    name?: string;
+    email?: string;
+    roleNames?: string[];
+    companyNames?: string[];
+    branchNames?: string[];
+    sectorNames?: string[];
+    description?: string;
+    showSocial?: boolean;
+    fullWidth?: boolean;
+    onEdit?: () => void;
+  }>(),
+  {
+    roleNames: () => [],
+    companyNames: () => [],
+    branchNames: () => [],
+    sectorNames: () => [],
+    showSocial: false,
+    fullWidth: false,
+  }
+);
+</script>
+
 <template>
   <b-col :cols="fullWidth ? 12 : undefined" :md="fullWidth ? 12 : 4">
     <b-card no-body>
@@ -128,27 +153,3 @@
     </b-card>
   </b-col>
 </template>
-<script setup lang="ts">
-withDefaults(
-  defineProps<{
-    name?: string;
-    email?: string;
-    roleNames?: string[];
-    companyNames?: string[];
-    branchNames?: string[];
-    sectorNames?: string[];
-    description?: string;
-    showSocial?: boolean;
-    fullWidth?: boolean;
-    onEdit?: () => void;
-  }>(),
-  {
-    roleNames: () => [],
-    companyNames: () => [],
-    branchNames: () => [],
-    sectorNames: () => [],
-    showSocial: false,
-    fullWidth: false,
-  }
-);
-</script>

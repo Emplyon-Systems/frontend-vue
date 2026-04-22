@@ -7,6 +7,7 @@ import AppAlert from "@/components/AppAlert.vue";
 import { permissionsApi, roleTemplatesApi } from "@/api/resources";
 import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useModulePermissions } from "@/composables/usePermissions";
 import {
   buildGroupedPermissionModules,
   collectPermissionIdsFromEmployeesSection,
@@ -17,10 +18,11 @@ import {
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const roleTemplatePermissions = useModulePermissions("role_templates");
 const templateId = computed(() => Number(route.params.id));
 
 const canEdit = computed(
-  () => authStore.hasRole("superadmin") || authStore.hasPermission("role_templates.update")
+  () => authStore.hasRole("superadmin") || roleTemplatePermissions.canUpdate.value
 );
 /** Lista «Ver» abre com ?view=1: só leitura mesmo com permissão de atualizar. */
 const isViewMode = computed(() => {

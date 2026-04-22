@@ -1,3 +1,49 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import type { EmployeeRecord } from "@/types/api";
+
+const props = defineProps<{
+  employee: EmployeeRecord;
+  onEdit?: () => void;
+}>();
+
+const companyName = computed(() => props.employee.company?.name?.trim() || "");
+
+const linkedUserLine = computed(() => {
+  const u = props.employee.user;
+  if (!u?.id) return "";
+  const name = (u.name ?? "").trim();
+  const mail = (u.email ?? "").trim();
+  if (name && mail) return `${name} (${mail})`;
+  return name || mail || `ID ${u.id}`;
+});
+
+const hasAddress = computed(() => {
+  const e = props.employee;
+  return !!(
+    e.street ||
+    e.street_number ||
+    e.complement ||
+    e.neighborhood ||
+    e.zip_code ||
+    e.city ||
+    e.state
+  );
+});
+
+const addressBlock = computed(() => {
+  const e = props.employee;
+  const lineStreet = [e.street, e.street_number].filter(Boolean).join(", ");
+  const lineStreetComp = [lineStreet, e.complement].filter(Boolean).join(" — ");
+  const parts = [
+    [lineStreetComp, e.neighborhood].filter(Boolean).join(" — "),
+    [e.city, e.state].filter(Boolean).join(" / "),
+    e.zip_code ? `CEP ${e.zip_code}` : "",
+  ].filter(Boolean);
+  return parts.join(" — ") || "—";
+});
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body>
@@ -51,48 +97,3 @@
     </b-card>
   </b-col>
 </template>
-<script setup lang="ts">
-import { computed } from "vue";
-import type { EmployeeRecord } from "@/types/api";
-
-const props = defineProps<{
-  employee: EmployeeRecord;
-  onEdit?: () => void;
-}>();
-
-const companyName = computed(() => props.employee.company?.name?.trim() || "");
-
-const linkedUserLine = computed(() => {
-  const u = props.employee.user;
-  if (!u?.id) return "";
-  const name = (u.name ?? "").trim();
-  const mail = (u.email ?? "").trim();
-  if (name && mail) return `${name} (${mail})`;
-  return name || mail || `ID ${u.id}`;
-});
-
-const hasAddress = computed(() => {
-  const e = props.employee;
-  return !!(
-    e.street ||
-    e.street_number ||
-    e.complement ||
-    e.neighborhood ||
-    e.zip_code ||
-    e.city ||
-    e.state
-  );
-});
-
-const addressBlock = computed(() => {
-  const e = props.employee;
-  const lineStreet = [e.street, e.street_number].filter(Boolean).join(", ");
-  const lineStreetComp = [lineStreet, e.complement].filter(Boolean).join(" — ");
-  const parts = [
-    [lineStreetComp, e.neighborhood].filter(Boolean).join(" — "),
-    [e.city, e.state].filter(Boolean).join(" / "),
-    e.zip_code ? `CEP ${e.zip_code}` : "",
-  ].filter(Boolean);
-  return parts.join(" — ") || "—";
-});
-</script>

@@ -1,3 +1,42 @@
+<script setup lang="ts">
+import ProfileInfo from "./ProfileInfo.vue";
+import PersonalInformation from "./PersonalInformation.vue";
+import AccessTab from "./AccessTab.vue";
+import PermissionsTab from "./PermissionsTab.vue";
+import type { UserRecord } from "@/types/api";
+
+withDefaults(
+  defineProps<{
+    name?: string;
+    email?: string;
+    subtitle?: string;
+    avatarSrc?: string;
+    roleNames?: string[];
+    companyNames?: string[];
+    branchNames?: string[];
+    sectorNames?: string[];
+    branches?: UserRecord["branches"];
+    sectors?: UserRecord["sectors"];
+    permissions?: Array<{ name: string; slug: string }>;
+    directPermissions?: Array<{ name: string; slug: string }>;
+    description?: string;
+    showSocial?: boolean;
+    onEdit?: () => void;
+  }>(),
+  {
+    roleNames: () => [],
+    companyNames: () => [],
+    branchNames: () => [],
+    sectorNames: () => [],
+    branches: () => [],
+    sectors: () => [],
+    permissions: () => [],
+    directPermissions: () => [],
+    showSocial: false,
+  }
+);
+</script>
+
 <template>
   <div>
     <b-row class="justify-content-center">
@@ -52,41 +91,3 @@
     </b-row>
   </div>
 </template>
-<script setup lang="ts">
-import ProfileInfo from "./ProfileInfo.vue";
-import PersonalInformation from "./PersonalInformation.vue";
-import AccessTab from "./AccessTab.vue";
-import PermissionsTab from "./PermissionsTab.vue";
-import type { UserRecord } from "@/types/api";
-
-withDefaults(
-  defineProps<{
-    name?: string;
-    email?: string;
-    subtitle?: string;
-    avatarSrc?: string;
-    roleNames?: string[];
-    companyNames?: string[];
-    branchNames?: string[];
-    sectorNames?: string[];
-    branches?: UserRecord["branches"];
-    sectors?: UserRecord["sectors"];
-    permissions?: Array<{ name: string; slug: string }>;
-    directPermissions?: Array<{ name: string; slug: string }>;
-    description?: string;
-    showSocial?: boolean;
-    onEdit?: () => void;
-  }>(),
-  {
-    roleNames: () => [],
-    companyNames: () => [],
-    branchNames: () => [],
-    sectorNames: () => [],
-    branches: () => [],
-    sectors: () => [],
-    permissions: () => [],
-    directPermissions: () => [],
-    showSocial: false,
-  }
-);
-</script>

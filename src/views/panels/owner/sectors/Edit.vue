@@ -8,23 +8,14 @@ import { sectorsApi, branchesApi } from "@/api/resources";
 import { sectorInitialForm, validateSectorForm, type SectorFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
-import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const sectorId = computed(() => Number(route.params.id));
-const routeName = computed(() => String(route.name ?? ""));
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
-const currentBranchId = computed(() => {
-  if (!branchScoped.value) return 0;
-  const fromContext = Number(authStore.activeContext?.branch_id ?? 0);
-  if (fromContext > 0) return fromContext;
-  return Number(authStore.user?.branches?.[0]?.id ?? 0);
-});
+const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped, currentBranchId } = usePanelScope();
 
 function sectorsListRoute() {
   return branchScoped.value ? "branch.sectors" : companyScoped.value ? "company.sectors" : "owner.sectors";

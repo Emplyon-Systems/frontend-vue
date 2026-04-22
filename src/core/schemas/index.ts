@@ -1,6 +1,7 @@
 export * from "./branch";
 export * from "./company";
 export * from "./employee";
+export * from "./example";
 export * from "./modality-type";
 export * from "./role";
 export * from "./scale-type";

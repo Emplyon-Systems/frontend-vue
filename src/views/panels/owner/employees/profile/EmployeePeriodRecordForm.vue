@@ -1,44 +1,3 @@
-<template>
-  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
-    <div class="py-4">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-        <div>
-          <h1 class="h4 mb-1">{{ pageTitle }}</h1>
-          <p v-if="employeeName" class="text-muted mb-0 small">{{ employeeName }}</p>
-        </div>
-        <b-button variant="outline-secondary" @click="goBack">Voltar</b-button>
-      </div>
-
-      <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingEmployee" class="text-muted">Carregando…</div>
-
-      <b-card v-else>
-        <b-card-body>
-          <AppAlert v-if="formError" variant="danger" class="mb-3">{{ formError }}</AppAlert>
-
-          <b-form-group label="Data de início" label-for="abs-start">
-            <b-form-input id="abs-start" v-model="form.start_date" type="date" required />
-          </b-form-group>
-          <b-form-group label="Data de término" label-for="abs-end">
-            <b-form-input id="abs-end" v-model="form.end_date" type="date" required />
-          </b-form-group>
-          <p v-if="previewDays != null" class="small text-muted mb-0">
-            Período: <strong>{{ previewDays }}</strong> dia(s) — calculado automaticamente ao salvar.
-          </p>
-          <p v-else class="small text-muted mb-0">Indique início e fim; os dias são calculados no servidor.</p>
-
-          <div class="d-flex gap-2 mt-3">
-            <b-button variant="primary" :disabled="submitting" @click="submit">
-              {{ submitting ? "Salvando…" : "Salvar" }}
-            </b-button>
-            <b-button variant="outline-secondary" @click="goBack">Cancelar</b-button>
-          </div>
-        </b-card-body>
-      </b-card>
-    </div>
-  </component>
-</template>
-
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -245,3 +204,44 @@ onMounted(async () => {
   }
 });
 </script>
+
+<template>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div class="py-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+          <h1 class="h4 mb-1">{{ pageTitle }}</h1>
+          <p v-if="employeeName" class="text-muted mb-0 small">{{ employeeName }}</p>
+        </div>
+        <b-button variant="outline-secondary" @click="goBack">Voltar</b-button>
+      </div>
+
+      <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
+      <div v-else-if="loadingEmployee" class="text-muted">Carregando…</div>
+
+      <b-card v-else>
+        <b-card-body>
+          <AppAlert v-if="formError" variant="danger" class="mb-3">{{ formError }}</AppAlert>
+
+          <b-form-group label="Data de início" label-for="abs-start">
+            <b-form-input id="abs-start" v-model="form.start_date" type="date" required />
+          </b-form-group>
+          <b-form-group label="Data de término" label-for="abs-end">
+            <b-form-input id="abs-end" v-model="form.end_date" type="date" required />
+          </b-form-group>
+          <p v-if="previewDays != null" class="small text-muted mb-0">
+            Período: <strong>{{ previewDays }}</strong> dia(s) — calculado automaticamente ao salvar.
+          </p>
+          <p v-else class="small text-muted mb-0">Indique início e fim; os dias são calculados no servidor.</p>
+
+          <div class="d-flex gap-2 mt-3">
+            <b-button variant="primary" :disabled="submitting" @click="submit">
+              {{ submitting ? "Salvando…" : "Salvar" }}
+            </b-button>
+            <b-button variant="outline-secondary" @click="goBack">Cancelar</b-button>
+          </div>
+        </b-card-body>
+      </b-card>
+    </div>
+  </component>
+</template>

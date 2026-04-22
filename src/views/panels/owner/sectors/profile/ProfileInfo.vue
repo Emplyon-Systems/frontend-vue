@@ -1,3 +1,16 @@
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    name?: string;
+    subtitle?: string;
+    usersCount?: number;
+    branchName?: string;
+    hideBranchContext?: boolean;
+  }>(),
+  { hideBranchContext: false }
+);
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body>
@@ -42,16 +55,3 @@
     </b-card>
   </b-col>
 </template>
-
-<script setup lang="ts">
-withDefaults(
-  defineProps<{
-    name?: string;
-    subtitle?: string;
-    usersCount?: number;
-    branchName?: string;
-    hideBranchContext?: boolean;
-  }>(),
-  { hideBranchContext: false }
-);
-</script>

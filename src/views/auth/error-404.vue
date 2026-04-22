@@ -1,3 +1,9 @@
+<script setup lang="ts">
+import error from "@/assets/images/extra/error.svg";
+
+import AuthLayout from "@/layouts/AuthLayout.vue";
+</script>
+
 <template>
   <AuthLayout>
     <b-col lg="4" class="mx-auto">
@@ -27,8 +33,3 @@
     </b-col>
   </AuthLayout>
 </template>
-<script setup lang="ts">
-import error from "@/assets/images/extra/error.svg";
-
-import AuthLayout from "@/layouts/AuthLayout.vue";
-</script>

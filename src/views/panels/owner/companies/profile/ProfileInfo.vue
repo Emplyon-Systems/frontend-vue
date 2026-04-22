@@ -1,3 +1,35 @@
+<script setup lang="ts">
+import { computed } from "vue";
+
+const props = defineProps<{
+  name?: string;
+  email?: string;
+  subtitle?: string;
+  logoSrc?: string;
+  usersCount?: number;
+  sectorsCount?: number;
+  branchesCount?: number;
+  branchesUsed?: number;
+  usersUsed?: number;
+  branchLimit?: number;
+  userLimit?: number;
+}>();
+
+const usersDisplay = computed(() => {
+  if (props.userLimit != null && props.usersUsed != null) {
+    return `${props.usersUsed} / ${props.userLimit}`;
+  }
+  return String(props.usersCount ?? 0);
+});
+
+const branchesDisplay = computed(() => {
+  if (props.branchLimit != null && props.branchesUsed != null) {
+    return `${props.branchesUsed} / ${props.branchLimit}`;
+  }
+  return String(props.branchesCount ?? 0);
+});
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body>
@@ -56,37 +88,6 @@
     </b-card>
   </b-col>
 </template>
-<script setup lang="ts">
-import { computed } from "vue";
-
-const props = defineProps<{
-  name?: string;
-  email?: string;
-  subtitle?: string;
-  logoSrc?: string;
-  usersCount?: number;
-  sectorsCount?: number;
-  branchesCount?: number;
-  branchesUsed?: number;
-  usersUsed?: number;
-  branchLimit?: number;
-  userLimit?: number;
-}>();
-
-const usersDisplay = computed(() => {
-  if (props.userLimit != null && props.usersUsed != null) {
-    return `${props.usersUsed} / ${props.userLimit}`;
-  }
-  return String(props.usersCount ?? 0);
-});
-
-const branchesDisplay = computed(() => {
-  if (props.branchLimit != null && props.branchesUsed != null) {
-    return `${props.branchesUsed} / ${props.branchLimit}`;
-  }
-  return String(props.branchesCount ?? 0);
-});
-</script>
 
 <style scoped>
 .profile-logo-frame {

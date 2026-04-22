@@ -1,48 +1,3 @@
-<template>
-  <div>
-    <AppAlert v-if="listError" variant="danger" class="mb-3" dismissible @dismissed="listError = ''">
-      {{ listError }}
-    </AppAlert>
-
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-      <p class="text-muted small mb-0">{{ description }}</p>
-      <b-button v-if="canRegister" size="sm" variant="primary" @click="goCreate">Novo</b-button>
-    </div>
-
-    <ListagemCard
-      :columns="columns"
-      :data="rows"
-      :loading="loading"
-      :pagination="pagination"
-      :per-page-options="[5, 10, 15]"
-      :result-label="resultLabel"
-      :has-active-filters="false"
-      :empty-message="emptyMessage"
-      result-badge-class="result-badge-default"
-      @update:per-page="onPerPageChange"
-      @update:page="onPageChange"
-    >
-      <template #row="{ item }">
-        <b-tr>
-          <b-td>{{ formatDate((item as Row).start_date) }}</b-td>
-          <b-td>{{ formatDate((item as Row).end_date) }}</b-td>
-          <b-td>{{ (item as Row).total_period_days }}</b-td>
-          <b-td v-if="canEditRows" class="text-end text-nowrap">
-            <b-button size="sm" variant="outline-primary" class="me-1" @click="goEdit(item as Row)">
-              Editar
-            </b-button>
-            <b-button size="sm" variant="outline-danger" @click="askDelete(item as Row)">Excluir</b-button>
-          </b-td>
-        </b-tr>
-      </template>
-    </ListagemCard>
-
-    <b-modal v-model="showDelete" title="Confirmar" ok-variant="danger" ok-title="Excluir" @ok="confirmDelete">
-      <p class="mb-0">Excluir este registro? Esta ação não pode ser desfeita.</p>
-    </b-modal>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -246,3 +201,48 @@ onMounted(() => {
   loadList();
 });
 </script>
+
+<template>
+  <div>
+    <AppAlert v-if="listError" variant="danger" class="mb-3" dismissible @dismissed="listError = ''">
+      {{ listError }}
+    </AppAlert>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <p class="text-muted small mb-0">{{ description }}</p>
+      <b-button v-if="canRegister" size="sm" variant="primary" @click="goCreate">Novo</b-button>
+    </div>
+
+    <ListagemCard
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :pagination="pagination"
+      :per-page-options="[5, 10, 15]"
+      :result-label="resultLabel"
+      :has-active-filters="false"
+      :empty-message="emptyMessage"
+      result-badge-class="result-badge-default"
+      @update:per-page="onPerPageChange"
+      @update:page="onPageChange"
+    >
+      <template #row="{ item }">
+        <b-tr>
+          <b-td>{{ formatDate((item as Row).start_date) }}</b-td>
+          <b-td>{{ formatDate((item as Row).end_date) }}</b-td>
+          <b-td>{{ (item as Row).total_period_days }}</b-td>
+          <b-td v-if="canEditRows" class="text-end text-nowrap">
+            <b-button size="sm" variant="outline-primary" class="me-1" @click="goEdit(item as Row)">
+              Editar
+            </b-button>
+            <b-button size="sm" variant="outline-danger" @click="askDelete(item as Row)">Excluir</b-button>
+          </b-td>
+        </b-tr>
+      </template>
+    </ListagemCard>
+
+    <b-modal v-model="showDelete" title="Confirmar" ok-variant="danger" ok-title="Excluir" @ok="confirmDelete">
+      <p class="mb-0">Excluir este registro? Esta ação não pode ser desfeita.</p>
+    </b-modal>
+  </div>
+</template>

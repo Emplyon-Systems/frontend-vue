@@ -1,3 +1,13 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import { currentYear } from "@/helpers/constants";
+import { useAuthStore } from "@/stores/auth";
+
+const auth = useAuthStore();
+/** Mesmo critério da rota da documentação (`panel: owner` / superadmin). */
+const showDocLink = computed(() => auth.hasRole("superadmin"));
+</script>
+
 <template>
   <footer class="footer text-center text-sm-start d-print-none">
     <div class="container-xxl">
@@ -30,12 +40,3 @@
     </div>
   </footer>
 </template>
-<script setup lang="ts">
-import { computed } from "vue";
-import { currentYear } from "@/helpers/constants";
-import { useAuthStore } from "@/stores/auth";
-
-const auth = useAuthStore();
-/** Mesmo critério da rota da documentação (`panel: owner` / superadmin). */
-const showDocLink = computed(() => auth.hasRole("superadmin"));
-</script>

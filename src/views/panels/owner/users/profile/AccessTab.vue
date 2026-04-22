@@ -1,3 +1,26 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import type { UserRecord } from "@/types/api";
+
+const props = defineProps<{
+  branches?: UserRecord["branches"];
+  sectors?: UserRecord["sectors"];
+}>();
+
+const accessColumns = [
+  { key: "setor", label: "Setor", sortable: false },
+  { key: "filial", label: "Filial", sortable: false },
+];
+
+const sectorsWithBranch = computed(() =>
+  (props.sectors ?? []).map((s) => ({
+    id: s.id,
+    name: s.name ?? `Setor #${s.id}`,
+    branchName: s.branch?.name ?? null,
+  }))
+);
+</script>
+
 <template>
   <div>
     <b-card no-body class="mb-3">
@@ -45,26 +68,3 @@
     </b-card>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from "vue";
-import type { UserRecord } from "@/types/api";
-
-const props = defineProps<{
-  branches?: UserRecord["branches"];
-  sectors?: UserRecord["sectors"];
-}>();
-
-const accessColumns = [
-  { key: "setor", label: "Setor", sortable: false },
-  { key: "filial", label: "Filial", sortable: false },
-];
-
-const sectorsWithBranch = computed(() =>
-  (props.sectors ?? []).map((s) => ({
-    id: s.id,
-    name: s.name ?? `Setor #${s.id}`,
-    branchName: s.branch?.name ?? null,
-  }))
-);
-</script>

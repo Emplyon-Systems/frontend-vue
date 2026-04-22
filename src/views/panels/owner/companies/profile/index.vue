@@ -1,3 +1,37 @@
+<script setup lang="ts">
+import ProfileInfo from "./ProfileInfo.vue";
+import CompanyInformation from "./CompanyInformation.vue";
+import CompanyUsersTab from "./CompanyUsersTab.vue";
+import CompanyBranchesTab from "./CompanyBranchesTab.vue";
+import type { CompanyRecord } from "@/types/api";
+
+defineProps<{
+  name?: string;
+  cnpj?: string;
+  email?: string;
+  phone?: string;
+  zipCode?: string;
+  street?: string;
+  streetNumber?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  users?: CompanyRecord["users"];
+  branches?: CompanyRecord["branches"];
+  usersCount?: number;
+  sectorsCount?: number;
+  branchesCount?: number;
+  branchesUsed?: number;
+  usersUsed?: number;
+  branchLimit?: number;
+  userLimit?: number;
+  subtitle?: string;
+  /** Logo da empresa (URL pública). */
+  logoSrc?: string;
+  onEdit?: () => void;
+}>();
+</script>
+
 <template>
   <div>
     <b-row class="justify-content-center">
@@ -56,36 +90,3 @@
     </b-row>
   </div>
 </template>
-<script setup lang="ts">
-import ProfileInfo from "./ProfileInfo.vue";
-import CompanyInformation from "./CompanyInformation.vue";
-import CompanyUsersTab from "./CompanyUsersTab.vue";
-import CompanyBranchesTab from "./CompanyBranchesTab.vue";
-import type { CompanyRecord } from "@/types/api";
-
-defineProps<{
-  name?: string;
-  cnpj?: string;
-  email?: string;
-  phone?: string;
-  zipCode?: string;
-  street?: string;
-  streetNumber?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  users?: CompanyRecord["users"];
-  branches?: CompanyRecord["branches"];
-  usersCount?: number;
-  sectorsCount?: number;
-  branchesCount?: number;
-  branchesUsed?: number;
-  usersUsed?: number;
-  branchLimit?: number;
-  userLimit?: number;
-  subtitle?: string;
-  /** Logo da empresa (URL pública). */
-  logoSrc?: string;
-  onEdit?: () => void;
-}>();
-</script>

@@ -1,3 +1,131 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
+import simplebar from "simplebar-vue";
+import DropDown from "@/components/DropDown.vue";
+import { useLayoutStore } from "@/stores/layout";
+import { useAuthStore } from "@/stores/auth";
+import { getPanelHomeForUser } from "@/config/panels";
+
+const show = ref("all-tab");
+const authStore = useAuthStore();
+
+const myProfileRoute = computed(() => {
+  const path = getPanelHomeForUser(authStore.user, authStore.activeContext) || "/";
+  if (path.startsWith("/company")) return { name: "company.my-profile.view" };
+  if (path.startsWith("/branch")) return { name: "branch.my-profile.view" };
+  if (path.startsWith("/employee")) return { name: "employee.my-profile.view" };
+  return { name: "owner.my-profile.view" };
+});
+const welcomeText = computed(() => {
+  const options = authStore.getContextOptions();
+  const ctx = authStore.activeContext ?? (options.length === 1 ? options[0] : null);
+
+  if (ctx) {
+    const contextName =
+      (ctx.branch_id != null
+        ? (ctx.branch_name ?? "").trim()
+        : (ctx.company_name ?? "").trim()) || ctx.label;
+    return `Bem Vindo, ${contextName}!`;
+  }
+
+  const name = authStore.user?.name || authStore.user?.email || "Usuário";
+  return `Bem Vindo, ${name}!`;
+});
+
+function isActiveContext(ctx: { company_id: number; branch_id?: number | null }) {
+  const ac = authStore.activeContext;
+  if (!ac) return false;
+  return ac.company_id === ctx.company_id && (ac.branch_id ?? null) === (ctx.branch_id ?? null);
+}
+
+function switchContext(ctx: { company_id: number; branch_id?: number | null; label: string }) {
+  authStore.selectContext(ctx);
+  const path = getPanelHomeForUser(authStore.user, ctx) || "/";
+  if (window.location.pathname !== path) {
+    window.location.href = path;
+  }
+}
+const useLayout = useLayoutStore();
+const { layout, setLeftSideBarSize } = useLayout;
+
+const toggleTheme = () => {
+  if (useLayout.layout.theme === "light") {
+    return useLayout.setTheme("dark");
+  }
+  useLayout.setTheme("light");
+};
+
+const toggleLeftSideBar = () => {
+  if (useLayout.layout.leftSideBarSize === "default") {
+    return useLayout.setLeftSideBarSize("collapsed");
+  }
+  if (useLayout.layout.leftSideBarSize === "collapsed") {
+    return useLayout.setLeftSideBarSize("default");
+  }
+};
+
+const resize = () => {
+  if (window.innerWidth < 1441) {
+    setLeftSideBarSize("collapsed");
+  } else {
+    setLeftSideBarSize(
+      layout.leftSideBarSize === "collapsed"
+        ? "default"
+        : layout.leftSideBarSize,
+    );
+  }
+};
+
+import usFlag from "@/assets/images/flags/us_flag.jpg";
+import spainFlag from "@/assets/images/flags/spain_flag.jpg";
+import germanyFlag from "@/assets/images/flags/germany_flag.jpg";
+import frenchFlag from "@/assets/images/flags/french_flag.jpg";
+import avatar1 from "@/assets/images/users/avatar-1.jpg";
+
+const windowScroll = () => {
+  const navbar = document.getElementById("topbar-custom");
+  if (navbar) {
+    if (
+      document.body.scrollTop >= 50 ||
+      document.documentElement.scrollTop >= 50
+    ) {
+      navbar.classList.add("nav-sticky");
+    } else {
+      navbar.classList.remove("nav-sticky");
+    }
+  }
+};
+
+const leftSideBarClick = () => {
+  window.addEventListener("click", (e: any) => {
+    const startbar = document.getElementById("startbar");
+    const togglemenu = document.getElementById("togglemenu");
+    if (!(startbar && startbar.contains(e.target))) {
+      if (window.innerWidth < 1441) {
+        if (togglemenu && togglemenu.contains(e.target)) {
+          setLeftSideBarSize("default");
+        } else {
+          setLeftSideBarSize("collapsed");
+        }
+      }
+    }
+  });
+};
+
+onMounted(() => {
+  useLayout.init();
+  resize();
+  window.addEventListener("scroll", (ev) => {
+    ev.preventDefault();
+    windowScroll();
+  });
+  window.addEventListener("resize", () => {
+    resize();
+  });
+  leftSideBarClick();
+});
+</script>
+
 <template>
   <div class="topbar d-print-none">
     <div class="container-xxl">
@@ -435,130 +563,3 @@
     </div>
   </div>
 </template>
-<script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import simplebar from "simplebar-vue";
-import DropDown from "@/components/DropDown.vue";
-import { useLayoutStore } from "@/stores/layout";
-import { useAuthStore } from "@/stores/auth";
-import { getPanelHomeForUser } from "@/config/panels";
-
-const show = ref("all-tab");
-const authStore = useAuthStore();
-
-const myProfileRoute = computed(() => {
-  const path = getPanelHomeForUser(authStore.user, authStore.activeContext) || "/";
-  if (path.startsWith("/company")) return { name: "company.my-profile.view" };
-  if (path.startsWith("/branch")) return { name: "branch.my-profile.view" };
-  if (path.startsWith("/employee")) return { name: "employee.my-profile.view" };
-  return { name: "owner.my-profile.view" };
-});
-const welcomeText = computed(() => {
-  const options = authStore.getContextOptions();
-  const ctx = authStore.activeContext ?? (options.length === 1 ? options[0] : null);
-
-  if (ctx) {
-    const contextName =
-      (ctx.branch_id != null
-        ? (ctx.branch_name ?? "").trim()
-        : (ctx.company_name ?? "").trim()) || ctx.label;
-    return `Bem Vindo, ${contextName}!`;
-  }
-
-  const name = authStore.user?.name || authStore.user?.email || "Usuário";
-  return `Bem Vindo, ${name}!`;
-});
-
-function isActiveContext(ctx: { company_id: number; branch_id?: number | null }) {
-  const ac = authStore.activeContext;
-  if (!ac) return false;
-  return ac.company_id === ctx.company_id && (ac.branch_id ?? null) === (ctx.branch_id ?? null);
-}
-
-function switchContext(ctx: { company_id: number; branch_id?: number | null; label: string }) {
-  authStore.selectContext(ctx);
-  const path = getPanelHomeForUser(authStore.user, ctx) || "/";
-  if (window.location.pathname !== path) {
-    window.location.href = path;
-  }
-}
-const useLayout = useLayoutStore();
-const { layout, setLeftSideBarSize } = useLayout;
-
-const toggleTheme = () => {
-  if (useLayout.layout.theme === "light") {
-    return useLayout.setTheme("dark");
-  }
-  useLayout.setTheme("light");
-};
-
-const toggleLeftSideBar = () => {
-  if (useLayout.layout.leftSideBarSize === "default") {
-    return useLayout.setLeftSideBarSize("collapsed");
-  }
-  if (useLayout.layout.leftSideBarSize === "collapsed") {
-    return useLayout.setLeftSideBarSize("default");
-  }
-};
-
-const resize = () => {
-  if (window.innerWidth < 1441) {
-    setLeftSideBarSize("collapsed");
-  } else {
-    setLeftSideBarSize(
-      layout.leftSideBarSize === "collapsed"
-        ? "default"
-        : layout.leftSideBarSize,
-    );
-  }
-};
-
-import usFlag from "@/assets/images/flags/us_flag.jpg";
-import spainFlag from "@/assets/images/flags/spain_flag.jpg";
-import germanyFlag from "@/assets/images/flags/germany_flag.jpg";
-import frenchFlag from "@/assets/images/flags/french_flag.jpg";
-import avatar1 from "@/assets/images/users/avatar-1.jpg";
-
-const windowScroll = () => {
-  const navbar = document.getElementById("topbar-custom");
-  if (navbar) {
-    if (
-      document.body.scrollTop >= 50 ||
-      document.documentElement.scrollTop >= 50
-    ) {
-      navbar.classList.add("nav-sticky");
-    } else {
-      navbar.classList.remove("nav-sticky");
-    }
-  }
-};
-
-const leftSideBarClick = () => {
-  window.addEventListener("click", (e: any) => {
-    const startbar = document.getElementById("startbar");
-    const togglemenu = document.getElementById("togglemenu");
-    if (!(startbar && startbar.contains(e.target))) {
-      if (window.innerWidth < 1441) {
-        if (togglemenu && togglemenu.contains(e.target)) {
-          setLeftSideBarSize("default");
-        } else {
-          setLeftSideBarSize("collapsed");
-        }
-      }
-    }
-  });
-};
-
-onMounted(() => {
-  useLayout.init();
-  resize();
-  window.addEventListener("scroll", (ev) => {
-    ev.preventDefault();
-    windowScroll();
-  });
-  window.addEventListener("resize", () => {
-    resize();
-  });
-  leftSideBarClick();
-});
-</script>

@@ -4,104 +4,67 @@
  */
 
 import http from "@/helpers/http-client";
-import type { ApiPaginated, ApiResponse, UserRecord } from "@/types/api";
+import type {
+  SyntheticEmailPreviewPayload,
+  SyntheticEmailPreviewResponse,
+  UserCreatePayload,
+  UserCreateResponse,
+  UserGetResponse,
+  UserRemoveResponse,
+  UserUpdatePayload,
+  UserUpdateResponse,
+  UsersListParams,
+  UsersListResponse,
+  UsersPlucksResponse,
+} from "@/types/api/resources/users";
 
 const base = "/users";
 
-export interface UsersListParams {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  status?: "active" | "inactive";
-  created_at_from?: string;
-  created_at_until?: string;
-  role_id?: number;
-  company_id?: number;
-  company_ids?: number[];
-  branch_id?: number;
-  branch_ids?: number[];
-  sector_ids?: number[];
-  /** Só usuárioes sem registro de funcionário (ou ver `except_employee_user_id`) */
-  without_employee?: boolean | number;
-  /** Incluir este usuário na lista mesmo já tendo funcionário (ex.: edição do próprio vínculo) */
-  except_employee_user_id?: number;
-  order_by?: string;
-  order_dir?: "asc" | "desc";
-}
-
-export interface UserCreatePayload {
-  name: string;
-  email: string;
-  password: string;
-  status?: "active" | "inactive";
-  roles?: number[];
-  company_ids?: number[];
-  branch_ids?: number[];
-  sector_ids?: number[];
-  direct_permission_ids?: number[];
-}
-
-export interface UserUpdatePayload {
-  name?: string;
-  email?: string;
-  password?: string;
-  status?: "active" | "inactive";
-  roles?: number[];
-  company_ids?: number[];
-  branch_ids?: number[];
-  sector_ids?: number[];
-  direct_permission_ids?: number[];
-}
+export type {
+  UsersListParams,
+  UserCreatePayload,
+  UserUpdatePayload,
+  SyntheticEmailPreviewPayload,
+  UsersPlucksResponse,
+  UsersListResponse,
+  UserGetResponse,
+  UserCreateResponse,
+  UserUpdateResponse,
+  UserRemoveResponse,
+  SyntheticEmailPreviewResponse,
+} from "@/types/api/resources/users";
 
 export async function list(params?: UsersListParams) {
-  const res = await http.post<ApiResponse & { users: ApiPaginated<UserRecord> }>(base, params ?? {});
+  const res = await http.post<UsersListResponse>(base, params ?? {});
   return res.data;
 }
 
 export async function getById(id: number | string) {
-  const res = await http.get<ApiResponse & { user: UserRecord }>(`${base}/${id}`);
+  const res = await http.get<UserGetResponse>(`${base}/${id}`);
   return res.data;
 }
 
-export interface SyntheticEmailPreviewPayload {
-  branch_id: number;
-  sector_id?: number;
-  sector_name?: string;
-  role_ids?: number[];
-}
-
 export async function syntheticEmailPreview(payload: SyntheticEmailPreviewPayload) {
-  const res = await http.post<
-    ApiResponse & { preview?: { email: string; local: string; domain: string } }
-  >(`${base}/synthetic-email-preview`, payload);
+  const res = await http.post<SyntheticEmailPreviewResponse>(`${base}/synthetic-email-preview`, payload);
   return res.data;
 }
 
 export async function create(payload: UserCreatePayload) {
-  const res = await http.post<ApiResponse & { user: UserRecord }>(`${base}/create`, payload);
+  const res = await http.post<UserCreateResponse>(`${base}/create`, payload);
   return res.data;
 }
 
 export async function update(id: number | string, payload: UserUpdatePayload) {
-  const res = await http.put<ApiResponse & { user: UserRecord }>(`${base}/${id}`, payload);
+  const res = await http.put<UserUpdateResponse>(`${base}/${id}`, payload);
   return res.data;
 }
 
 export async function remove(id: number | string) {
-  const res = await http.delete<ApiResponse>(`${base}/${id}`);
+  const res = await http.delete<UserRemoveResponse>(`${base}/${id}`);
   return res.data;
 }
 
-export async function plucks() {
-  const res = await http.get<
-    ApiResponse & {
-      plucks: {
-        users?: { id: number; name?: string; email?: string }[];
-        roles?: { id: number; name?: string; slug?: string }[];
-        companies?: { id: number; name?: string; cnpj?: string; internal_email_domain?: string }[];
-        branches?: { id: number; company_id?: number; name?: string; cnpj?: string }[];
-      };
-    }
-  >(`${base}/plucks`);
+export async function plucks(): Promise<UsersPlucksResponse["plucks"]> {
+  const res = await http.get<UsersPlucksResponse>(`${base}/plucks`);
   return res.data.plucks ?? {};
 }
