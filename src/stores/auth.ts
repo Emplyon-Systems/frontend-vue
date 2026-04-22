@@ -92,79 +92,8 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  /** Copia sessão antiga (sessionStorage) para localStorage, uma vez por browser. */
-  function migrateAuthFromSessionStorage() {
-    if (localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN)) return;
-    const tok = sessionStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
-    if (!tok) return;
-    const u = sessionStorage.getItem(AUTH_STORAGE_KEYS.USER);
-    const ctx = sessionStorage.getItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
-    if (u) localStorage.setItem(AUTH_STORAGE_KEYS.USER, u);
-    localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, tok);
-    if (ctx) localStorage.setItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT, ctx);
-    sessionStorage.removeItem(AUTH_STORAGE_KEYS.USER);
-    sessionStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
-    sessionStorage.removeItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
-  }
-
-  let storageListenerRegistered = false;
-
-  /** Quando outra guia faz logout (remove token), esta guia alinha o estado. */
-  function registerCrossTabAuthSync() {
-    if (storageListenerRegistered || typeof window === "undefined") return;
-    storageListenerRegistered = true;
-    window.addEventListener("storage", (e) => {
-      if (e.key !== AUTH_STORAGE_KEYS.TOKEN) return;
-      if (e.newValue !== null) return;
-      clearSession();
-      if (router.currentRoute.value.matched.some((r) => r.meta.authRequired)) {
-        router.replace({ name: "auth.sign-in" });
-      }
-    });
-  }
-
-  /** Inicializa a partir do localStorage (ao carregar a app; partilhado entre guias) */
-  function hydrate() {
-    migrateAuthFromSessionStorage();
-    registerCrossTabAuthSync();
-    try {
-      const rawUser = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
-      const rawToken = localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
-      const rawContext = localStorage.getItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
-      if (rawUser) {
-        const parsed = JSON.parse(rawUser) as User;
-        user.value = slimUserForSession(parsed);
-        localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(user.value));
-      }
-      if (rawToken) token.value = rawToken;
-      if (rawContext) activeContext.value = JSON.parse(rawContext) as AuthContext;
-      getContextOptions();
-    } catch {
-      clearSession();
-    }
-  }
-
-  function saveSession(newUser: User, newToken: string) {
-    const slim = slimUserForSession(newUser);
-    user.value = slim;
-    token.value = newToken;
-    activeContext.value = null;
-    localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(slim));
-    localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, newToken);
-    localStorage.removeItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
-  }
-
-  function clearSession() {
-    user.value = null;
-    token.value = null;
-    clearActiveContext();
-    localStorage.removeItem(AUTH_STORAGE_KEYS.USER);
-    localStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
-  }
-
-  /** Opções de contexto (empresas e filiais) para o usuário. */
-  function getContextOptions(): AuthContext[] {
-    const u = user.value;
+  /** Calcula opções de contexto sem efeitos colaterais. */
+  function buildContextOptions(u: User | null): AuthContext[] {
     if (!u) return [];
     const options: AuthContext[] = [];
     const seen = new Set<string>();
@@ -253,9 +182,83 @@ export const useAuthStore = defineStore("auth", () => {
       }
     }
 
-    const sorted = options.sort((a, b) => a.label.localeCompare(b.label));
-    syncActiveContext(sorted);
-    return sorted;
+    return options.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  /** Copia sessão antiga (sessionStorage) para localStorage, uma vez por browser. */
+  function migrateAuthFromSessionStorage() {
+    if (localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN)) return;
+    const tok = sessionStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
+    if (!tok) return;
+    const u = sessionStorage.getItem(AUTH_STORAGE_KEYS.USER);
+    const ctx = sessionStorage.getItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
+    if (u) localStorage.setItem(AUTH_STORAGE_KEYS.USER, u);
+    localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, tok);
+    if (ctx) localStorage.setItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT, ctx);
+    sessionStorage.removeItem(AUTH_STORAGE_KEYS.USER);
+    sessionStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
+    sessionStorage.removeItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
+  }
+
+  let storageListenerRegistered = false;
+
+  /** Quando outra guia faz logout (remove token), esta guia alinha o estado. */
+  function registerCrossTabAuthSync() {
+    if (storageListenerRegistered || typeof window === "undefined") return;
+    storageListenerRegistered = true;
+    window.addEventListener("storage", (e) => {
+      if (e.key !== AUTH_STORAGE_KEYS.TOKEN) return;
+      if (e.newValue !== null) return;
+      clearSession();
+      if (router.currentRoute.value.matched.some((r) => r.meta.authRequired)) {
+        router.replace({ name: "auth.sign-in" });
+      }
+    });
+  }
+
+  /** Inicializa a partir do localStorage (ao carregar a app; partilhado entre guias) */
+  function hydrate() {
+    migrateAuthFromSessionStorage();
+    registerCrossTabAuthSync();
+    try {
+      const rawUser = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+      const rawToken = localStorage.getItem(AUTH_STORAGE_KEYS.TOKEN);
+      const rawContext = localStorage.getItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser) as User;
+        user.value = slimUserForSession(parsed);
+        localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(user.value));
+      }
+      if (rawToken) token.value = rawToken;
+      if (rawContext) activeContext.value = JSON.parse(rawContext) as AuthContext;
+      syncActiveContext(buildContextOptions(user.value));
+    } catch {
+      clearSession();
+    }
+  }
+
+  function saveSession(newUser: User, newToken: string) {
+    const slim = slimUserForSession(newUser);
+    user.value = slim;
+    token.value = newToken;
+    activeContext.value = null;
+    localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(slim));
+    localStorage.setItem(AUTH_STORAGE_KEYS.TOKEN, newToken);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.ACTIVE_CONTEXT);
+    syncActiveContext(buildContextOptions(user.value));
+  }
+
+  function clearSession() {
+    user.value = null;
+    token.value = null;
+    clearActiveContext();
+    localStorage.removeItem(AUTH_STORAGE_KEYS.USER);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
+  }
+
+  /** Opções de contexto (empresas e filiais) para o usuário. */
+  function getContextOptions(): AuthContext[] {
+    return buildContextOptions(user.value);
   }
 
   function hasMultipleContexts(): boolean {
