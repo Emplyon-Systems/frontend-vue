@@ -321,14 +321,14 @@ onBeforeUnmount(() => {
     <b-tabs v-if="useEditTabs" content-class="pt-2">
       <b-tab title="Dados cadastrais">
     <b-row>
-      <b-col md="6">
+      <b-col v-if="!isCompanyLocked" md="12">
         <b-form-group label-for="branch-company-id" class="mb-3">
           <template #label>Empresa vinculada <span class="text-danger">*</span></template>
           <select
             id="branch-company-id"
             ref="companySelectRef"
             class="form-select"
-            :disabled="isView || isCompanyLocked"
+            :disabled="isView"
             :class="{ 'is-invalid': !!errors.company_id }"
             @change="onCompanyChange"
           >
@@ -345,6 +345,9 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.company_id">{{ errors.company_id }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
+    </b-row>
+
+    <b-row>
       <b-col md="6">
         <b-form-group label-for="branch-name" class="mb-3">
           <template #label>Nome <span class="text-danger">*</span></template>
@@ -359,9 +362,6 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-    </b-row>
-
-    <b-row>
       <b-col md="6">
         <b-form-group label-for="branch-cnpj" class="mb-3">
           <template #label>CNPJ <span class="text-danger">*</span></template>
@@ -376,7 +376,10 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.cnpj">{{ errors.cnpj }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="6">
+    </b-row>
+
+    <b-row>
+      <b-col md="3">
         <b-form-group label-for="branch-zip" class="mb-3">
           <template #label>CEP <span class="text-danger">*</span></template>
           <b-input-group>
@@ -401,10 +404,7 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.zip_code">{{ errors.zip_code }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-    </b-row>
-
-    <b-row>
-      <b-col md="8">
+      <b-col md="9">
         <b-form-group label-for="branch-street" class="mb-3">
           <template #label>Logradouro <span class="text-danger">*</span></template>
           <b-form-input
@@ -418,7 +418,10 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.street">{{ errors.street }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="4">
+    </b-row>
+
+    <b-row>
+      <b-col md="2">
         <b-form-group label-for="branch-street-number" class="mb-3">
           <template #label>Número <span class="text-danger">*</span></template>
           <b-form-input
@@ -433,9 +436,6 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.street_number">{{ errors.street_number }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-    </b-row>
-
-    <b-row>
       <b-col md="4">
         <b-form-group label-for="branch-neighborhood" class="mb-3">
           <template #label>Bairro <span class="text-danger">*</span></template>
@@ -464,7 +464,7 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.city">{{ errors.city }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="4">
+      <b-col md="2">
         <b-form-group label-for="branch-state" class="mb-3">
           <template #label>Estado (UF) <span class="text-danger">*</span></template>
           <b-form-input
@@ -494,14 +494,14 @@ onBeforeUnmount(() => {
     </b-tabs>
     <template v-else>
       <b-row>
-        <b-col md="6">
+        <b-col v-if="!isCompanyLocked" md="12">
           <b-form-group label-for="branch-company-id-else" class="mb-3">
             <template #label>Empresa vinculada <span class="text-danger">*</span></template>
             <select
               id="branch-company-id-else"
               ref="companySelectRef"
               class="form-select"
-              :disabled="isView || isCompanyLocked"
+              :disabled="isView"
               :class="{ 'is-invalid': !!errors.company_id }"
               @change="onCompanyChange"
             >
@@ -518,6 +518,9 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors.company_id">{{ errors.company_id }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
+      </b-row>
+
+      <b-row>
         <b-col md="6">
           <b-form-group label-for="branch-name-else" class="mb-3">
             <template #label>Nome <span class="text-danger">*</span></template>
@@ -532,9 +535,6 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-      </b-row>
-
-      <b-row>
         <b-col md="6">
           <b-form-group label-for="branch-cnpj-else" class="mb-3">
             <template #label>CNPJ <span class="text-danger">*</span></template>
@@ -549,7 +549,10 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors.cnpj">{{ errors.cnpj }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-        <b-col md="6">
+      </b-row>
+
+      <b-row>
+        <b-col md="3">
           <b-form-group label-for="branch-zip-else" class="mb-3">
             <template #label>CEP <span class="text-danger">*</span></template>
             <b-input-group>
@@ -574,10 +577,7 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors.zip_code">{{ errors.zip_code }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-      </b-row>
-
-      <b-row>
-        <b-col md="8">
+        <b-col md="9">
           <b-form-group label-for="branch-street-else" class="mb-3">
             <template #label>Logradouro <span class="text-danger">*</span></template>
             <b-form-input
@@ -591,7 +591,10 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors.street">{{ errors.street }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-        <b-col md="4">
+      </b-row>
+
+      <b-row>
+        <b-col md="2">
           <b-form-group label-for="branch-street-number-else" class="mb-3">
             <template #label>Número <span class="text-danger">*</span></template>
             <b-form-input
@@ -606,9 +609,6 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors.street_number">{{ errors.street_number }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-      </b-row>
-
-      <b-row>
         <b-col md="4">
           <b-form-group label-for="branch-neighborhood-else" class="mb-3">
             <template #label>Bairro <span class="text-danger">*</span></template>
@@ -637,7 +637,7 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors.city">{{ errors.city }}</b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-        <b-col md="4">
+        <b-col md="2">
           <b-form-group label-for="branch-state-else" class="mb-3">
             <template #label>Estado (UF) <span class="text-danger">*</span></template>
             <b-form-input

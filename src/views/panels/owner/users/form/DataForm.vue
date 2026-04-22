@@ -179,10 +179,24 @@ const resolvedSingleTenantCompanyName = computed((): string | null => {
 /** E-mail em duas partes: só a parte local é editável; @domínio vem do banco. */
 const useSplitTenantEmail = computed(() => Boolean(tenantDomainNormalized.value) && !isView);
 
-/** Cadastro na filial com domínio sintético: setor obrigatório e e-mail definido pelo servidor (pré-visualização via API). */
+const selectedSingleBranchId = computed<number | null>(() => {
+  if (props.fixedBranchId != null) return Number(props.fixedBranchId);
+  const branchIds = (props.modelValue.branch_ids ?? []).filter((id) => Number.isFinite(id) && id > 0);
+  if (branchIds.length !== 1) return null;
+  return Number(branchIds[0]);
+});
+
+/** Cadastro com uma única filial + domínio sintético: setor obrigatório e e-mail definido pelo servidor (pré-visualização via API). */
 const branchContextSyntheticEmail = computed(
-  () => isCreate && props.fixedBranchId != null && useSplitTenantEmail.value
+  () => isCreate && selectedSingleBranchId.value != null && useSplitTenantEmail.value
 );
+
+/** Em criação com domínio fixo, só exibe e-mail quando houver filial única + setor. */
+const mustSelectBranchAndSectorBeforeEmail = computed(() => {
+  if (!isCreate || !useSplitTenantEmail.value) return false;
+  if (selectedSingleBranchId.value == null) return true;
+  return !primarySectorForSyntheticEmail.value;
+});
 
 function normalizeSectorToEmailLocal(value: string): string {
   return String(value ?? "")
@@ -195,11 +209,11 @@ function normalizeSectorToEmailLocal(value: string): string {
 /** Primeiro setor na ordem de atribuição (`sector_ids`) define a parte local do e-mail sintético. */
 const primarySectorForSyntheticEmail = computed(() => {
   const ids = props.modelValue.sector_ids ?? [];
-  const fid = props.fixedBranchId;
-  if (!ids.length || fid == null) return null;
+  const bid = selectedSingleBranchId.value;
+  if (!ids.length || bid == null) return null;
   const byId = new Map(
     props.sectorOptions
-      .filter((s) => Number(s.branch_id) === Number(fid))
+      .filter((s) => Number(s.branch_id) === Number(bid))
       .map((s) => [s.id, s])
   );
   for (const id of ids) {
@@ -218,7 +232,7 @@ async function runBranchSyntheticPreview() {
     branchSyntheticPreviewEmail.value = "";
     return;
   }
-  const bid = props.fixedBranchId;
+  const bid = selectedSingleBranchId.value;
   const sector = primarySectorForSyntheticEmail.value;
   if (bid == null || !sector) {
     branchSyntheticPreviewEmail.value = "";
@@ -271,7 +285,7 @@ watch(
     [
       branchContextSyntheticEmail.value,
       tenantDomainNormalized.value,
-      props.fixedBranchId,
+      selectedSingleBranchId.value,
       primarySectorForSyntheticEmail.value?.id,
     ] as const,
   () => {
@@ -281,18 +295,19 @@ watch(
 );
 
 const layoutOrder = computed(() => {
-  const syn = branchContextSyntheticEmail.value;
   return {
-    name: "order-1",
-    /** Mesma linha que setores: e-mail à esquerda (vem primeiro no DOM). */
-    email: syn ? "order-2" : "order-2",
-    sectors: syn ? "order-2" : "order-8",
+    /** Sempre no topo: contexto antes dos dados pessoais. */
+    branch: "order-1",
+    sectors: "order-1",
+    /** Nome e e-mail sempre abaixo de Filial/Setores. */
+    name: "order-2",
+    email: "order-2",
     /** Linha seguinte: senhas lado a lado. */
-    pwd: syn ? "order-3" : "order-3",
-    pwd2: syn ? "order-3" : "order-4",
-    company: syn ? "order-4" : "order-5",
-    companyEmpty: syn ? "order-4" : "order-5",
-    branch: syn ? "order-5" : "order-6",
+    pwd: "order-3",
+    pwd2: "order-3",
+    /** Empresa (quando visível) depois dos dados principais. */
+    company: "order-4",
+    companyEmpty: "order-4",
   };
 });
 
@@ -467,6 +482,26 @@ const groupedPermissions = computed((): UserPermissionGroup[] => {
     return { ...g, sections, checked: g.selected, extras };
   });
 });
+
+const selectedRolesSignature = computed(() =>
+  [...(props.modelValue.roles ?? [])]
+    .filter((id) => Number.isFinite(id) && id > 0)
+    .sort((a, b) => a - b)
+    .join(",")
+);
+
+watch(
+  [selectedRolesSignature, groupedPermissions],
+  () => {
+    const nextState: Record<string, boolean> = {};
+    for (const group of groupedPermissions.value) {
+      // Ao trocar/selecionar perfil, abre apenas módulos com permissões do perfil/utilizador.
+      nextState[group.moduleName] = (group.checked ?? 0) > 0 || (group.extras ?? 0) > 0;
+    }
+    moduleOpenState.value = nextState;
+  },
+  { immediate: true }
+);
 
 function isInheritedPermission(permissionId: number): boolean {
   return inheritedPermissionIds.value.has(permissionId);
@@ -791,7 +826,7 @@ function generateRandomPassword(length = 12): void {
     <b-tabs v-model="activeTabIndex" content-class="pt-3">
       <b-tab title="Informações pessoais">
         <b-row class="flex-wrap user-form-personal-grid">
-          <b-col :md="branchContextSyntheticEmail ? 12 : 6" :class="layoutOrder.name">
+          <b-col md="6" :class="layoutOrder.name">
             <b-form-group label="Nome" label-for="user-name" class="mb-3">
               <b-form-input
                 id="user-name"
@@ -811,6 +846,25 @@ function generateRandomPassword(length = 12): void {
               class="mb-3"
             >
               <template v-if="branchContextSyntheticEmail && useSplitTenantEmail">
+                <template v-if="mustSelectBranchAndSectorBeforeEmail">
+                  <b-input-group>
+                    <b-form-input
+                      id="user-email-local-pending"
+                      model-value="-"
+                      type="text"
+                      readonly
+                      disabled
+                      class="bg-body-secondary user-select-all"
+                    />
+                    <b-input-group-text class="text-body-secondary user-select-all">
+                      @{{ tenantEmailDomain }}
+                    </b-input-group-text>
+                  </b-input-group>
+                  <p class="form-text mb-0 fs-13">
+                    Defina 1 filial e pelo menos 1 setor antes de preencher o e-mail.
+                  </p>
+                </template>
+                <template v-else>
                 <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
                   <label
                     class="form-label fw-semibold mb-0"
@@ -840,8 +894,9 @@ function generateRandomPassword(length = 12): void {
                   </b-input-group-text>
                 </b-input-group>
                 <p class="form-text mb-0 fs-13">E-mail gerado automaticamente.</p>
+                </template>
               </template>
-              <template v-else-if="useSplitTenantEmail">
+              <template v-else-if="useSplitTenantEmail && !mustSelectBranchAndSectorBeforeEmail">
                 <b-input-group>
                   <b-form-input
                     id="user-email-local"
@@ -857,6 +912,19 @@ function generateRandomPassword(length = 12): void {
                 </b-input-group>
                 <b-form-text class="d-block">
                   O domínio é fixo para esta empresa. Digite só o nome antes do @.
+                </b-form-text>
+              </template>
+              <template v-else-if="mustSelectBranchAndSectorBeforeEmail">
+                <b-form-input
+                  id="user-email-pending"
+                  model-value="-"
+                  type="text"
+                  readonly
+                  disabled
+                  class="bg-body-secondary"
+                />
+                <b-form-text class="d-block">
+                  Selecione filial e setor para gerar o e-mail automático.
                 </b-form-text>
               </template>
               <template v-else>
@@ -967,7 +1035,7 @@ function generateRandomPassword(length = 12): void {
           </b-col>
           <b-col
             v-if="!fixedBranchId"
-            :md="showCompanySelector ? 6 : 12"
+            :md="(modelValue.branch_ids ?? []).length ? 6 : (showCompanySelector ? 6 : 12)"
             :class="layoutOrder.branch"
           >
             <b-form-group label="Filial" class="mb-3">
@@ -1014,7 +1082,7 @@ function generateRandomPassword(length = 12): void {
           </b-col>
           <b-col
             v-if="(modelValue.branch_ids ?? []).length && sectorOptions.length"
-            :md="branchContextSyntheticEmail ? 6 : 12"
+            :md="6"
             :class="layoutOrder.sectors"
           >
             <b-form-group class="mb-3">
@@ -1069,7 +1137,7 @@ function generateRandomPassword(length = 12): void {
           </b-col>
           <b-col
             v-else-if="(modelValue.branch_ids ?? []).length && !sectorOptions.length"
-            md="12"
+            md="6"
             :class="layoutOrder.sectors"
           >
             <b-form-group label="Setores" class="mb-3">

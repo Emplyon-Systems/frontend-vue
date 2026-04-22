@@ -167,6 +167,8 @@ watch(
 );
 
 const showSetupWizard = ref(false);
+const branchSetupWizardRef = ref<{ skipSetup: () => Promise<void> } | null>(null);
+const branchSetupDismissed = ref(false);
 
 async function loadData() {
   loadError.value = "";
@@ -183,11 +185,12 @@ async function loadData() {
     ]);
     branch.value  = branchRes.branch ?? null;
     sectors.value = sectorsRes;
-    if (!branch.value) {
-      loadError.value = "Filial não encontrada.";
-    } else if (!branch.value.setup_completed_at) {
-      showSetupWizard.value = true;
-    }
+    showSetupWizard.value = Boolean(
+      branch.value &&
+      !branch.value.setup_completed_at &&
+      !branchSetupDismissed.value
+    );
+    if (!branch.value) loadError.value = "Filial não encontrada.";
   } catch {
     loadError.value = "Não foi possível carregar os dados da filial.";
   } finally {
@@ -196,8 +199,18 @@ async function loadData() {
 }
 
 function onSetupCompleted() {
+  branchSetupDismissed.value = false;
   showSetupWizard.value = false;
   loadData();
+}
+
+function onSetupSkipped() {
+  branchSetupDismissed.value = true;
+  showSetupWizard.value = false;
+}
+
+function onSkipBranchSetupOutsideModal() {
+  void branchSetupWizardRef.value?.skipSetup();
 }
 
 onMounted(loadData);
@@ -205,9 +218,19 @@ onMounted(loadData);
 
 <template>
   <DefaultLayout>
+    <div v-if="showSetupWizard" class="setup-skip-outside">
+      <b-button variant="outline-light" size="sm" @click="onSkipBranchSetupOutsideModal">
+        Pular configuração inicial
+      </b-button>
+    </div>
 
     <!-- Wizard de configuração inicial (modal sobre o dashboard) -->
-    <BranchSetupWizard v-if="showSetupWizard" @completed="onSetupCompleted" />
+    <BranchSetupWizard
+      v-if="showSetupWizard"
+      ref="branchSetupWizardRef"
+      @completed="onSetupCompleted"
+      @skipped="onSetupSkipped"
+    />
 
     <div class="py-4">
 
@@ -509,3 +532,12 @@ onMounted(loadData);
     </div>
   </DefaultLayout>
 </template>
+
+<style scoped>
+.setup-skip-outside {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1070;
+}
+</style>

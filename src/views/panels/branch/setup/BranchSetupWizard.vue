@@ -6,7 +6,7 @@ import { generateSecureRandomPassword } from "@/helpers/generate-password";
 import { notifySuccess } from "@/helpers/notify";
 import type { BranchScheduleRulePayloadItem } from "@/api/resources/branches";
 
-const emit = defineEmits<{ (e: "completed"): void }>();
+const emit = defineEmits<{ (e: "completed" | "skipped"): void }>();
 
 const authStore = useAuthStore();
 
@@ -246,6 +246,13 @@ function prev() {
   if (currentStep.value > 1) { currentStep.value--; saveError.value = ""; }
 }
 
+async function skipSetup() {
+  if (saving.value) return;
+  saveError.value = "";
+  notifySuccess("Configuração inicial da filial ignorada por agora.");
+  emit("skipped");
+}
+
 async function finish() {
   if (stepError.value || !branchId.value) return;
   saving.value = true;
@@ -305,6 +312,10 @@ async function finish() {
     saving.value = false;
   }
 }
+
+defineExpose({
+  skipSetup,
+});
 </script>
 
 <template>
@@ -649,7 +660,6 @@ async function finish() {
     <!-- ── Footer ── -->
     <template #footer>
       <div class="d-flex align-items-center justify-content-between w-100">
-        <!-- Voltar -->
         <b-button
           variant="link"
           class="text-muted text-decoration-none ps-0 fw-semibold"

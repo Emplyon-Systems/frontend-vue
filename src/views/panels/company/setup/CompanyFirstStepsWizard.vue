@@ -12,7 +12,7 @@ import {
 } from "@/core/schemas";
 
 const props = defineProps<{ companyId: number }>();
-const emit = defineEmits<{ (e: "completed"): void }>();
+const emit = defineEmits<{ (e: "completed" | "skipped"): void }>();
 
 const TOTAL_STEPS = 2;
 const currentStep = ref(1);
@@ -134,6 +134,26 @@ function applyGeneratedManagerPassword(): void {
 
 const tenantEmailDomain = ref<string | null>(null);
 
+function extractEmailDomain(emailLike: string | null | undefined): string {
+  const raw = String(emailLike ?? "").trim().toLowerCase();
+  if (!raw) return "";
+  const at = raw.lastIndexOf("@");
+  if (at < 0) return "";
+  const host = raw.slice(at + 1).trim();
+  if (!host || !host.includes(".")) return "";
+  return host;
+}
+
+function buildDomainFromCompanyName(nameLike: string | null | undefined): string {
+  const base = String(nameLike ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+  if (!base) return "";
+  return `${base}.com`;
+}
+
 async function refreshBranchOrderIndex(): Promise<void> {
   const bid = createdBranchId.value;
   if (props.companyId <= 0) {
@@ -187,7 +207,10 @@ async function loadCompany() {
   try {
     const res = await companiesApi.getById(props.companyId);
     company.value = res.company ?? null;
-    tenantEmailDomain.value = (res.company?.internal_email_domain ?? "").trim() || null;
+    const internalDomain = (res.company?.internal_email_domain ?? "").trim().toLowerCase();
+    const fallbackEmailDomain = extractEmailDomain(res.company?.email);
+    const fallbackCompanyDomain = buildDomainFromCompanyName(res.company?.name);
+    tenantEmailDomain.value = internalDomain || fallbackCompanyDomain || fallbackEmailDomain || null;
     branchForm.company_id = props.companyId;
 
     const existing = company.value?.branches?.[0];
@@ -339,6 +362,13 @@ function goPrev() {
   }
 }
 
+async function skipSetup() {
+  if (saving.value) return;
+  saveError.value = "";
+  notifySuccess("Primeiros passos ignorados por agora.");
+  emit("skipped");
+}
+
 async function finish() {
   if (stepError.value) return;
 
@@ -408,6 +438,10 @@ async function finish() {
     saving.value = false;
   }
 }
+
+defineExpose({
+  skipSetup,
+});
 </script>
 
 <template>

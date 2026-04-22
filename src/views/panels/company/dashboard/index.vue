@@ -150,6 +150,8 @@ watch(
 async function loadData() {
   loadError.value = "";
   loading.value = true;
+  company.value = null;
+  sectorsTotal.value = 0;
   if (!companyId.value) {
     loadError.value = "Empresa não identificada no contexto.";
     loading.value = false;
@@ -164,6 +166,7 @@ async function loadData() {
     sectorsTotal.value = sectorsRes?.sectors?.total ?? 0;
     if (!company.value) loadError.value = "Empresa não encontrada.";
   } catch {
+    company.value = null;
     loadError.value = "Não foi possível carregar os dados da empresa.";
   } finally {
     loading.value = false;
@@ -171,11 +174,28 @@ async function loadData() {
 }
 
 const showCompanyFirstSteps = computed(
-  () => Boolean(company.value && !company.value.setup_completed_at && companyId.value > 0)
+  () =>
+    Boolean(
+      company.value &&
+      !company.value.setup_completed_at &&
+      companyId.value > 0 &&
+      !companySetupDismissed.value
+    )
 );
+const companyFirstStepsWizardRef = ref<{ skipSetup: () => Promise<void> } | null>(null);
+const companySetupDismissed = ref(false);
 
 function onCompanyFirstStepsCompleted() {
+  companySetupDismissed.value = false;
   loadData();
+}
+
+function onCompanyFirstStepsSkipped() {
+  companySetupDismissed.value = true;
+}
+
+function onSkipCompanyFirstStepsOutsideModal() {
+  void companyFirstStepsWizardRef.value?.skipSetup();
 }
 
 onMounted(loadData);
@@ -183,11 +203,18 @@ onMounted(loadData);
 
 <template>
   <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div v-if="showCompanyFirstSteps" class="setup-skip-outside">
+      <b-button variant="outline-light" size="sm" @click="onSkipCompanyFirstStepsOutsideModal">
+        Pular primeiros passos
+      </b-button>
+    </div>
 
     <CompanyFirstStepsWizard
       v-if="showCompanyFirstSteps"
+      ref="companyFirstStepsWizardRef"
       :company-id="companyId"
       @completed="onCompanyFirstStepsCompleted"
+      @skipped="onCompanyFirstStepsSkipped"
     />
 
     <div class="py-4">
@@ -493,3 +520,12 @@ onMounted(loadData);
     </div>
   </component>
 </template>
+
+<style scoped>
+.setup-skip-outside {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1070;
+}
+</style>

@@ -40,19 +40,21 @@ const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors(
 const companyOptions = ref<Array<{ id: number; name: string; internal_email_domain?: string }>>([]);
 const branchOptions = ref<Array<{ id: number; name: string; company_id?: number }>>([]);
 const userOptions = ref<Array<{ id: number; name: string; email: string }>>([]);
-const branchUserFlow = computed(() => branchScoped.value);
-const userAccessMode = ref<"link" | "create">("link");
+const accessAccountFlow = computed(() => branchScoped.value || companyScoped.value);
+const branchUserFlow = computed(() => accessAccountFlow.value);
+const userAccessMode = ref<"link" | "create">(accessAccountFlow.value ? "create" : "link");
 const newUserPassword = ref("");
 const newUserPasswordConfirm = ref("");
 const newUserRoleId = ref(0);
 const roleOptions = ref<Array<{ id: number; name: string }>>([]);
+const roleOptionsLoading = ref(false);
 
 const userLimitReached = ref(false);
 const companyLimitChecked = ref(false);
 const linkUsersLoading = ref(false);
 
 async function refreshCompanyUserLimit() {
-  if (!branchScoped.value) {
+  if (!accessAccountFlow.value) {
     companyLimitChecked.value = true;
     userLimitReached.value = false;
     return;
@@ -105,7 +107,7 @@ async function refreshUserOptions() {
 }
 
 const branchAccessAccountState = computed(() => {
-  if (!branchScoped.value) return "normal" as const;
+  if (!accessAccountFlow.value) return "normal" as const;
   const cid = Number(form.value.company_id ?? 0);
   if (cid <= 0) return "normal" as const;
   if (!companyLimitChecked.value || linkUsersLoading.value) return "pending" as const;
@@ -116,7 +118,7 @@ const branchAccessAccountState = computed(() => {
 
 /** Chave primitiva: evita reexecutar a cada tecla (getter com objeto novo disparava o watch sempre). */
 const employeeUserOptionsWatchKey = () =>
-  `${form.value.company_id}|${branchScoped.value ? 1 : 0}|${currentBranchId.value}|${userAccessMode.value}`;
+  `${form.value.company_id}|${accessAccountFlow.value ? 1 : 0}|${currentBranchId.value}|${userAccessMode.value}`;
 
 watch(
   employeeUserOptionsWatchKey,
@@ -129,7 +131,7 @@ watch(
       }
     }
     await refreshCompanyUserLimit();
-    if (branchScoped.value && userLimitReached.value) {
+    if (accessAccountFlow.value && userLimitReached.value) {
       userAccessMode.value = "link";
     }
     await refreshUserOptions();
@@ -138,10 +140,43 @@ watch(
 );
 
 watch(userAccessMode, (m) => {
-  if (branchScoped.value && m === "create") {
+  if (accessAccountFlow.value && m === "create") {
     form.value.user_id = 0;
   }
 });
+
+const primaryAssignmentBranchId = computed(() => {
+  const rows = form.value.assignments ?? [];
+  const primary = rows.find((a) => !!a.is_primary) ?? rows[0];
+  return Number(primary?.branch_id ?? 0);
+});
+
+watch(
+  () => [accessAccountFlow.value, userAccessMode.value, primaryAssignmentBranchId.value] as const,
+  async ([flowEnabled, mode, branchId]) => {
+    if (!flowEnabled || mode !== "create") {
+      roleOptions.value = [];
+      return;
+    }
+    if (branchId <= 0) {
+      roleOptions.value = [];
+      return;
+    }
+    roleOptionsLoading.value = true;
+    try {
+      const pl = await rolesApi.plucks({ branch_id: branchId });
+      roleOptions.value = pl.map((r) => ({ id: r.id, name: r.name }));
+      if (newUserRoleId.value > 0 && !roleOptions.value.some((r) => r.id === newUserRoleId.value)) {
+        newUserRoleId.value = 0;
+      }
+    } catch {
+      roleOptions.value = [];
+    } finally {
+      roleOptionsLoading.value = false;
+    }
+  },
+  { immediate: true }
+);
 
 function primeBranchEmployeeCreateContext() {
   if (!branchScoped.value || currentBranchId.value <= 0) return;
@@ -213,7 +248,7 @@ function cancel() {
 
 function submit() {
   resetErrors();
-  if (branchScoped.value && userAccessMode.value === "link") {
+  if (accessAccountFlow.value && userAccessMode.value === "link") {
     const uid = Number(form.value.user_id ?? 0);
     if (uid <= 0) {
       errors.value = { ...errors.value, user_id: "Selecione um usuário ou crie uma conta." };
@@ -237,7 +272,7 @@ function submit() {
   }
   const d = validation.data;
 
-  if (branchScoped.value) {
+  if (accessAccountFlow.value) {
     if (branchAccessAccountState.value === "blocked") {
       notifyError(
         "Não é possível concluir o cadastro: limite de usuárioes atingido e nenhum usuário disponível para vínculo nesta filial. Contacte a empresa Matriz."
@@ -267,8 +302,8 @@ function submit() {
         return;
       }
       const primary = d.assignments.find((a) => a.is_primary) ?? d.assignments[0];
-      if (!primary || primary.sector_id <= 0) {
-        errors.value = { ...errors.value, assignments: "Selecione o setor na filial." };
+      if (!primary || primary.branch_id <= 0 || primary.sector_id <= 0) {
+        errors.value = { ...errors.value, assignments: "Selecione a filial e o setor principal." };
         return;
       }
       let userIdCreatedForRollback: number | null = null;
@@ -279,7 +314,7 @@ function submit() {
           email: d.email.trim(),
           password: newUserPassword.value,
           roles: [newUserRoleId.value],
-          branch_ids: [currentBranchId.value],
+          branch_ids: [primary.branch_id],
           sector_ids: [primary.sector_id],
         })
         .then((res) => {
@@ -358,12 +393,6 @@ function submit() {
 
 onMounted(async () => {
   if (branchScoped.value && currentBranchId.value > 0) {
-    try {
-      const pl = await rolesApi.plucks({ branch_id: currentBranchId.value });
-      roleOptions.value = pl.map((r) => ({ id: r.id, name: r.name }));
-    } catch {
-      roleOptions.value = [];
-    }
     let branchName =
       authStore.activeContext?.branch_id === currentBranchId.value
         ? authStore.activeContext?.branch_name
@@ -405,6 +434,24 @@ onMounted(async () => {
       .filter((b) => b.company_id === lockCompanyId.value)
       .map((b) => ({ id: b.id, name: b.name ?? `Filial #${b.id}`, company_id: b.company_id }))
       .sort((a, b) => a.name.localeCompare(b.name));
+    try {
+      const cr = await companiesApi.getById(lockCompanyId.value);
+      const c = cr.company;
+      companyOptions.value = [
+        {
+          id: lockCompanyId.value,
+          name: c?.name?.trim() || authStore.user?.companies?.[0]?.name || `Empresa #${lockCompanyId.value}`,
+          internal_email_domain: c?.internal_email_domain?.trim(),
+        },
+      ];
+    } catch {
+      companyOptions.value = [
+        {
+          id: lockCompanyId.value,
+          name: authStore.user?.companies?.[0]?.name || `Empresa #${lockCompanyId.value}`,
+        },
+      ];
+    }
     return;
   }
   const [companies, branches] = await Promise.all([companiesApi.plucks(), branchesApi.plucks()]);

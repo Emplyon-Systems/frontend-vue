@@ -103,15 +103,33 @@ const resolvedTenantEmailDomain = computed((): string | null => {
   return null;
 });
 
+const shouldRequireSectorForSyntheticEmail = computed(() => {
+  if (!resolvedTenantEmailDomain.value) return false;
+  if (fixedBranchId.value) return true;
+  return selectedBranchIds.value.length === 1;
+});
+
 function cancel() {
   router.push({ name: "owner.users" });
 }
 
 function submit() {
   resetErrors();
+  const hasSelectedProfiles = (form.value.roles?.length ?? 0) > 0;
+  const hasSelectedDirectPermissions = (form.value.direct_permission_ids?.length ?? 0) > 0;
+  if (!hasSelectedProfiles && !hasSelectedDirectPermissions) {
+    errors.value = {
+      ...errors.value,
+      roles: "Selecione pelo menos um perfil ou uma permissão individual na aba Permissões.",
+    };
+    bumpSubmitAttempt();
+    notifyError(errors.value.roles);
+    return;
+  }
+
   const validation = validateUserForm(form.value, "create", {
     tenantEmailDomain: resolvedTenantEmailDomain.value,
-    requireSectorIds: Boolean(fixedBranchId.value && resolvedTenantEmailDomain.value),
+    requireSectorIds: shouldRequireSectorForSyntheticEmail.value,
   });
   if (!validation.success) {
     onClientValidationFailed(validation.errors);

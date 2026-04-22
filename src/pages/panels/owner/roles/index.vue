@@ -251,15 +251,9 @@ onMounted(async () => {
             <b-td>{{ (item as RoleRecord).branch?.name ?? "Nível empresa" }}</b-td>
             <b-td>{{ (item as RoleRecord).description || "—" }}</b-td>
             <b-td>
-              <span v-if="(item as RoleRecord).permissions?.length">
-                <b-badge
-                  v-for="p in (item as RoleRecord).permissions"
-                  :key="p.id"
-                  variant="info"
-                  class="me-1"
-                >
-                  {{ p.slug }}
-                </b-badge>
+              <span v-if="(item as RoleRecord).permissions?.length" class="fw-semibold">
+                {{ (item as RoleRecord).permissions?.length }}
+                {{ (item as RoleRecord).permissions?.length === 1 ? "permissão" : "permissões" }}
               </span>
               <span v-else class="text-muted">—</span>
             </b-td>

@@ -87,6 +87,7 @@ let zipLookupDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 /** Ver/ocultar senhas ao criar usuário no fluxo filial. */
 const showNewUserPassword = ref(false);
 const isView = computed(() => props.mode === "view");
+const isCreate = computed(() => props.mode === "create");
 /** Asterisco em campos obrigatórios (criar/editar). */
 const req = computed(() => !isView.value);
 const reqCompany = computed(() => req.value && !isCompanyLocked.value);
@@ -173,7 +174,11 @@ function updateField<K extends keyof EmployeeFormData>(field: K, value: Employee
 const tenantDomainNormalized = computed(() => (props.tenantEmailDomain ?? "").trim().toLowerCase());
 const useSplitTenantEmail = computed(() => Boolean(tenantDomainNormalized.value) && !isView.value);
 const branchSyntheticEmailEnabled = computed(
-  () => props.branchUserFlow && props.userAccessMode === "create" && useSplitTenantEmail.value && !isView.value
+  () =>
+    isCreate.value &&
+    useSplitTenantEmail.value &&
+    !isView.value &&
+    (!props.branchUserFlow || props.userAccessMode === "create")
 );
 
 const primaryAssignmentForAccess = computed(() => {
@@ -750,7 +755,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UIComponentCard title="Dados pessoais">
+  <div class="employee-form-layout" :class="{ 'employee-form-layout--setup-first': !isView }">
+  <UIComponentCard title="Dados pessoais" class="employee-card employee-card-personal">
     <b-row v-if="!hideCompanyField && isCompanyLocked" class="g-3 mb-1">
       <b-col md="12">
         <b-form-group label="Empresa">
@@ -809,7 +815,25 @@ onBeforeUnmount(() => {
             {{ useSplitTenantEmail ? "E-mail (usuário)" : "E-mail"
             }}<span v-if="req" class="text-danger ms-1" aria-hidden="true">*</span>
           </template>
-          <template v-if="useSplitTenantEmail">
+          <template v-if="branchSyntheticEmailEnabled && useSplitTenantEmail">
+            <b-input-group>
+              <b-form-input
+                id="emp-email-local"
+                :model-value="emailLocalModel || '-'"
+                type="text"
+                readonly
+                class="bg-body-secondary user-select-all"
+                :class="{ 'is-invalid': errors?.email }"
+              />
+              <b-input-group-text class="text-body-secondary user-select-all">
+                @{{ tenantEmailDomain }}
+              </b-input-group-text>
+            </b-input-group>
+            <b-form-text class="d-block">
+              Defina filial e setor principal para gerar o e-mail automático.
+            </b-form-text>
+          </template>
+          <template v-else-if="useSplitTenantEmail">
             <b-input-group>
               <b-form-input
                 id="emp-email-local"
@@ -955,7 +979,7 @@ onBeforeUnmount(() => {
     </b-row>
   </UIComponentCard>
 
-  <UIComponentCard :title="assignmentCardTitle" class="mt-3">
+  <UIComponentCard :title="assignmentCardTitle" class="mt-3 employee-card employee-card-assignment">
     <p v-if="!isView" class="text-muted small mb-3">
       <template v-if="hideBranchAssignmentField || isBranchLocked">
         Escolha o setor desta filial. Não é possível vincular outras filiais.
@@ -1034,7 +1058,7 @@ onBeforeUnmount(() => {
     </b-button>
   </UIComponentCard>
 
-  <UIComponentCard v-if="!isView" :title="accessAccountCardTitle" class="mt-3">
+  <UIComponentCard v-if="!isView" :title="accessAccountCardTitle" class="mt-3 employee-card employee-card-access">
     <b-row class="g-3">
       <b-col v-if="branchUserFlow" md="12">
         <template v-if="branchAccessAccountState === 'pending'">
@@ -1282,7 +1306,31 @@ onBeforeUnmount(() => {
     </b-row>
   </UIComponentCard>
 
-  <div v-if="!isView" class="d-flex gap-2 mt-3">
+  <div v-if="!isView" class="d-flex gap-2 mt-3 employee-form-actions">
     <slot name="actions" />
   </div>
+  </div>
 </template>
+
+<style scoped>
+.employee-form-layout--setup-first {
+  display: flex;
+  flex-direction: column;
+}
+
+.employee-form-layout--setup-first .employee-card-assignment {
+  order: 1;
+}
+
+.employee-form-layout--setup-first .employee-card-personal {
+  order: 2;
+}
+
+.employee-form-layout--setup-first .employee-card-access {
+  order: 3;
+}
+
+.employee-form-layout--setup-first .employee-form-actions {
+  order: 4;
+}
+</style>
