@@ -8,6 +8,7 @@ import { companiesApi, usersApi } from "@/api/resources";
 import { companyInitialForm, type CompanyFormData } from "@/core/schemas";
 import type { CompanyRecord, UserRecord } from "@/types/api";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false });
 
@@ -21,6 +22,7 @@ type CompanyWithStats = CompanyRecord & {
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 const isOwnerWorkspace = computed(() => String(route.name ?? "").startsWith("owner.company.workspace") || props.embedded);
 const scopedCompanyId = computed(() => Number(authStore.activeContext?.company_id ?? authStore.user?.companies?.[0]?.id ?? 0));
@@ -145,9 +147,9 @@ watch(companyId, (newId, oldId) => {
 </script>
 
 <template>
-  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
-    <div :class="isOwnerWorkspace ? '' : 'py-4'">
-      <div v-if="!isOwnerWorkspace" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <component :is="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div :class="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? '' : 'py-4'">
+      <div v-if="!isOwnerWorkspace && !isInsideCompanyPanelWorkspace" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Visualizar empresa</h1>
           <p class="text-muted mb-0 small">Consulta dos dados cadastrais da empresa.</p>
@@ -157,7 +159,7 @@ watch(companyId, (newId, oldId) => {
           <b-button variant="outline-secondary" @click="back">Voltar</b-button>
         </div>
       </div>
-      <div v-else class="d-flex justify-content-end mb-3">
+      <div v-else-if="isOwnerWorkspace || isInsideCompanyPanelWorkspace" class="d-flex justify-content-end mb-3">
         <b-button v-if="canEditCompany" variant="outline-primary" size="sm" @click="goEdit">Editar empresa</b-button>
       </div>
 

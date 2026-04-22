@@ -1,5 +1,5 @@
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -36,13 +36,14 @@
         </b-card-body>
       </b-card>
     </div>
-  </DefaultLayout>
+  </component>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 import AppAlert from "@/components/AppAlert.vue";
 import {
   employeeLeavesApi,
@@ -60,6 +61,7 @@ import type { EmployeeLeafRecord, EmployeeMedicalCertificateRecord, EmployeeVaca
 
 const route = useRoute();
 const router = useRouter();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 
 const loadingEmployee = ref(true);
 const loadError = ref("");

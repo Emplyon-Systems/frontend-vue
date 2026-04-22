@@ -66,6 +66,22 @@ router.beforeEach(async (to, _from) => {
     }
   }
 
+  /** Listagens operacionais só fazem sentido no contexto filial — utilizador deve ir a Filiais → Ver. */
+  const companyOperationalListRoutes = new Set([
+    "company.sectors",
+    "company.employees",
+    "company.shifts",
+    "company.modality-types",
+    "company.scale-types",
+  ]);
+  if (
+    auth.isAuthenticated &&
+    companyOperationalListRoutes.has(String(to.name)) &&
+    !String(to.name).startsWith("company.branch.")
+  ) {
+    return { name: "company.branches", replace: true } satisfies RouteLocationRaw;
+  }
+
   if (to.name === "company.branches.create" && auth.isAuthenticated) {
     const companyId = Number(auth.user?.companies?.[0]?.id ?? 0);
     if (companyId > 0) {

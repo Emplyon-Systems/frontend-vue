@@ -1017,290 +1017,374 @@ const panelRoutes = [
   },
   {
     path: "/company",
-    name: "panels.company.dashboard",
+    name: "company.panel.workspace",
     meta: {
-      title: setTitle("Dashboard Empresa"),
       authRequired: true,
     },
-    component: () => import("@/views/panels/company/dashboard/index.vue"),
-  },
-  {
-    path: "/company/branches",
-    name: "company.branches",
-    meta: {
-      title: setTitle("Filiais da empresa"),
-      authRequired: true,
-      permission: ["branches.index", "branches.read"],
-    },
-    component: () => import("@/pages/panels/owner/branches/index.vue"),
-  },
-  {
-    path: "/company/my-company",
-    name: "company.my-company.view",
-    meta: {
-      title: setTitle("Minha empresa"),
-      authRequired: true,
-    },
-    component: () => import("@/views/panels/owner/companies/View.vue"),
-  },
-  {
-    path: "/company/my-company/edit",
-    name: "company.my-company.edit",
-    meta: {
-      title: setTitle("Minha empresa"),
-      authRequired: true,
-    },
-    component: () => import("@/views/panels/company/companies/EditMyCompany.vue"),
-  },
-  {
-    path: "/company/branches/create",
-    name: "company.branches.create",
-    meta: {
-      title: setTitle("Nova filial"),
-      authRequired: true,
-      permission: "branches.create",
-    },
-    component: () => import("@/pages/panels/owner/branches/create.vue"),
-  },
-  {
-    path: "/company/branches/:id/edit",
-    name: "company.branches.edit",
-    meta: {
-      title: setTitle("Editar filial"),
-      authRequired: true,
-      permission: "branches.update",
-    },
-    component: () => import("@/pages/panels/owner/branches/edit.vue"),
-  },
-  {
-    path: "/company/branches/:id",
-    name: "company.branches.view",
-    meta: {
-      title: setTitle("Visualizar filial"),
-      authRequired: true,
-      permission: "branches.read",
-    },
-    component: () => import("@/pages/panels/owner/branches/view.vue"),
-  },
-  {
-    path: "/company/sectors",
-    name: "company.sectors",
-    meta: {
-      title: setTitle("Setores da empresa"),
-      authRequired: true,
-      permission: ["sectors.index", "sectors.read"],
-    },
-    component: () => import("@/pages/panels/owner/sectors/index.vue"),
-  },
-  {
-    path: "/company/sectors/create",
-    name: "company.sectors.create",
-    meta: {
-      title: setTitle("Novo setor"),
-      authRequired: true,
-      permission: "sectors.create",
-    },
-    component: () => import("@/pages/panels/owner/sectors/create.vue"),
-  },
-  {
-    path: "/company/sectors/:id/edit",
-    name: "company.sectors.edit",
-    meta: {
-      title: setTitle("Editar setor"),
-      authRequired: true,
-      permission: "sectors.update",
-    },
-    component: () => import("@/pages/panels/owner/sectors/edit.vue"),
-  },
-  {
-    path: "/company/sectors/:id",
-    name: "company.sectors.view",
-    meta: {
-      title: setTitle("Visualizar setor"),
-      authRequired: true,
-      permission: "sectors.read",
-    },
-    component: () => import("@/pages/panels/owner/sectors/view.vue"),
-  },
-  {
-    path: "/company/employees",
-    name: "company.employees",
-    meta: {
-      title: setTitle("Funcionários da empresa"),
-      authRequired: true,
-      permission: ["employees.index", "employees.read"],
-    },
-    component: () => import("@/pages/panels/owner/employees/index.vue"),
-  },
-  {
-    path: "/company/employees/create",
-    name: "company.employees.create",
-    meta: {
-      title: setTitle("Novo funcionário"),
-      authRequired: true,
-      permission: "employees.create",
-    },
-    component: () => import("@/pages/panels/owner/employees/create.vue"),
-  },
-  {
-    path: "/company/employees/:id/edit",
-    name: "company.employees.edit",
-    meta: {
-      title: setTitle("Editar funcionário"),
-      authRequired: true,
-      permission: "employees.update",
-    },
-    component: () => import("@/pages/panels/owner/employees/edit.vue"),
-  },
-  {
-    path: "/company/employees/:employeeId/absences/:kind/create",
-    name: "company.employees.absences.create",
-    meta: {
-      title: setTitle("Novo registro"),
-      authRequired: true,
-      permission: "employees.create",
-    },
-    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
-  },
-  {
-    path: "/company/employees/:employeeId/absences/:kind/:recordId/edit",
-    name: "company.employees.absences.edit",
-    meta: {
-      title: setTitle("Editar registro"),
-      authRequired: true,
-      permission: "employees.update",
-    },
-    component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
-  },
-  {
-    path: "/company/employees/:id",
-    name: "company.employees.view",
-    meta: {
-      title: setTitle("Visualizar funcionário"),
-      authRequired: true,
-      permission: "employees.read",
-    },
-    component: () => import("@/pages/panels/owner/employees/view.vue"),
-  },
-  {
-    path: "/company/shifts",
-    name: "company.shifts",
-    meta: {
-      title: setTitle("Turnos da empresa"),
-      authRequired: true,
-      permission: ["shifts.index", "shifts.read"],
-    },
-    component: () => import("@/pages/panels/owner/shifts/index.vue"),
-  },
-  {
-    path: "/company/shifts/create",
-    name: "company.shifts.create",
-    meta: {
-      title: setTitle("Novo turno"),
-      authRequired: true,
-      permission: "shifts.create",
-    },
-    component: () => import("@/pages/panels/owner/shifts/create.vue"),
-  },
-  {
-    path: "/company/shifts/:id/edit",
-    name: "company.shifts.edit",
-    meta: {
-      title: setTitle("Editar turno"),
-      authRequired: true,
-      permission: "shifts.update",
-    },
-    component: () => import("@/pages/panels/owner/shifts/edit.vue"),
-  },
-  {
-    path: "/company/shifts/:id",
-    name: "company.shifts.view",
-    meta: {
-      title: setTitle("Visualizar turno"),
-      authRequired: true,
-      permission: "shifts.read",
-    },
-    component: () => import("@/pages/panels/owner/shifts/view.vue"),
-  },
-  {
-    path: "/company/modality-types",
-    name: "company.modality-types",
-    meta: {
-      title: setTitle("Modalidades da empresa"),
-      authRequired: true,
-      permission: ["modality_types.index", "modality_types.read"],
-    },
-    component: () => import("@/pages/panels/owner/modality-types/index.vue"),
-  },
-  {
-    path: "/company/modality-types/create",
-    name: "company.modality-types.create",
-    meta: {
-      title: setTitle("Nova modalidade"),
-      authRequired: true,
-      permission: "modality_types.create",
-    },
-    component: () => import("@/pages/panels/owner/modality-types/create.vue"),
-  },
-  {
-    path: "/company/modality-types/:id/edit",
-    name: "company.modality-types.edit",
-    meta: {
-      title: setTitle("Editar modalidade"),
-      authRequired: true,
-      permission: "modality_types.update",
-    },
-    component: () => import("@/pages/panels/owner/modality-types/edit.vue"),
-  },
-  {
-    path: "/company/modality-types/:id",
-    name: "company.modality-types.view",
-    meta: {
-      title: setTitle("Visualizar modalidade"),
-      authRequired: true,
-      permission: "modality_types.read",
-    },
-    component: () => import("@/pages/panels/owner/modality-types/view.vue"),
-  },
-  {
-    path: "/company/scale-types",
-    name: "company.scale-types",
-    meta: {
-      title: setTitle("Tipos de escala da empresa"),
-      authRequired: true,
-      permission: ["scale_types.index", "scale_types.read"],
-    },
-    component: () => import("@/pages/panels/owner/scale-types/index.vue"),
-  },
-  {
-    path: "/company/scale-types/create",
-    name: "company.scale-types.create",
-    meta: {
-      title: setTitle("Novo tipo de escala"),
-      authRequired: true,
-      permission: "scale_types.create",
-    },
-    component: () => import("@/pages/panels/owner/scale-types/create.vue"),
-  },
-  {
-    path: "/company/scale-types/:id/edit",
-    name: "company.scale-types.edit",
-    meta: {
-      title: setTitle("Editar tipo de escala"),
-      authRequired: true,
-      permission: "scale_types.update",
-    },
-    component: () => import("@/pages/panels/owner/scale-types/edit.vue"),
-  },
-  {
-    path: "/company/scale-types/:id",
-    name: "company.scale-types.view",
-    meta: {
-      title: setTitle("Visualizar tipo de escala"),
-      authRequired: true,
-      permission: "scale_types.read",
-    },
-    component: () => import("@/pages/panels/owner/scale-types/view.vue"),
+    component: () => import("@/layouts/CompanyPanelWorkspaceLayout.vue"),
+    redirect: { name: "panels.company.dashboard" },
+    children: [
+      {
+        path: "",
+        name: "panels.company.dashboard",
+        meta: {
+          title: setTitle("Dashboard Empresa"),
+          authRequired: true,
+        },
+        component: () => import("@/views/panels/company/dashboard/index.vue"),
+      },
+      {
+        path: "my-company",
+        name: "company.my-company.view",
+        meta: {
+          title: setTitle("Minha empresa"),
+          authRequired: true,
+        },
+        component: () => import("@/views/panels/owner/companies/View.vue"),
+      },
+      {
+        path: "my-company/edit",
+        name: "company.my-company.edit",
+        meta: {
+          title: setTitle("Minha empresa"),
+          authRequired: true,
+        },
+        component: () => import("@/views/panels/company/companies/EditMyCompany.vue"),
+      },
+      {
+        path: "branches",
+        name: "company.branches",
+        meta: {
+          title: setTitle("Filiais da empresa"),
+          authRequired: true,
+          permission: ["branches.index", "branches.read"],
+        },
+        component: () => import("@/pages/panels/owner/branches/index.vue"),
+      },
+      {
+        path: "branches/create",
+        name: "company.branches.create",
+        meta: {
+          title: setTitle("Nova filial"),
+          authRequired: true,
+          permission: "branches.create",
+        },
+        component: () => import("@/pages/panels/owner/branches/create.vue"),
+      },
+      {
+        path: "branches/:id/edit",
+        name: "company.branches.edit",
+        meta: {
+          title: setTitle("Editar filial"),
+          authRequired: true,
+          permission: "branches.update",
+        },
+        component: () => import("@/pages/panels/owner/branches/edit.vue"),
+      },
+      {
+        path: "branches/:id",
+        name: "company.branch.workspace",
+        meta: {
+          authRequired: true,
+          permission: "branches.read",
+        },
+        component: () => import("@/layouts/CompanyBranchWorkspaceLayout.vue"),
+        redirect: (to) =>
+          ({ name: "company.branch.overview", params: { id: to.params.id } }) as const,
+        children: [
+          {
+            path: "",
+            name: "company.branch.overview",
+            meta: {
+              title: setTitle("Filial — Resumo"),
+              authRequired: true,
+              permission: "branches.read",
+            },
+            component: () => import("@/views/panels/owner/branches/View.vue"),
+          },
+          {
+            path: "sectors",
+            name: "company.branch.sectors",
+            meta: {
+              title: setTitle("Filial — Setores"),
+              authRequired: true,
+              permission: ["sectors.index", "sectors.read"],
+            },
+            component: () => import("@/pages/panels/owner/sectors/index.vue"),
+          },
+          {
+            path: "employees",
+            name: "company.branch.employees",
+            meta: {
+              title: setTitle("Filial — Funcionários"),
+              authRequired: true,
+              permission: ["employees.index", "employees.read"],
+            },
+            component: () => import("@/pages/panels/owner/employees/index.vue"),
+          },
+          {
+            path: "users",
+            name: "company.branch.users",
+            meta: {
+              title: setTitle("Filial — Usuários"),
+              authRequired: true,
+              permission: ["users.index", "users.read"],
+            },
+            component: () => import("@/pages/panels/owner/users/index.vue"),
+          },
+          {
+            path: "shifts",
+            name: "company.branch.shifts",
+            meta: {
+              title: setTitle("Filial — Turnos"),
+              authRequired: true,
+              permission: ["shifts.index", "shifts.read"],
+            },
+            component: () => import("@/pages/panels/owner/shifts/index.vue"),
+          },
+          {
+            path: "modality-types",
+            name: "company.branch.modality-types",
+            meta: {
+              title: setTitle("Filial — Modalidades"),
+              authRequired: true,
+              permission: ["modality_types.index", "modality_types.read"],
+            },
+            component: () => import("@/pages/panels/owner/modality-types/index.vue"),
+          },
+          {
+            path: "scale-types",
+            name: "company.branch.scale-types",
+            meta: {
+              title: setTitle("Filial — Tipos de escala"),
+              authRequired: true,
+              permission: ["scale_types.index", "scale_types.read"],
+            },
+            component: () => import("@/pages/panels/owner/scale-types/index.vue"),
+          },
+        ],
+      },
+      {
+        path: "sectors",
+        name: "company.sectors",
+        meta: {
+          title: setTitle("Setores da empresa"),
+          authRequired: true,
+          permission: ["sectors.index", "sectors.read"],
+        },
+        component: () => import("@/pages/panels/owner/sectors/index.vue"),
+      },
+      {
+        path: "sectors/create",
+        name: "company.sectors.create",
+        meta: {
+          title: setTitle("Novo setor"),
+          authRequired: true,
+          permission: "sectors.create",
+        },
+        component: () => import("@/pages/panels/owner/sectors/create.vue"),
+      },
+      {
+        path: "sectors/:id/edit",
+        name: "company.sectors.edit",
+        meta: {
+          title: setTitle("Editar setor"),
+          authRequired: true,
+          permission: "sectors.update",
+        },
+        component: () => import("@/pages/panels/owner/sectors/edit.vue"),
+      },
+      {
+        path: "sectors/:id",
+        name: "company.sectors.view",
+        meta: {
+          title: setTitle("Visualizar setor"),
+          authRequired: true,
+          permission: "sectors.read",
+        },
+        component: () => import("@/pages/panels/owner/sectors/view.vue"),
+      },
+      {
+        path: "employees",
+        name: "company.employees",
+        meta: {
+          title: setTitle("Funcionários da empresa"),
+          authRequired: true,
+          permission: ["employees.index", "employees.read"],
+        },
+        component: () => import("@/pages/panels/owner/employees/index.vue"),
+      },
+      {
+        path: "employees/create",
+        name: "company.employees.create",
+        meta: {
+          title: setTitle("Novo funcionário"),
+          authRequired: true,
+          permission: "employees.create",
+        },
+        component: () => import("@/pages/panels/owner/employees/create.vue"),
+      },
+      {
+        path: "employees/:id/edit",
+        name: "company.employees.edit",
+        meta: {
+          title: setTitle("Editar funcionário"),
+          authRequired: true,
+          permission: "employees.update",
+        },
+        component: () => import("@/pages/panels/owner/employees/edit.vue"),
+      },
+      {
+        path: "employees/:employeeId/absences/:kind/create",
+        name: "company.employees.absences.create",
+        meta: {
+          title: setTitle("Novo registro"),
+          authRequired: true,
+          permission: "employees.create",
+        },
+        component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
+      },
+      {
+        path: "employees/:employeeId/absences/:kind/:recordId/edit",
+        name: "company.employees.absences.edit",
+        meta: {
+          title: setTitle("Editar registro"),
+          authRequired: true,
+          permission: "employees.update",
+        },
+        component: () => import("@/views/panels/owner/employees/profile/EmployeePeriodRecordForm.vue"),
+      },
+      {
+        path: "employees/:id",
+        name: "company.employees.view",
+        meta: {
+          title: setTitle("Visualizar funcionário"),
+          authRequired: true,
+          permission: "employees.read",
+        },
+        component: () => import("@/pages/panels/owner/employees/view.vue"),
+      },
+      {
+        path: "shifts",
+        name: "company.shifts",
+        meta: {
+          title: setTitle("Turnos da empresa"),
+          authRequired: true,
+          permission: ["shifts.index", "shifts.read"],
+        },
+        component: () => import("@/pages/panels/owner/shifts/index.vue"),
+      },
+      {
+        path: "shifts/create",
+        name: "company.shifts.create",
+        meta: {
+          title: setTitle("Novo turno"),
+          authRequired: true,
+          permission: "shifts.create",
+        },
+        component: () => import("@/pages/panels/owner/shifts/create.vue"),
+      },
+      {
+        path: "shifts/:id/edit",
+        name: "company.shifts.edit",
+        meta: {
+          title: setTitle("Editar turno"),
+          authRequired: true,
+          permission: "shifts.update",
+        },
+        component: () => import("@/pages/panels/owner/shifts/edit.vue"),
+      },
+      {
+        path: "shifts/:id",
+        name: "company.shifts.view",
+        meta: {
+          title: setTitle("Visualizar turno"),
+          authRequired: true,
+          permission: "shifts.read",
+        },
+        component: () => import("@/pages/panels/owner/shifts/view.vue"),
+      },
+      {
+        path: "modality-types",
+        name: "company.modality-types",
+        meta: {
+          title: setTitle("Modalidades da empresa"),
+          authRequired: true,
+          permission: ["modality_types.index", "modality_types.read"],
+        },
+        component: () => import("@/pages/panels/owner/modality-types/index.vue"),
+      },
+      {
+        path: "modality-types/create",
+        name: "company.modality-types.create",
+        meta: {
+          title: setTitle("Nova modalidade"),
+          authRequired: true,
+          permission: "modality_types.create",
+        },
+        component: () => import("@/pages/panels/owner/modality-types/create.vue"),
+      },
+      {
+        path: "modality-types/:id/edit",
+        name: "company.modality-types.edit",
+        meta: {
+          title: setTitle("Editar modalidade"),
+          authRequired: true,
+          permission: "modality_types.update",
+        },
+        component: () => import("@/pages/panels/owner/modality-types/edit.vue"),
+      },
+      {
+        path: "modality-types/:id",
+        name: "company.modality-types.view",
+        meta: {
+          title: setTitle("Visualizar modalidade"),
+          authRequired: true,
+          permission: "modality_types.read",
+        },
+        component: () => import("@/pages/panels/owner/modality-types/view.vue"),
+      },
+      {
+        path: "scale-types",
+        name: "company.scale-types",
+        meta: {
+          title: setTitle("Tipos de escala da empresa"),
+          authRequired: true,
+          permission: ["scale_types.index", "scale_types.read"],
+        },
+        component: () => import("@/pages/panels/owner/scale-types/index.vue"),
+      },
+      {
+        path: "scale-types/create",
+        name: "company.scale-types.create",
+        meta: {
+          title: setTitle("Novo tipo de escala"),
+          authRequired: true,
+          permission: "scale_types.create",
+        },
+        component: () => import("@/pages/panels/owner/scale-types/create.vue"),
+      },
+      {
+        path: "scale-types/:id/edit",
+        name: "company.scale-types.edit",
+        meta: {
+          title: setTitle("Editar tipo de escala"),
+          authRequired: true,
+          permission: "scale_types.update",
+        },
+        component: () => import("@/pages/panels/owner/scale-types/edit.vue"),
+      },
+      {
+        path: "scale-types/:id",
+        name: "company.scale-types.view",
+        meta: {
+          title: setTitle("Visualizar tipo de escala"),
+          authRequired: true,
+          permission: "scale_types.read",
+        },
+        component: () => import("@/pages/panels/owner/scale-types/view.vue"),
+      },
+    ],
   },
   {
     path: "/branch/my-profile",

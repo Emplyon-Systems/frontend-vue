@@ -13,10 +13,12 @@ import { scaleTypesApi, branchesApi, companiesApi } from "@/api/resources";
 import type { ScaleTypeRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const routeName = computed(() => String(route.name ?? ""));
 const isOwnerScaleTypes = computed(() => routeName.value.startsWith("owner.") && !routeName.value.startsWith("owner.company.workspace"));
 const isOwnerWorkspace = computed(() => routeName.value.startsWith("owner.company.workspace"));
@@ -265,7 +267,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+  <component :is="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>

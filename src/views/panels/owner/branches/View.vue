@@ -7,11 +7,13 @@ import ProfilePage from "./profile/index.vue";
 import { branchesApi, companiesApi } from "@/api/resources";
 import { branchInitialForm, type BranchFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 import type { BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const branchScoped = computed(() => String(route.name ?? "").startsWith("branch."));
 const branchId = computed(() => {
   const fromParam = Number(route.params.id);
@@ -23,6 +25,8 @@ const branchId = computed(() => {
   return 0;
 });
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
+/** Resumo da filial com abas horizontais no layout (Setores/Funcionários vêm das tabs superiores). */
+const isCompanyBranchOverview = computed(() => String(route.name ?? "") === "company.branch.overview");
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
 const workspaceCompanyId = computed(() => {
   const id = Number(route.query.company_id ?? 0);
@@ -42,8 +46,12 @@ const sectors = ref<BranchRecord["sectors"]>([]);
 const scheduleRulesView = ref<BranchScheduleRuleRecord[]>([]);
 const branchLogoUrl = ref<string | null>(null);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
-/** Aba Funcionários na vista da filial: superadmin (pedido de produto). */
-const showBranchEmployeesTab = computed(() => authStore.hasRole("superadmin"));
+/** Aba Funcionários na vista da filial: superadmin ou gestor empresa/filial com permissão. */
+const showBranchEmployeesTab = computed(
+  () =>
+    authStore.hasRole("superadmin") ||
+    ((companyScoped.value || branchScoped.value) && authStore.hasPermission("employees.read")),
+);
 
 function back() {
   if (branchScoped.value) {
@@ -156,9 +164,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div :class="isCompanyBranchOverview ? '' : 'py-4'">
+      <div
+        v-if="!isCompanyBranchOverview"
+        class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4"
+      >
         <div>
           <h1 class="h4 mb-1">Visualizar filial</h1>
           <p class="text-muted mb-0 small">Consulta dos dados cadastrais da filial.</p>
@@ -167,6 +178,12 @@ onMounted(async () => {
           <b-button v-if="canEditBranch" variant="outline-primary" @click="goEdit">Editar</b-button>
           <b-button variant="outline-secondary" @click="back">Voltar</b-button>
         </div>
+      </div>
+      <div v-else class="d-flex justify-content-end gap-2 mb-3">
+        <b-button v-if="canEditBranch" variant="outline-primary" size="sm" @click="goEdit">
+          Editar filial
+        </b-button>
+        <b-button variant="outline-secondary" size="sm" @click="back">Voltar às filiais</b-button>
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
@@ -193,7 +210,8 @@ onMounted(async () => {
         :branch-id="branchId"
         :show-employees-tab="showBranchEmployeesTab"
         :schedule-rules="scheduleRulesView"
+        :branch-workspace-overview="isCompanyBranchOverview"
       />
     </div>
-  </DefaultLayout>
+  </component>
 </template>

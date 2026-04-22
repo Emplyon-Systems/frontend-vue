@@ -16,10 +16,12 @@ import type { BranchScheduleRuleRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const branchId = computed(() => Number(route.params.id));
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
@@ -172,7 +174,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -212,5 +214,5 @@ onMounted(async () => {
         </DataForm>
       </b-form>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

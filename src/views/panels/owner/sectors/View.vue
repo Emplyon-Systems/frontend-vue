@@ -8,11 +8,13 @@ import type { SectorUser } from "./profile/SectorUsersTab.vue";
 import { sectorsApi, branchesApi } from "@/api/resources";
 import { sectorInitialForm, type SectorFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 import type { SectorRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const sectorId = computed(() => Number(route.params.id));
 const routeName = computed(() => String(route.name ?? ""));
 const companyScoped = computed(() => routeName.value.startsWith("company."));
@@ -85,7 +87,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -112,5 +114,5 @@ onMounted(async () => {
         :on-edit="canEditSector ? goEdit : undefined"
       />
     </div>
-  </DefaultLayout>
+  </component>
 </template>

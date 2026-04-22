@@ -8,10 +8,12 @@ import { modalityTypeInitialForm, validateModalityTypeForm, type ModalityTypeFor
 import { notifySuccess } from "@/helpers/notify";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const routeName = computed(() => String(route.name ?? ""));
 const companyScoped = computed(() => routeName.value.startsWith("company."));
 const branchScoped = computed(() => routeName.value.startsWith("branch."));
@@ -101,7 +103,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -135,5 +137,5 @@ onMounted(async () => {
         </DataForm>
       </b-form>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

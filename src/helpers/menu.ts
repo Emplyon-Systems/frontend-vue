@@ -17,7 +17,6 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   const roles = user?.roles;
   const isOwner = roles?.some((r) => ownerSlugs.includes(r.slug));
   const isSuperadmin = roles?.some((r) => r.slug === "superadmin");
-  const branchRouteName = path === "/company" ? "company.branches" : "owner.branches";
   const rolePermissionSlugs = (roles ?? []).flatMap((role) => role.permissions?.map((p) => p.slug) ?? []);
   const directPermissionSlugs = (user as User | undefined)?.permissions?.map((p) => p.slug) ?? [];
   const permissionSet = new Set([...rolePermissionSlugs, ...directPermissionSlugs]);
@@ -78,7 +77,6 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     "scale_types.delete",
     "scale_types.plucks",
   ]);
-  const companiesRouteName = path === "/company" ? "company.branches" : "owner.companies";
   const companySelfRouteName = "company.my-company.view";
   const branchSelfRouteName = "branch.my-branch.view";
 
@@ -215,94 +213,32 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
       return baseMenu;
     }
 
-    baseMenu.push({
-      key: isBranchPanel ? "branch" : "companies",
-      icon: isBranchPanel ? "iconoir-git-branch" : "iconoir-building",
-      label: isBranchPanel ? "Filial" : "Empresas",
-      route: { name: isBranchPanel ? branchSelfRouteName : companiesRouteName },
-      children: [
-        ...(path === "/company" && canCompanies
-          ? [
-              {
-                key: "my-company-view",
-                icon: "iconoir-eye",
-                label: "Minha empresa",
-                route: { name: companySelfRouteName },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canCompaniesList && isOwner
-          ? [
-              {
-                key: "companies-list",
-                icon: "iconoir-building",
-                label: "Empresas",
-                route: { name: "owner.companies" },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canBranches
-          ? [
-              {
-                key: "branches-list",
-                icon: "iconoir-git-branch",
-                label: "Filiais",
-                route: { name: branchRouteName },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canShifts
-          ? [
-              {
-                key: "shifts-list",
-                icon: "iconoir-clock",
-                label: "Turnos",
-                route: { name: path === "/company" ? "company.shifts" : "owner.shifts" },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canModalityTypes
-          ? [
-              {
-                key: "modality-types-list",
-                icon: "iconoir-book",
-                label: "Modalidades",
-                route: { name: path === "/company" ? "company.modality-types" : "owner.modality-types" },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canScaleTypes
-          ? [
-              {
-                key: "scale-types-list",
-                icon: "iconoir-calendar",
-                label: "Tipos de escala",
-                route: { name: path === "/company" ? "company.scale-types" : "owner.scale-types" },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canSectors
-          ? [
-              {
-                key: "sectors-list",
-                icon: "iconoir-folder",
-                label: "Setores",
-                route: { name: path === "/company" ? "company.sectors" : "owner.sectors" },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canEmployees
-          ? [
-              {
-                key: "employees-list",
-                icon: "iconoir-community",
-                label: "Funcionários",
-                route: { name: path === "/company" ? "company.employees" : "owner.employees" },
-              } as MenuItemType,
-            ]
-          : []),
-      ],
-    });
+    /** Painel empresa: só organização (Minha empresa + Filiais). Setores/turnos/etc. só após entrar numa filial (ecrã Ver filial). */
+    if (path === "/company") {
+      baseMenu.push({
+        key: "my-company-top",
+        icon: "iconoir-building",
+        label: "Minha empresa",
+        route: { name: companySelfRouteName },
+      });
+      if (canBranches) {
+        baseMenu.push({
+          key: "branches-list",
+          icon: "iconoir-git-branch",
+          label: "Filiais",
+          route: { name: "company.branches" },
+        });
+      }
+      if (systemChildren.length) {
+        baseMenu.push({
+          key: "sistema",
+          icon: "iconoir-settings",
+          label: "Sistema",
+          children: systemChildren,
+        });
+      }
+      return baseMenu;
+    }
   }
 
   // Sistema sempre por último (Empresas e Filial)

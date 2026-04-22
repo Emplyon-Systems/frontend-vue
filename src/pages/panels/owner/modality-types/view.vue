@@ -7,10 +7,12 @@ import DataForm from "@/views/panels/owner/modality-types/form/DataForm.vue";
 import { modalityTypesApi, branchesApi } from "@/api/resources";
 import { modalityTypeInitialForm, type ModalityTypeFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const routeName = computed(() => String(route.name ?? ""));
 const companyScoped = computed(() => routeName.value.startsWith("company."));
 const branchScoped = computed(() => routeName.value.startsWith("branch."));
@@ -113,7 +115,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -136,5 +138,5 @@ onMounted(async () => {
         mode="view"
       />
     </div>
-  </DefaultLayout>
+  </component>
 </template>

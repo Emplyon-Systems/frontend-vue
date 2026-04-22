@@ -10,6 +10,7 @@ import {
 } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 /** Carregamento lazy + opções não reativas evitam ciclos Apex/Vue que bloqueiam o browser. */
 const VueApexCharts = defineAsyncComponent(() => import("vue3-apexcharts"));
@@ -21,6 +22,7 @@ import type { CompanyRecord } from "@/types/api";
 
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 
 const loading = ref(true);
 const loadError = ref("");
@@ -76,7 +78,6 @@ const myRoles = computed(() => authStore.user?.roles ?? []);
 const canCreateBranch = computed(() => authStore.hasPermission("branches.create"));
 const canViewBranches = computed(() => authStore.hasPermission("branches.index") || authStore.hasPermission("branches.read"));
 const canViewUsers    = computed(() => authStore.hasPermission("users.index")    || authStore.hasPermission("users.read"));
-const canViewSectors  = computed(() => authStore.hasPermission("sectors.index")  || authStore.hasPermission("sectors.read"));
 
 // ── Gráficos Apex: shallowRef + markRaw (evita “Page unresponsive”) ────────
 const occupancySeries = shallowRef([0, 0]);
@@ -181,7 +182,7 @@ onMounted(loadData);
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
 
     <CompanyFirstStepsWizard
       v-if="showCompanyFirstSteps"
@@ -205,9 +206,6 @@ onMounted(loadData);
           </b-button>
           <b-button v-if="canViewBranches" variant="outline-secondary" size="sm" @click="router.push({ name: 'company.branches' })">
             <i class="iconoir-git-branch me-1"></i> Filiais
-          </b-button>
-          <b-button v-if="canViewSectors" variant="outline-secondary" size="sm" @click="router.push({ name: 'company.sectors' })">
-            <i class="iconoir-community me-1"></i> Setores
           </b-button>
         </div>
       </div>
@@ -259,7 +257,7 @@ onMounted(loadData);
           </b-col>
 
           <b-col sm="6" xl="3">
-            <b-card class="border-0 shadow-sm h-100 cursor-pointer" @click="canViewSectors && router.push({ name: 'company.sectors' })">
+            <b-card class="border-0 shadow-sm h-100">
               <b-card-body>
                 <div class="d-flex justify-content-between align-items-start mb-3">
                   <div class="rounded-3 bg-info bg-opacity-10 p-3">
@@ -268,7 +266,7 @@ onMounted(loadData);
                 </div>
                 <p class="text-muted small mb-1">Setores</p>
                 <h3 class="fw-bold mb-0">{{ sectorsTotal }}</h3>
-                <small class="text-muted">em todas as filiais</small>
+                <small class="text-muted">por filial — abra uma filial em Filiais para gerir</small>
               </b-card-body>
             </b-card>
           </b-col>
@@ -493,5 +491,5 @@ onMounted(loadData);
 
       </template>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

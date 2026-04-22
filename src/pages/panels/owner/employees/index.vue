@@ -13,10 +13,12 @@ import { employeesApi, branchesApi, companiesApi } from "@/api/resources";
 import type { EmployeeRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const loading = ref(true);
 const employees = ref<EmployeeRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
@@ -238,7 +240,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+  <component :is="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>

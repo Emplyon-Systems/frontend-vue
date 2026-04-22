@@ -40,13 +40,13 @@
               <b-tab title="Usuários">
                 <BranchUsersTab :users="users" />
               </b-tab>
-              <b-tab title="Setores">
+              <b-tab v-if="!branchWorkspaceOverview" title="Setores">
                 <BranchSectorsTab :sectors="sectors" />
               </b-tab>
               <b-tab title="Horários">
                 <BranchScheduleRulesTab :rules="scheduleRules" />
               </b-tab>
-              <b-tab v-if="showEmployeesTab && branchId" title="Funcionários">
+              <b-tab v-if="!branchWorkspaceOverview && showEmployeesTab && branchId" title="Funcionários">
                 <BranchEmployeesTab :branch-id="branchId" />
               </b-tab>
             </b-tabs>
@@ -91,6 +91,8 @@ withDefaults(
     showEmployeesTab?: boolean;
     /** Regras de expediente / loja (aba Horários). */
     scheduleRules?: BranchScheduleRuleRecord[];
+    /** Painel empresa: resumo da filial com tabs superiores — esconde Setores/Funcionários duplicados. */
+    branchWorkspaceOverview?: boolean;
   }>(),
   {
     users: () => [],
@@ -101,6 +103,7 @@ withDefaults(
     branchId: 0,
     showEmployeesTab: false,
     scheduleRules: () => [],
+    branchWorkspaceOverview: false,
   }
 );
 </script>

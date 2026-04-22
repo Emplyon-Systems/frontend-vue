@@ -12,10 +12,12 @@ import { branchesApi, companiesApi } from "@/api/resources";
 import type { BranchRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const loading = ref(true);
 const branches = ref<BranchRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
@@ -187,7 +189,10 @@ function goView(id: number) {
     router.push({ name: "owner.branches.view", params: { id: String(id) }, query: { company_id: String(workspaceCompanyId.value) } });
     return;
   }
-  router.push({ name: companyScoped.value ? "company.branches.view" : "owner.branches.view", params: { id: String(id) } });
+  router.push({
+    name: companyScoped.value ? "company.branch.overview" : "owner.branches.view",
+    params: { id: String(id) },
+  });
 }
 
 function goEdit(id: number) {
@@ -224,7 +229,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+  <component :is="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>

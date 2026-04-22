@@ -6,11 +6,13 @@ import AppAlert from "@/components/AppAlert.vue";
 import ProfilePage from "./profile/index.vue";
 import { employeesApi } from "@/api/resources";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 import type { EmployeeRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const employeeId = computed(() => Number(route.params.id));
 const routeName = computed(() => String(route.name ?? ""));
 const companyScoped = computed(() => routeName.value.startsWith("company."));
@@ -60,7 +62,7 @@ onMounted(loadEmployee);
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -78,5 +80,5 @@ onMounted(loadEmployee);
         :on-edit="canEdit ? goEdit : undefined"
       />
     </div>
-  </DefaultLayout>
+  </component>
 </template>

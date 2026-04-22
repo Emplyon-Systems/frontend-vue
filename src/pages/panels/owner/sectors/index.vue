@@ -13,10 +13,12 @@ import { sectorsApi, branchesApi, companiesApi } from "@/api/resources";
 import type { SectorRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const loading = ref(true);
 const sectors = ref<SectorRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
@@ -35,6 +37,10 @@ const appliedFilters = ref<SectorsFilterModel>(initialFilters());
 const orderBy = ref("id");
 const orderDir = ref<"asc" | "desc">("desc");
 const routeName = computed(() => String(route.name ?? ""));
+const isCompanyBranchWorkspace = computed(() => routeName.value.startsWith("company.branch."));
+const companyBranchWsId = computed(() =>
+  isCompanyBranchWorkspace.value ? Number(route.params.id ?? 0) : 0,
+);
 const isOwnerSectors = computed(() => routeName.value.startsWith("owner.") && !routeName.value.startsWith("owner.company.workspace"));
 const isOwnerWorkspace = computed(() => routeName.value.startsWith("owner.company.workspace"));
 const workspaceCompanyId = computed(() => isOwnerWorkspace.value ? Number(route.params.id ?? 0) : 0);
@@ -55,7 +61,7 @@ const listagemColumns = computed(() => [
   ...((isOwnerSectors.value && !isCompanyFixed.value)
     ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }]
     : []),
-  ...(branchScoped.value
+  ...(branchScoped.value || isCompanyBranchWorkspace.value
     ? []
     : [{ key: "branch", label: "Filial", sortable: false, align: "start" as const }]),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
@@ -84,6 +90,22 @@ const canUpdate = computed(() => authStore.hasPermission("sectors.update"));
 const canDelete = computed(() => authStore.hasPermission("sectors.delete"));
 
 async function loadPlucks() {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    try {
+      const res = await branchesApi.getById(companyBranchWsId.value);
+      const nm = res.branch?.name?.trim() || `Filial #${companyBranchWsId.value}`;
+      branchOptions.value = [
+        {
+          id: companyBranchWsId.value,
+          name: nm,
+          company_id: res.branch?.company_id,
+        },
+      ];
+    } catch {
+      branchOptions.value = [{ id: companyBranchWsId.value, name: `Filial #${companyBranchWsId.value}`, company_id: undefined }];
+    }
+    return;
+  }
   if (branchScoped.value && currentBranchId.value > 0) {
     branchOptions.value = [{ id: currentBranchId.value, name: `Filial #${currentBranchId.value}`, company_id: undefined }];
     return;
@@ -113,6 +135,7 @@ async function loadPlucks() {
 }
 
 function getEffectiveBranchIds(): number[] | undefined {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) return [companyBranchWsId.value];
   if (branchScoped.value && currentBranchId.value > 0) return [currentBranchId.value];
   if (isOwnerWorkspace.value && branchOptions.value.length > 0) {
     const af = appliedFilters.value;
@@ -191,6 +214,13 @@ function routeNameFor(op: "list" | "create" | "view" | "edit"): string {
 
 function goCreate() {
   if (!canCreate.value) return;
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    router.push({
+      name: "company.sectors.create",
+      query: { branch_id: String(companyBranchWsId.value) },
+    });
+    return;
+  }
   router.push({ name: routeNameFor("create") });
 }
 
@@ -218,7 +248,10 @@ function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir
 }
 
 onMounted(async () => {
-  if (branchScoped.value && currentBranchId.value > 0) {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    filters.value.branch_ids = [companyBranchWsId.value];
+    appliedFilters.value.branch_ids = [companyBranchWsId.value];
+  } else if (branchScoped.value && currentBranchId.value > 0) {
     filters.value.branch_ids = [currentBranchId.value];
     appliedFilters.value.branch_ids = [currentBranchId.value];
   }
@@ -228,13 +261,21 @@ onMounted(async () => {
 </script>
 
 <template>
-  <component :is="isOwnerWorkspace ? 'div' : DefaultLayout">
+  <component :is="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Setores</h1>
           <p class="text-muted mb-0 small">
-            {{ branchScoped ? "Setores da sua filial." : isCompanyFixed ? "Listar e criar setores das filiais desta empresa." : "Listar e criar setores vinculados às filiais." }}
+            {{
+              isCompanyBranchWorkspace
+                ? "Setores apenas desta filial."
+                : branchScoped
+                  ? "Setores da sua filial."
+                  : isCompanyFixed
+                    ? "Listar e criar setores das filiais desta empresa."
+                    : "Listar e criar setores vinculados às filiais."
+            }}
           </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -253,7 +294,7 @@ onMounted(async () => {
           :company-options="companyOptions"
           :branch-options="branchOptions"
           :show-company-filter="isOwnerSectors && !isCompanyFixed"
-          :hide-branch-selector="branchScoped"
+          :hide-branch-selector="branchScoped || isCompanyBranchWorkspace"
           @apply="applyFilters"
           @reset="resetFilters"
         />
