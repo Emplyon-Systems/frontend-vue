@@ -20,6 +20,10 @@ const error = ref("");
 const rows = ref<EmployeeLeaveRequestRecord[]>([]);
 const reasonModal = ref(false);
 const reasonModalText = ref("");
+const rejectModal = ref(false);
+const rejectReason = ref("");
+const rejectTarget = ref<EmployeeLeaveRequestRecord | null>(null);
+const rejectLoading = ref(false);
 const { pagination: listPagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
   perPage: 15,
   orderBy: "request_date",
@@ -106,12 +110,46 @@ async function loadList(page = 1) {
 }
 
 async function decide(row: EmployeeLeaveRequestRecord, status: "approved" | "rejected") {
+  if (status === "rejected") {
+    rejectTarget.value = row;
+    rejectReason.value = "";
+    rejectModal.value = true;
+    return;
+  }
+
   try {
     await employeeLeaveRequestsApi.update(row.id, { status });
     notifySuccess(status === "approved" ? "Solicitação aprovada com sucesso." : "Solicitação rejeitada com sucesso.");
     await loadList(listPagination.value.current_page);
   } catch {
     error.value = "Não foi possível atualizar a solicitação.";
+  }
+}
+
+async function confirmReject() {
+  if (!rejectTarget.value) return;
+
+  const notes = rejectReason.value.trim();
+  if (!notes) {
+    error.value = "Informe o motivo da rejeição.";
+    return;
+  }
+
+  rejectLoading.value = true;
+  try {
+    await employeeLeaveRequestsApi.update(rejectTarget.value.id, {
+      status: "rejected",
+      review_notes: notes,
+    });
+    notifySuccess("Solicitação rejeitada com sucesso.");
+    rejectModal.value = false;
+    rejectTarget.value = null;
+    rejectReason.value = "";
+    await loadList(listPagination.value.current_page);
+  } catch {
+    error.value = "Não foi possível atualizar a solicitação.";
+  } finally {
+    rejectLoading.value = false;
   }
 }
 
@@ -224,6 +262,26 @@ onMounted(() => {
       hide-header-close
     >
       <p class="mb-0">{{ reasonModalText }}</p>
+    </b-modal>
+
+    <b-modal
+      v-model="rejectModal"
+      title="Motivo da rejeição"
+      ok-title="Confirmar rejeição"
+      cancel-title="Cancelar"
+      :ok-disabled="rejectLoading"
+      :cancel-disabled="rejectLoading"
+      @ok.prevent="confirmReject"
+    >
+      <b-form-group label="Informe o motivo (obrigatório)">
+        <b-form-textarea
+          v-model="rejectReason"
+          rows="4"
+          max-rows="8"
+          maxlength="2000"
+          placeholder="Descreva o motivo da rejeição para o colaborador."
+        />
+      </b-form-group>
     </b-modal>
   </component>
 </template>

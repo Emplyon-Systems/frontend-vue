@@ -38,7 +38,7 @@ export function mapResponseLeaveToNotification(
           row.review_notes ? ` Nota: ${row.review_notes}` : ""
         }`,
     dateLabel: formatNotificationDate(row.reviewed_at ?? row.updated_at),
-    iconClass: isApproved ? "iconoir-check-circle fs-4" : "iconoir-circle-xmark fs-4",
+    iconClass: isApproved ? "iconoir-check-circle fs-4" : "iconoir-xmark-circle fs-4",
     iconVariantClass: isApproved
       ? "bg-success-subtle text-success"
       : "bg-danger-subtle text-danger",

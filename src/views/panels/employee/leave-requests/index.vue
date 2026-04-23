@@ -151,6 +151,16 @@ onMounted(() => {
               <b-badge :variant="statusVariant((item as EmployeeLeaveRequestRecord).status)">
                 {{ statusLabel((item as EmployeeLeaveRequestRecord).status) }}
               </b-badge>
+              <p
+                v-if="
+                  (item as EmployeeLeaveRequestRecord).status === 'rejected' &&
+                  ((item as EmployeeLeaveRequestRecord).review_notes ?? '').trim()
+                "
+                class="mb-0 mt-1 small text-danger-emphasis"
+              >
+                Motivo da rejeição:
+                {{ (item as EmployeeLeaveRequestRecord).review_notes }}
+              </p>
             </b-td>
             <b-td class="text-end text-nowrap">
               <b-button
