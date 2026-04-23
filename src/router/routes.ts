@@ -73,6 +73,27 @@ const authRoutes = [
   },
 ];
 
+const legalRoutes = [
+  {
+    path: "/legal/privacy",
+    name: "legal.privacy",
+    meta: {
+      title: setTitle("Política de Privacidade"),
+      authRequired: true,
+    },
+    component: () => import("@/views/panels/common/legal/PrivacyPolicy.vue"),
+  },
+  {
+    path: "/legal/terms",
+    name: "legal.terms",
+    meta: {
+      title: setTitle("Termos de Uso"),
+      authRequired: true,
+    },
+    component: () => import("@/views/panels/common/legal/TermsOfUse.vue"),
+  },
+];
+
 /** URLs antigas /documentation → versão no painel (autenticada) */
 const documentationLegacyRedirects = [
   { path: "/documentation", redirect: "/documentation-v1" },
@@ -1819,6 +1840,7 @@ const errorRoutes = [
 
 export const allRoute = [
   ...authRoutes,
+  ...legalRoutes,
   ...documentationLegacyRedirects,
   documentationRoutes,
   ...panelRoutes,

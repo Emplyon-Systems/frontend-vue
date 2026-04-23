@@ -23,6 +23,20 @@ const showDocLink = computed(() => auth.hasRole("superadmin"));
                 </span>
                 <span class="text-muted d-flex flex-wrap align-items-center gap-2 ms-sm-auto">
                   <router-link
+                    :to="{ name: 'legal.privacy' }"
+                    class="link-secondary text-decoration-none"
+                  >
+                    Política de Privacidade
+                  </router-link>
+                  <span class="text-muted opacity-50" aria-hidden="true">·</span>
+                  <router-link
+                    :to="{ name: 'legal.terms' }"
+                    class="link-secondary text-decoration-none"
+                  >
+                    Termos de Uso
+                  </router-link>
+                  <span class="text-muted opacity-50" aria-hidden="true">·</span>
+                  <router-link
                     v-if="showDocLink"
                     :to="{ name: 'documentation.home' }"
                     class="link-secondary text-decoration-none"
