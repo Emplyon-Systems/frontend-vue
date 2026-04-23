@@ -4,6 +4,8 @@ export * as branchesApi from "./branches";
 export * as companiesApi from "./companies";
 export * as employeesApi from "./employees";
 export * as employeeLeavesApi from "./employee-leaves";
+export * as employeeLeaveRequestsApi from "./employee-leave-requests";
+export * as employeeDayOffsApi from "./employee-day-offs";
 export * as employeeMedicalCertificatesApi from "./employee-medical-certificates";
 export * as employeeVacationsApi from "./employee-vacations";
 export * as modalityTypesApi from "./modality-types";

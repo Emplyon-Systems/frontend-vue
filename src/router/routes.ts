@@ -1562,6 +1562,30 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/employees/view.vue"),
   },
   {
+    path: "/branch/leave-requests",
+    name: "branch.leave-requests",
+    meta: {
+      title: setTitle("Solicitações de folgas"),
+      authRequired: true,
+      permission: ["employee_leave_requests.index", "employee_leave_requests.read"],
+      role: ["branch_manager", "branch", "filial", "setor"],
+      rolePrefix: ["filial-b", "setor-b"],
+    },
+    component: () => import("@/views/panels/branch/leave-requests/index.vue"),
+  },
+  {
+    path: "/branch/notifications",
+    name: "branch.notifications",
+    meta: {
+      title: setTitle("Notificações"),
+      authRequired: true,
+      permission: ["employee_leave_requests.index", "employee_leave_requests.read"],
+      role: ["branch_manager", "branch", "filial", "setor"],
+      rolePrefix: ["filial-b", "setor-b"],
+    },
+    component: () => import("@/views/panels/common/notifications/index.vue"),
+  },
+  {
     path: "/branch/shifts",
     name: "branch.shifts",
     meta: {
@@ -1726,6 +1750,54 @@ const panelRoutes = [
       rolePrefix: ["colaborador-b"],
     },
     component: () => import("@/views/panels/employee/profile/Edit.vue"),
+  },
+  {
+    path: "/employee/leave-requests",
+    name: "employee.leave-requests",
+    meta: {
+      title: setTitle("Solicitações de folga"),
+      authRequired: true,
+      permission: ["employee_leave_requests.index", "employee_leave_requests.read"],
+      role: ["user", "employee", "colaborador"],
+      rolePrefix: ["colaborador-b"],
+    },
+    component: () => import("@/views/panels/employee/leave-requests/index.vue"),
+  },
+  {
+    path: "/employee/leave-requests/create",
+    name: "employee.leave-requests.create",
+    meta: {
+      title: setTitle("Solicitar folga"),
+      authRequired: true,
+      permission: "employee_leave_requests.create",
+      role: ["user", "employee", "colaborador"],
+      rolePrefix: ["colaborador-b"],
+    },
+    component: () => import("@/views/panels/employee/leave-requests/create.vue"),
+  },
+  {
+    path: "/employee/day-offs",
+    name: "employee.day-offs",
+    meta: {
+      title: setTitle("Minhas folgas"),
+      authRequired: true,
+      permission: ["employee_day_offs.index", "employee_day_offs.read"],
+      role: ["user", "employee", "colaborador"],
+      rolePrefix: ["colaborador-b"],
+    },
+    component: () => import("@/views/panels/employee/day-offs/index.vue"),
+  },
+  {
+    path: "/employee/notifications",
+    name: "employee.notifications",
+    meta: {
+      title: setTitle("Notificações"),
+      authRequired: true,
+      permission: ["employee_leave_requests.index", "employee_leave_requests.read"],
+      role: ["user", "employee", "colaborador"],
+      rolePrefix: ["colaborador-b"],
+    },
+    component: () => import("@/views/panels/common/notifications/index.vue"),
   },
   {
     path: "/employee",

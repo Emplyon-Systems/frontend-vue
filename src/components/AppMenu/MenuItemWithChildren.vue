@@ -14,6 +14,14 @@ const toggle = () => {
   return visible.value || menuItemActive(props.item.key, currentRouteName);
 };
 
+const badgeClass = () => {
+  const variant = props.item.badge?.variant;
+  if (variant === "warning") return "rounded text-warning bg-warning-subtle ms-1";
+  if (variant === "danger") return "rounded text-danger bg-danger-subtle ms-1";
+  if (variant === "success") return "rounded text-success bg-success-subtle ms-1";
+  return "rounded text-primary bg-primary-subtle ms-1";
+};
+
 watch(
   () => currentRouteName,
   () => {
@@ -42,7 +50,7 @@ watch(
 
       <b-badge
         :variant="null"
-        class="rounded text-success bg-success-subtle ms-1"
+        :class="badgeClass()"
         v-if="item.badge"
       >
         {{ item.badge.text }}

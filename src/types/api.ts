@@ -378,3 +378,34 @@ export interface EmployeeLeafRecord {
   updated_at?: string;
   employee?: { id: number; name?: string; company_id?: number } | null;
 }
+
+export interface EmployeeLeaveRequestRecord {
+  id: number;
+  employee_id: number;
+  requested_by_user_id: number;
+  request_date: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  reviewed_by_user_id?: number | null;
+  reviewed_at?: string | null;
+  review_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+  requested_by_user?: { id: number; name?: string; email?: string } | null;
+  reviewed_by_user?: { id: number; name?: string; email?: string } | null;
+}
+
+export interface EmployeeDayOffRecord {
+  id: number;
+  employee_id: number;
+  employee_leave_request_id: number;
+  day_off_date: string;
+  approved_by_user_id?: number | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  employee?: { id: number; name?: string; company_id?: number } | null;
+  leave_request?: { id: number; request_date?: string; status?: string } | null;
+  approved_by_user?: { id: number; name?: string; email?: string } | null;
+}
