@@ -115,8 +115,6 @@ const companySelectRef = ref<HTMLSelectElement | null>(null);
 let companySelectr: any = null;
 const userSelectRef = ref<HTMLSelectElement | null>(null);
 let userSelectr: any = null;
-const roleSelectRef = ref<HTMLSelectElement | null>(null);
-let roleSelectr: any = null;
 
 const branchSelectEls = new Map<number, HTMLSelectElement>();
 const branchAssignmentSelectrs = new Map<number, any>();
@@ -372,30 +370,6 @@ function destroySelectrs() {
 function destroyUserSelectr() {
   userSelectr?.destroy?.();
   userSelectr = null;
-}
-
-function destroyRoleSelectr() {
-  roleSelectr?.destroy?.();
-  roleSelectr = null;
-}
-
-function initRoleSelectr() {
-  destroyRoleSelectr();
-  if (isView.value || !props.branchUserFlow || props.userAccessMode !== "create") return;
-  if (!roleSelectRef.value) return;
-  roleSelectr = new Selectr(roleSelectRef.value, {
-    searchable: true,
-    multiple: false,
-    placeholder: "Selecione o perfil",
-  });
-  roleSelectr.on("selectr.change", () => {
-    const raw = roleSelectr?.getValue();
-    emit("update:newUserRoleId", raw === "" || raw == null ? 0 : Number(raw));
-    emit("clear-error", "new_user_role");
-  });
-  const rid = Number(props.newUserRoleId ?? 0);
-  if (rid > 0) roleSelectr.setValue(rid);
-  else roleSelectr.setValue("");
 }
 
 function initCompanySelectr() {
@@ -716,25 +690,10 @@ watch(assignmentSelectSignature, async () => {
   await initAssignmentRowSelectrs();
 });
 
-const roleSelectSignature = computed(() =>
-  JSON.stringify({
-    branchUserFlow: props.branchUserFlow,
-    userAccessMode: props.userAccessMode,
-    newUserRoleId: props.newUserRoleId,
-    roles: (props.roleOptions ?? []).map((r) => r.id),
-  })
-);
-
-watch(roleSelectSignature, async () => {
-  await nextTick();
-  initRoleSelectr();
-});
-
 onMounted(async () => {
   await nextTick();
   initCompanySelectr();
   initUserSelectr();
-  initRoleSelectr();
   for (let i = 0; i < props.modelValue.assignments.length; i++) {
     await loadSectorsForRow(i, props.modelValue.assignments[i].branch_id);
   }
@@ -750,7 +709,6 @@ onBeforeUnmount(() => {
   destroySectorAssignmentSelectrs();
   destroySelectrs();
   destroyUserSelectr();
-  destroyRoleSelectr();
 });
 </script>
 
@@ -1252,9 +1210,13 @@ onBeforeUnmount(() => {
                   </template>
                   <select
                     id="emp-nur"
-                    ref="roleSelectRef"
                     class="form-select"
+                    :value="Number(newUserRoleId ?? 0) || ''"
                     :class="{ 'is-invalid': !!errors?.new_user_role }"
+                    @change="
+                      emit('update:newUserRoleId', Number(($event.target as HTMLSelectElement).value || 0));
+                      emit('clear-error', 'new_user_role');
+                    "
                   >
                     <option value="">Selecione o perfil</option>
                     <option v-for="r in roleOptions ?? []" :key="r.id" :value="r.id">{{ r.name }}</option>

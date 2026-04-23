@@ -14,6 +14,14 @@ const isActive = computed(() => {
   if (prefix && typeof n === "string" && n.startsWith(prefix)) return true;
   return false;
 });
+
+const badgeClass = computed(() => {
+  const variant = props.item.badge?.variant;
+  if (variant === "warning") return "rounded text-warning bg-warning-subtle ms-1";
+  if (variant === "danger") return "rounded text-danger bg-danger-subtle ms-1";
+  if (variant === "success") return "rounded text-success bg-success-subtle ms-1";
+  return "rounded text-primary bg-primary-subtle ms-1";
+});
 </script>
 
 <template>
@@ -25,7 +33,7 @@ const isActive = computed(() => {
     <span> {{ item.label }} </span>
     <b-badge
       :variant="null"
-      class="rounded text-success bg-success-subtle ms-1"
+      :class="badgeClass"
       v-if="item.badge"
     >
       {{ item.badge.text }}

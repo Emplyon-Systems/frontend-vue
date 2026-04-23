@@ -77,6 +77,22 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     "scale_types.delete",
     "scale_types.plucks",
   ]);
+  const canEmployeeLeaveRequests = hasAny([
+    "employee_leave_requests.index",
+    "employee_leave_requests.read",
+    "employee_leave_requests.create",
+    "employee_leave_requests.update",
+    "employee_leave_requests.delete",
+    "employee_leave_requests.plucks",
+  ]);
+  const canEmployeeDayOffs = hasAny([
+    "employee_day_offs.index",
+    "employee_day_offs.read",
+    "employee_day_offs.create",
+    "employee_day_offs.update",
+    "employee_day_offs.delete",
+    "employee_day_offs.plucks",
+  ]);
   const companySelfRouteName = "company.my-company.view";
   const branchSelfRouteName = "branch.my-branch.view";
 
@@ -149,9 +165,25 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     { key: "main", label: "Menu", isTitle: true },
     { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name } },
   ];
+  if (path === "/employee" && canEmployeeLeaveRequests) {
+    baseMenu.push({
+      key: "employee-leave-requests",
+      icon: "iconoir-calendar",
+      label: "Solicitar folga",
+      route: { name: "employee.leave-requests" },
+    });
+  }
+  if (path === "/employee" && canEmployeeDayOffs) {
+    baseMenu.push({
+      key: "employee-day-offs",
+      icon: "iconoir-calendar-minus",
+      label: "Minhas folgas",
+      route: { name: "employee.day-offs" },
+    });
+  }
   // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canEmployees || canShifts || canModalityTypes || canScaleTypes)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canEmployees || canShifts || canModalityTypes || canScaleTypes || canEmployeeLeaveRequests)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
       if (canBranches) {
@@ -176,6 +208,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
           icon: "iconoir-community",
           label: "Funcionários",
           route: { name: "branch.employees" },
+        });
+      }
+      if (canEmployeeLeaveRequests) {
+        baseMenu.push({
+          key: "branch-leave-requests",
+          icon: "iconoir-calendar",
+          label: "Solicitações de folgas",
+          route: { name: "branch.leave-requests" },
         });
       }
       if (canShifts) {

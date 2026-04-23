@@ -40,7 +40,11 @@ const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors(
 const companyOptions = ref<Array<{ id: number; name: string; internal_email_domain?: string }>>([]);
 const branchOptions = ref<Array<{ id: number; name: string; company_id?: number }>>([]);
 const userOptions = ref<Array<{ id: number; name: string; email: string }>>([]);
-const accessAccountFlow = computed(() => branchScoped.value || companyScoped.value);
+/**
+ * A criação de funcionário deve permitir conta de acesso em todos os contextos
+ * (owner/superadmin, empresa e filial), para criar usuário + funcionário no mesmo fluxo.
+ */
+const accessAccountFlow = computed(() => true);
 const branchUserFlow = computed(() => accessAccountFlow.value);
 const userAccessMode = ref<"link" | "create">(accessAccountFlow.value ? "create" : "link");
 const newUserPassword = ref("");

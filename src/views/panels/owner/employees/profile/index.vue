@@ -6,6 +6,7 @@ import ProfileInfo from "./ProfileInfo.vue";
 import PersonalInformation from "./PersonalInformation.vue";
 import AssignmentsTab from "./AssignmentsTab.vue";
 import EmployeePeriodRecordsTab from "./EmployeePeriodRecordsTab.vue";
+import EmployeeDayOffRecordsTab from "./EmployeeDayOffRecordsTab.vue";
 import MoreTab from "./MoreTab.vue";
 
 defineProps<{
@@ -13,7 +14,7 @@ defineProps<{
   onEdit?: () => void;
 }>();
 
-const TAB_QUERIES = ["pessoal", "assignments", "vacations", "medical", "leaves", "more"] as const;
+const TAB_QUERIES = ["pessoal", "assignments", "vacations", "medical", "leaves", "day-offs", "more"] as const;
 
 const route = useRoute();
 const router = useRouter();
@@ -89,6 +90,13 @@ watch(
                 <b-row class="justify-content-center">
                   <b-col cols="12">
                     <EmployeePeriodRecordsTab :employee-id="employee.id" kind="leaf" />
+                  </b-col>
+                </b-row>
+              </b-tab>
+              <b-tab title="Folgas">
+                <b-row class="justify-content-center">
+                  <b-col cols="12">
+                    <EmployeeDayOffRecordsTab :employee-id="employee.id" />
                   </b-col>
                 </b-row>
               </b-tab>
