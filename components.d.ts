@@ -39,6 +39,7 @@ declare module 'vue' {
     BThead: typeof import('bootstrap-vue-next')['BThead']
     BTr: typeof import('bootstrap-vue-next')['BTr']
     ChartJs: typeof import('./src/components/ChartJs.vue')['default']
+    ChatwootTenantWidget: typeof import('./src/components/ChatwootTenantWidget.vue')['default']
     ConfirmDeleteModal: typeof import('./src/components/ConfirmDeleteModal.vue')['default']
     DropDown: typeof import('./src/components/DropDown.vue')['default']
     FilterTriggerButton: typeof import('./src/components/filters/FilterTriggerButton.vue')['default']

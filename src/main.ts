@@ -3,6 +3,7 @@ import { createPinia } from "pinia";
 
 import App from "./App.vue";
 import router from "./router";
+import { useAuthStore } from "@/stores/auth";
 import { permission as vPermission } from "@/directives/permission";
 
 import { createBootstrap } from "bootstrap-vue-next";
@@ -33,7 +34,10 @@ import "@/assets/scss/icons.scss";
 
 const app = createApp(App);
 
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
+/** Antes do mount: guards e widgets (ex. Chatwoot) veem sessão já restaurada do localStorage. */
+useAuthStore().hydrate();
 app.use(router);
 app.directive("permission", vPermission);
 app.use(createBootstrap({ components: true, directives: true }));
