@@ -8,7 +8,7 @@ const props = defineProps<{
 
 const name = computed(() => props.employee.name ?? "");
 const email = computed(() => props.employee.email ?? "");
-const jobTitle = computed(() => (props.employee.job_title ?? "").trim());
+const jobTitle = computed(() => props.employee.position?.name ?? "");
 const subtitle = computed(() => props.employee.company?.name?.trim() || "");
 
 const companyCount = computed(() => ((props.employee.company_id ?? 0) > 0 ? 1 : 0));

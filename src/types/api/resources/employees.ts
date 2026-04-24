@@ -23,7 +23,7 @@ export interface EmployeeCreatePayload {
   cpf?: string | null;
   email: string;
   phone?: string | null;
-  job_title: string;
+  position_id?: number | null;
   street?: string | null;
   street_number?: string | null;
   complement?: string | null;

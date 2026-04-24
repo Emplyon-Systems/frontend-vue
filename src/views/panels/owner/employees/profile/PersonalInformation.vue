@@ -80,8 +80,8 @@ const addressBlock = computed(() => {
             <b>E-mail</b>: {{ employee.email || "—" }}
           </li>
           <li class="mt-2">
-            <i class="iconoir-briefcase me-2 text-secondary fs-18 align-middle"></i>
-            <b>Cargo</b>: {{ (employee.job_title ?? "").trim() || "—" }}
+            <i class="iconoir-user-crown me-2 text-secondary fs-18 align-middle"></i>
+            <b>Cargo</b>: {{ employee.position?.name || "—" }}
           </li>
           <li v-if="linkedUserLine" class="mt-2">
             <i class="iconoir-user-circle me-2 text-secondary fs-18 align-middle"></i>

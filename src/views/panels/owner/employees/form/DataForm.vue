@@ -6,6 +6,8 @@ import InputMask from "@/components/InputMask.vue";
 import type { EmployeeFormData } from "@/core/schemas";
 import type { SectorPluckItem } from "@/api/resources/sectors";
 import { sectorsApi, usersApi } from "@/api/resources";
+import type { PositionPluckItem } from "@/api/resources/positions";
+import { positionsApi } from "@/api/resources";
 import { notifyError } from "@/helpers/notify";
 
 const props = withDefaults(
@@ -36,6 +38,8 @@ const props = withDefaults(
     hideCompanyField?: boolean;
     /** Contexto filial: não mostrar coluna Filial nas atribuições (já é a filial do contexto). */
     hideBranchAssignmentField?: boolean;
+    /** Cargos disponíveis para a filial principal do funcionário. */
+    positionOptions?: PositionPluckItem[];
   }>(),
   {
     errors: () => ({}),
@@ -56,6 +60,7 @@ const props = withDefaults(
     hideCompanyField: false,
     hideBranchAssignmentField: false,
     tenantEmailDomain: null,
+    positionOptions: () => [],
   }
 );
 
@@ -115,6 +120,15 @@ const companySelectRef = ref<HTMLSelectElement | null>(null);
 let companySelectr: any = null;
 const userSelectRef = ref<HTMLSelectElement | null>(null);
 let userSelectr: any = null;
+
+const positionSelectRef = ref<HTMLSelectElement | null>(null);
+let positionSelectr: any = null;
+
+const positionDisplayName = computed(() => {
+  const pid = Number(props.modelValue.position_id ?? 0);
+  if (!pid) return "—";
+  return props.positionOptions?.find((p) => p.id === pid)?.name || `Cargo #${pid}`;
+});
 
 const branchSelectEls = new Map<number, HTMLSelectElement>();
 const branchAssignmentSelectrs = new Map<number, any>();
@@ -370,6 +384,29 @@ function destroySelectrs() {
 function destroyUserSelectr() {
   userSelectr?.destroy?.();
   userSelectr = null;
+}
+
+function destroyPositionSelectr() {
+  positionSelectr?.destroy?.();
+  positionSelectr = null;
+}
+
+function initPositionSelectr() {
+  destroyPositionSelectr();
+  if (isView.value) return;
+  if (!positionSelectRef.value) return;
+  positionSelectr = new Selectr(positionSelectRef.value, {
+    searchable: true,
+    multiple: false,
+    placeholder: "Selecione um cargo",
+  });
+  positionSelectr.on("selectr.change", () => {
+    const raw = positionSelectr?.getValue();
+    updateField("position_id", raw === "" || raw == null ? 0 : Number(raw));
+  });
+  const pid = Number(props.modelValue.position_id ?? 0);
+  if (pid > 0) positionSelectr.setValue(pid);
+  else positionSelectr.setValue("");
 }
 
 function initCompanySelectr() {
@@ -690,10 +727,24 @@ watch(assignmentSelectSignature, async () => {
   await initAssignmentRowSelectrs();
 });
 
+const positionSelectSignature = computed(() =>
+  JSON.stringify({
+    mode: props.mode,
+    position_id: props.modelValue.position_id,
+    positions: props.positionOptions?.map((p) => p.id) ?? [],
+  })
+);
+
+watch(positionSelectSignature, async () => {
+  await nextTick();
+  initPositionSelectr();
+});
+
 onMounted(async () => {
   await nextTick();
   initCompanySelectr();
   initUserSelectr();
+  initPositionSelectr();
   for (let i = 0; i < props.modelValue.assignments.length; i++) {
     await loadSectorsForRow(i, props.modelValue.assignments[i].branch_id);
   }
@@ -709,6 +760,7 @@ onBeforeUnmount(() => {
   destroySectorAssignmentSelectrs();
   destroySelectrs();
   destroyUserSelectr();
+  destroyPositionSelectr();
 });
 </script>
 
@@ -820,19 +872,27 @@ onBeforeUnmount(() => {
         </b-form-group>
       </b-col>
       <b-col :md="branchUserFlow ? 6 : 12">
-        <b-form-group label-for="emp-job_title">
-          <template #label>
-            Cargo<span v-if="req" class="text-danger ms-1" aria-hidden="true">*</span>
-          </template>
+        <b-form-group label-for="emp-position_id">
+          <template #label>Cargo</template>
           <b-form-input
-            id="emp-job_title"
-            :model-value="modelValue.job_title"
-            type="text"
-            :readonly="isView"
-            :class="{ 'is-invalid': errors?.job_title }"
-            @update:model-value="updateField('job_title', String($event ?? ''))"
+            v-if="isView"
+            readonly
+            tabindex="-1"
+            :model-value="positionDisplayName"
+            class="bg-light"
           />
-          <b-form-invalid-feedback v-if="errors?.job_title">{{ errors.job_title }}</b-form-invalid-feedback>
+          <template v-else>
+            <select
+              id="emp-position_id"
+              ref="positionSelectRef"
+              class="form-select"
+              :class="{ 'is-invalid': !!errors?.position_id }"
+            >
+              <option value="">Selecione um cargo</option>
+              <option v-for="p in positionOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </template>
+          <b-form-invalid-feedback v-if="errors?.position_id">{{ errors.position_id }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
     </b-row>

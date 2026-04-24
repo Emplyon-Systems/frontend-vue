@@ -720,6 +720,50 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/sectors/view.vue"),
   },
   {
+    path: "/positions",
+    name: "owner.positions",
+    meta: {
+      title: setTitle("Cargos"),
+      authRequired: true,
+      panel: "owner",
+      permission: ["positions.index", "positions.read"],
+    },
+    component: () => import("@/pages/panels/owner/positions/index.vue"),
+  },
+  {
+    path: "/positions/create",
+    name: "owner.positions.create",
+    meta: {
+      title: setTitle("Novo cargo"),
+      authRequired: true,
+      panel: "owner",
+      permission: "positions.create",
+    },
+    component: () => import("@/pages/panels/owner/positions/create.vue"),
+  },
+  {
+    path: "/positions/:id/edit",
+    name: "owner.positions.edit",
+    meta: {
+      title: setTitle("Editar cargo"),
+      authRequired: true,
+      panel: "owner",
+      permission: "positions.update",
+    },
+    component: () => import("@/pages/panels/owner/positions/edit.vue"),
+  },
+  {
+    path: "/positions/:id",
+    name: "owner.positions.view",
+    meta: {
+      title: setTitle("Visualizar cargo"),
+      authRequired: true,
+      panel: "owner",
+      permission: "positions.read",
+    },
+    component: () => import("@/pages/panels/owner/positions/view.vue"),
+  },
+  {
     path: "/employees",
     name: "owner.employees",
     meta: {
@@ -1183,7 +1227,57 @@ const panelRoutes = [
             },
             component: () => import("@/pages/panels/owner/scale-types/index.vue"),
           },
+          {
+            path: "positions",
+            name: "company.branch.positions",
+            meta: {
+              title: setTitle("Filial — Cargos"),
+              authRequired: true,
+              permission: ["positions.index", "positions.read"],
+            },
+            component: () => import("@/pages/panels/owner/positions/index.vue"),
+          },
         ],
+      },
+      {
+        path: "positions",
+        name: "company.positions",
+        meta: {
+          title: setTitle("Cargos da empresa"),
+          authRequired: true,
+          permission: ["positions.index", "positions.read"],
+        },
+        component: () => import("@/pages/panels/owner/positions/index.vue"),
+      },
+      {
+        path: "positions/create",
+        name: "company.positions.create",
+        meta: {
+          title: setTitle("Novo cargo"),
+          authRequired: true,
+          permission: "positions.create",
+        },
+        component: () => import("@/pages/panels/owner/positions/create.vue"),
+      },
+      {
+        path: "positions/:id/edit",
+        name: "company.positions.edit",
+        meta: {
+          title: setTitle("Editar cargo"),
+          authRequired: true,
+          permission: "positions.update",
+        },
+        component: () => import("@/pages/panels/owner/positions/edit.vue"),
+      },
+      {
+        path: "positions/:id",
+        name: "company.positions.view",
+        meta: {
+          title: setTitle("Visualizar cargo"),
+          authRequired: true,
+          permission: "positions.read",
+        },
+        component: () => import("@/pages/panels/owner/positions/view.vue"),
       },
       {
         path: "sectors",
@@ -1509,6 +1603,54 @@ const panelRoutes = [
       rolePrefix: ["filial-b"],
     },
     component: () => import("@/pages/panels/owner/sectors/view.vue"),
+  },
+  {
+    path: "/branch/positions",
+    name: "branch.positions",
+    meta: {
+      title: setTitle("Cargos da filial"),
+      authRequired: true,
+      permission: ["positions.index", "positions.read"],
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/positions/index.vue"),
+  },
+  {
+    path: "/branch/positions/create",
+    name: "branch.positions.create",
+    meta: {
+      title: setTitle("Novo cargo"),
+      authRequired: true,
+      permission: "positions.create",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/positions/create.vue"),
+  },
+  {
+    path: "/branch/positions/:id/edit",
+    name: "branch.positions.edit",
+    meta: {
+      title: setTitle("Editar cargo"),
+      authRequired: true,
+      permission: "positions.update",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/positions/edit.vue"),
+  },
+  {
+    path: "/branch/positions/:id",
+    name: "branch.positions.view",
+    meta: {
+      title: setTitle("Visualizar cargo"),
+      authRequired: true,
+      permission: "positions.read",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/positions/view.vue"),
   },
   {
     path: "/branch/employees",

@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import DataForm from "./form/DataForm.vue";
-import { employeesApi, branchesApi, companiesApi, usersApi, rolesApi } from "@/api/resources";
+import { employeesApi, branchesApi, companiesApi, usersApi, rolesApi, positionsApi } from "@/api/resources";
 import type { EmployeeCreatePayload } from "@/api/resources/employees";
 import { loadUsersForCompany, loadUsersAvailableForEmployeeLink } from "@/helpers/employeeCompanyUsers";
 import { employeeInitialForm, validateEmployeeForm, type EmployeeFormData } from "@/core/schemas";
@@ -52,6 +52,7 @@ const newUserPasswordConfirm = ref("");
 const newUserRoleId = ref(0);
 const roleOptions = ref<Array<{ id: number; name: string }>>([]);
 const roleOptionsLoading = ref(false);
+const positionOptions = ref<Array<{ id: number; name: string; branch_id: number; slug: string }>>([]);
 
 const userLimitReached = ref(false);
 const companyLimitChecked = ref(false);
@@ -177,6 +178,22 @@ watch(
       roleOptions.value = [];
     } finally {
       roleOptionsLoading.value = false;
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  primaryAssignmentBranchId,
+  async (branchId) => {
+    if (branchId <= 0) {
+      positionOptions.value = [];
+      return;
+    }
+    try {
+      positionOptions.value = await positionsApi.plucks({ branch_id: branchId });
+    } catch {
+      positionOptions.value = [];
     }
   },
   { immediate: true }
@@ -332,7 +349,7 @@ function submit() {
             user_id: uid,
             name: d.name,
             email: d.email,
-            job_title: d.job_title,
+            position_id: d.position_id && d.position_id > 0 ? d.position_id : undefined,
             street: d.street,
             street_number: d.street_number,
             complement: d.complement,
@@ -367,7 +384,7 @@ function submit() {
     company_id: d.company_id,
     name: d.name,
     email: d.email,
-    job_title: d.job_title,
+    position_id: d.position_id && d.position_id > 0 ? d.position_id : undefined,
     street: d.street,
     street_number: d.street_number,
     complement: d.complement,
@@ -502,6 +519,7 @@ onMounted(async () => {
           :new-user-password-confirm="newUserPasswordConfirm"
           :new-user-role-id="newUserRoleId"
           :role-options="roleOptions"
+          :position-options="positionOptions"
           mode="create"
           @clear-error="clearError"
           @update:user-access-mode="userAccessMode = $event"
