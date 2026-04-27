@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UIComponentCard title="Dados da modalidade">
+  <UIComponentCard title="Dados da modalidade de domingo">
     <b-row class="g-3">
       <b-col v-if="!isBranchLocked" md="12">
         <b-form-group label="Filial" label-for="modality-type-branch_id">
@@ -137,7 +137,7 @@ onBeforeUnmount(() => {
             id="modality-type-name"
             :model-value="modelValue.name"
             type="text"
-            placeholder="Nome da modalidade"
+            placeholder="Nome do tipo (modalidade de domingo)"
             :readonly="isView"
             :class="{ 'is-invalid': errors?.name }"
             @update:model-value="updateField('name', String($event ?? ''))"

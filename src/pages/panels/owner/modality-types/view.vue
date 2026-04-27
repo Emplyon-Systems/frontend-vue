@@ -60,7 +60,7 @@ function loadModalityType() {
   loadingModalityType.value = true;
 
   if (!modalityTypeId.value) {
-    loadError.value = "Modalidade inválida.";
+    loadError.value = "Registo de modalidade de domingo inválido.";
     loadingModalityType.value = false;
     return;
   }
@@ -68,7 +68,7 @@ function loadModalityType() {
   modalityTypesApi
     .getById(modalityTypeId.value)
     .then(fillFromModalityType)
-    .catch(() => (loadError.value = "Modalidade não encontrada."))
+    .catch(() => (loadError.value = "Modalidade de domingo não encontrada."))
     .finally(() => (loadingModalityType.value = false));
 }
 
@@ -87,8 +87,8 @@ onMounted(async () => {
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Visualizar modalidade</h1>
-          <p class="text-muted mb-0 small">Consulta dos dados da modalidade.</p>
+          <h1 class="h4 mb-1">Visualizar modalidade de domingo</h1>
+          <p class="text-muted mb-0 small">Consulta dos dados do tipo de modalidade de domingo.</p>
         </div>
         <div class="d-flex gap-2">
           <b-button v-if="canEditModalityType" variant="outline-primary" @click="goEdit">Editar</b-button>
@@ -97,7 +97,7 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingModalityType" class="text-muted">Carregando modalidade...</div>
+      <div v-else-if="loadingModalityType" class="text-muted">A carregar modalidade de domingo…</div>
       <DataForm
         v-else
         v-model="form"

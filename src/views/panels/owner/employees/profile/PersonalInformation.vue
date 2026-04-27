@@ -18,6 +18,19 @@ const linkedUserLine = computed(() => {
   return name || mail || `ID ${u.id}`;
 });
 
+/** Filial principal (ou primeira) — mesma regra de contexto de vínculo. */
+const primaryBranch = computed(() => {
+  const branches = props.employee.branches ?? [];
+  if (!branches.length) return null;
+  return branches.find((b) => b.pivot?.is_primary) ?? branches[0];
+});
+
+const sundayModalityDisplay = computed(() => {
+  const mt = primaryBranch.value?.pivot_modality_type;
+  const n = (mt?.name ?? "").trim();
+  return n || "—";
+});
+
 const hasAddress = computed(() => {
   const e = props.employee;
   return !!(
@@ -82,6 +95,10 @@ const addressBlock = computed(() => {
           <li class="mt-2">
             <i class="iconoir-user-crown me-2 text-secondary fs-18 align-middle"></i>
             <b>Cargo</b>: {{ employee.position?.name || "—" }}
+          </li>
+          <li class="mt-2">
+            <i class="iconoir-book me-2 text-secondary fs-18 align-middle"></i>
+            <b>Modalidade de domingo</b>: {{ sundayModalityDisplay }}
           </li>
           <li v-if="linkedUserLine" class="mt-2">
             <i class="iconoir-user-circle me-2 text-secondary fs-18 align-middle"></i>

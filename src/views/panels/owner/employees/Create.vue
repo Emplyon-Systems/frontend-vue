@@ -361,6 +361,7 @@ function submit() {
               branch_id: a.branch_id,
               sector_id: a.sector_id,
               is_primary: !!a.is_primary,
+              modality_type_id: a.modality_type_id,
             })),
           };
           return employeesApi.create(payload);
@@ -396,6 +397,7 @@ function submit() {
       branch_id: a.branch_id,
       sector_id: a.sector_id,
       is_primary: !!a.is_primary,
+      modality_type_id: a.modality_type_id,
     })),
   };
   if (d.user_id > 0) {
@@ -431,7 +433,9 @@ onMounted(async () => {
       }
     }
     branchOptions.value = [{ id: currentBranchId.value, name: branchName ?? `Filial #${currentBranchId.value}`, company_id: companyId }];
-    form.value.assignments = [{ branch_id: currentBranchId.value, sector_id: 0, is_primary: true }];
+    form.value.assignments = [
+      { branch_id: currentBranchId.value, sector_id: 0, modality_type_id: 0, is_primary: true },
+    ];
     if (companyId > 0) {
       form.value.company_id = companyId;
       const nm =

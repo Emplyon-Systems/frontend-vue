@@ -9,6 +9,7 @@ const props = defineProps<{
 const columns = [
   { key: "branchName", label: "Filial", sortable: false },
   { key: "sectorName", label: "Setor", sortable: false },
+  { key: "modalityName", label: "Modalidade de domingo", sortable: false },
   { key: "principal", label: "Principal", sortable: false },
 ];
 
@@ -16,6 +17,7 @@ const rows = computed(() =>
   (props.employee.branches ?? []).map((b) => ({
     branchName: b.name?.trim() || `Filial #${b.id}`,
     sectorName: b.pivot_sector?.name?.trim() || "—",
+    modalityName: b.pivot_modality_type?.name?.trim() || "—",
     principal: b.pivot?.is_primary ? "Sim" : "Não",
   }))
 );

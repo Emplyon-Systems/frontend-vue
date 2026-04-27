@@ -14,6 +14,7 @@ export interface EmployeeAssignmentInput {
   branch_id: number;
   sector_id: number;
   is_primary?: boolean;
+  modality_type_id: number;
 }
 
 export interface EmployeeCreatePayload {

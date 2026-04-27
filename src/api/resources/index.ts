@@ -6,6 +6,7 @@ export * as employeesApi from "./employees";
 export * as employeeLeavesApi from "./employee-leaves";
 export * as employeeLeaveRequestsApi from "./employee-leave-requests";
 export * as employeeDayOffsApi from "./employee-day-offs";
+export * as dayOffModalitiesApi from "./day-off-modalities";
 export * as employeeMedicalCertificatesApi from "./employee-medical-certificates";
 export * as employeeVacationsApi from "./employee-vacations";
 export * as modalityTypesApi from "./modality-types";

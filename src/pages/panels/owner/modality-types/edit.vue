@@ -56,7 +56,7 @@ function loadModalityType() {
   loadingModalityType.value = true;
 
   if (Number.isNaN(modalityTypeId.value)) {
-    loadError.value = "Modalidade inválida.";
+    loadError.value = "Registo de modalidade de domingo inválido.";
     loadingModalityType.value = false;
     return;
   }
@@ -64,7 +64,7 @@ function loadModalityType() {
   modalityTypesApi
     .getById(modalityTypeId.value)
     .then(fillFormFromModalityType)
-    .catch(() => (loadError.value = "Modalidade não encontrada."))
+    .catch(() => (loadError.value = "Modalidade de domingo não encontrada."))
     .finally(() => (loadingModalityType.value = false));
 }
 
@@ -82,7 +82,7 @@ function submit() {
   modalityTypesApi
     .update(modalityTypeId.value, payload)
     .then(() => {
-      notifySuccess("Modalidade atualizada com sucesso.");
+      notifySuccess("Modalidade de domingo atualizada com sucesso.");
       router.push({ name: modalityTypesListRoute() });
     })
     .catch(onApiError)
@@ -104,14 +104,14 @@ onMounted(async () => {
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Editar modalidade</h1>
-          <p class="text-muted mb-0 small">Atualizar dados da modalidade.</p>
+          <h1 class="h4 mb-1">Editar modalidade de domingo</h1>
+          <p class="text-muted mb-0 small">Atualizar dados do tipo de modalidade de domingo.</p>
         </div>
         <b-button variant="outline-secondary" @click="cancel">Voltar</b-button>
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingModalityType" class="text-muted">Carregando modalidade...</div>
+      <div v-else-if="loadingModalityType" class="text-muted">A carregar modalidade de domingo…</div>
       <b-form v-else @submit.prevent="submit">
         <DataForm
           v-model="form"

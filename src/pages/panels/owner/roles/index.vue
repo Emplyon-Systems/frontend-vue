@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import FilterTriggerButton from "@/components/filters/FilterTriggerButton.vue";
@@ -18,6 +18,7 @@ import { useFilterState } from "@/composables/useFilterState";
 import { useListPageState } from "@/composables/useListPageState";
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const rolePermissions = useModulePermissions("roles");
 const { scopedCompanyId, currentBranchId } = usePanelScope();
@@ -63,7 +64,29 @@ const hasCompanyLevelAccess = computed(() =>
 );
 const showCompanyFilter = computed(() => isSuperadmin.value || rolePermissions.canList.value);
 const showBranchFilter = computed(() => isSuperadmin.value || isCompanyContext.value || rolePermissions.canList.value);
+const routeName = computed(() => String(route.name ?? ""));
+const forcedCompanyId = computed(() => {
+  if (routeName.value === "owner.company.workspace.roles") {
+    const id = Number(route.params.id ?? 0);
+    return id > 0 ? id : 0;
+  }
+  return 0;
+});
+const forcedBranchId = computed(() => {
+  if (routeName.value === "company.branch.roles") {
+    const id = Number(route.params.id ?? 0);
+    return id > 0 ? id : 0;
+  }
+  return 0;
+});
+const hideTenantFiltersByRoute = computed(() => forcedCompanyId.value > 0 || forcedBranchId.value > 0);
 const filteredBranchOptions = computed(() => {
+  if (forcedBranchId.value > 0) {
+    return branchOptions.value.filter((b) => b.id === forcedBranchId.value);
+  }
+  if (forcedCompanyId.value > 0) {
+    return branchOptions.value.filter((b) => Number(b.company_id ?? 0) === forcedCompanyId.value);
+  }
   if (isCompanyContext.value && authStore.activeContext?.company_id) {
     const activeCompanyId = Number(authStore.activeContext.company_id);
     return branchOptions.value.filter((b) => Number(b.company_id ?? 0) === activeCompanyId);
@@ -90,19 +113,19 @@ const listagemColumns = [
 
 function loadList(page = 1) {
   loading.value = true;
+  const effectiveCompanyIds = forcedCompanyId.value > 0
+    ? [forcedCompanyId.value]
+    : (showCompanyFilter.value && (appliedFilters.value.company_ids?.length ?? 0) ? appliedFilters.value.company_ids : undefined);
+  const effectiveBranchIds = forcedBranchId.value > 0
+    ? [forcedBranchId.value]
+    : (showBranchFilter.value && (appliedFilters.value.branch_ids?.length ?? 0) ? appliedFilters.value.branch_ids : undefined);
   rolesApi
     .list({
       page,
       per_page: pagination.value.per_page,
       search: appliedFilters.value.search.trim() || undefined,
-      company_ids: showCompanyFilter.value && (appliedFilters.value.company_ids?.length ?? 0)
-        ? appliedFilters.value.company_ids
-        : undefined,
-      branch_ids:
-        showBranchFilter.value &&
-        (appliedFilters.value.branch_ids?.length ?? 0)
-          ? appliedFilters.value.branch_ids
-          : undefined,
+      company_ids: effectiveCompanyIds,
+      branch_ids: effectiveBranchIds,
       created_at_from: appliedFilters.value.created_at_from || undefined,
       created_at_until: appliedFilters.value.created_at_until || undefined,
       order_by: orderBy.value,
@@ -177,7 +200,19 @@ function canDeleteRole(role: RoleRecord): boolean {
   return canEditRole(role);
 }
 
-onMounted(() => loadList());
+onMounted(() => {
+  if (forcedBranchId.value > 0) {
+    filters.value.branch_ids = [forcedBranchId.value];
+    appliedFilters.value.branch_ids = [forcedBranchId.value];
+    loadList();
+    return;
+  }
+  if (forcedCompanyId.value > 0) {
+    filters.value.company_ids = [forcedCompanyId.value];
+    appliedFilters.value.company_ids = [forcedCompanyId.value];
+  }
+  loadList();
+});
 
 onMounted(async () => {
   if (!showCompanyFilter.value && !showBranchFilter.value) return;
@@ -206,7 +241,7 @@ onMounted(async () => {
           <p class="text-muted mb-0 small">Listar, criar e editar perfis (roles) e vincular permissões.</p>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" label="Filtros" />
+          <FilterTriggerButton v-if="!hideTenantFiltersByRoute" v-model="showFilters" :active="hasActiveFilters" label="Filtros" />
           <b-button v-if="rolePermissions.canCreate" variant="primary" @click="goCreate">
             <i class="iconoir-plus me-1"></i>
             Novo perfil
@@ -214,7 +249,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <UIComponentCard v-if="showFilters" title="Filtros" class="mb-3">
+      <UIComponentCard v-if="showFilters && !hideTenantFiltersByRoute" title="Filtros" class="mb-3">
         <RolesFilter
           v-model="filters"
           :show-tenant-filters="showCompanyFilter || showBranchFilter"
@@ -223,7 +258,7 @@ onMounted(async () => {
           :company-options="companyOptions"
           :branch-options="filteredBranchOptions"
           @apply="() => { applyFilters(); loadList(1); }"
-          @reset="() => { resetFilters(); loadList(1); }"
+          @reset="() => { resetFilters(); if (forcedCompanyId > 0) { filters.company_ids = [forcedCompanyId]; appliedFilters.company_ids = [forcedCompanyId]; } if (forcedBranchId > 0) { filters.branch_ids = [forcedBranchId]; appliedFilters.branch_ids = [forcedBranchId]; } loadList(1); }"
         />
       </UIComponentCard>
 

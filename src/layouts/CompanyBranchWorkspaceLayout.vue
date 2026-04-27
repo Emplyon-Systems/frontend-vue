@@ -42,6 +42,12 @@ const tabs = computed<TabDef[]>(() => {
       visible: isSuperadmin || canAny(["users.index", "users.read"]),
     },
     {
+      key: "roles",
+      label: "Cargos",
+      name: "company.branch.roles",
+      visible: isSuperadmin || canAny(["roles.index", "roles.read"]),
+    },
+    {
       key: "shifts",
       label: "Turnos",
       name: "company.branch.shifts",
@@ -49,7 +55,7 @@ const tabs = computed<TabDef[]>(() => {
     },
     {
       key: "modality-types",
-      label: "Modalidades",
+      label: "Modalidade de domingo",
       name: "company.branch.modality-types",
       visible: isSuperadmin || canAny(["modality_types.index", "modality_types.read"]),
     },

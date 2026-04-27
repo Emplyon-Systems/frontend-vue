@@ -614,7 +614,7 @@ const panelRoutes = [
       {
         path: "modality-types",
         name: "owner.company.workspace.modality-types",
-        meta: { title: setTitle("Empresa — Modalidades"), authRequired: true, panel: "owner", permission: ["modality_types.index", "modality_types.read"] },
+        meta: { title: setTitle("Empresa — Modalidade de domingo"), authRequired: true, panel: "owner", permission: ["modality_types.index", "modality_types.read"] },
         component: () => import("@/pages/panels/owner/companies/workspace/modality-types.vue"),
       },
       {
@@ -628,6 +628,12 @@ const panelRoutes = [
         name: "owner.company.workspace.users",
         meta: { title: setTitle("Empresa — Usuarios"), authRequired: true, panel: "owner", permission: ["users.index", "users.read"] },
         component: () => import("@/pages/panels/owner/companies/workspace/users.vue"),
+      },
+      {
+        path: "roles",
+        name: "owner.company.workspace.roles",
+        meta: { title: setTitle("Empresa — Cargos"), authRequired: true, panel: "owner", permission: ["roles.index", "roles.read"] },
+        component: () => import("@/pages/panels/owner/roles/index.vue"),
       },
     ],
   },
@@ -877,7 +883,7 @@ const panelRoutes = [
     path: "/modality-types",
     name: "owner.modality-types",
     meta: {
-      title: setTitle("Modalidades"),
+      title: setTitle("Modalidade de domingo"),
       authRequired: true,
       panel: "owner",
       permission: ["modality_types.index", "modality_types.read"],
@@ -888,7 +894,7 @@ const panelRoutes = [
     path: "/modality-types/create",
     name: "owner.modality-types.create",
     meta: {
-      title: setTitle("Nova modalidade"),
+      title: setTitle("Nova modalidade de domingo"),
       authRequired: true,
       panel: "owner",
       permission: "modality_types.create",
@@ -899,7 +905,7 @@ const panelRoutes = [
     path: "/modality-types/:id/edit",
     name: "owner.modality-types.edit",
     meta: {
-      title: setTitle("Editar modalidade"),
+      title: setTitle("Editar modalidade de domingo"),
       authRequired: true,
       panel: "owner",
       permission: "modality_types.update",
@@ -910,12 +916,41 @@ const panelRoutes = [
     path: "/modality-types/:id",
     name: "owner.modality-types.view",
     meta: {
-      title: setTitle("Visualizar modalidade"),
+      title: setTitle("Visualizar modalidade de domingo"),
       authRequired: true,
       panel: "owner",
       permission: "modality_types.read",
     },
     component: () => import("@/pages/panels/owner/modality-types/view.vue"),
+  },
+  {
+    path: "/day-off-modalities",
+    name: "owner.day-off-modalities",
+    meta: {
+      title: setTitle("Modalidades de folga"),
+      authRequired: true,
+      panel: "owner",
+      permission: ["day_off_modalities.index", "day_off_modalities.read"],
+    },
+    component: () => import("@/pages/panels/owner/day-off-modalities/index.vue"),
+  },
+  {
+    path: "/day-off-modalities/create",
+    name: "owner.day-off-modalities.create",
+    meta: { title: setTitle("Nova modalidade de folga"), authRequired: true, panel: "owner", permission: "day_off_modalities.create" },
+    component: () => import("@/pages/panels/owner/day-off-modalities/create.vue"),
+  },
+  {
+    path: "/day-off-modalities/:id/edit",
+    name: "owner.day-off-modalities.edit",
+    meta: { title: setTitle("Editar modalidade de folga"), authRequired: true, panel: "owner", permission: "day_off_modalities.update" },
+    component: () => import("@/pages/panels/owner/day-off-modalities/edit.vue"),
+  },
+  {
+    path: "/day-off-modalities/:id",
+    name: "owner.day-off-modalities.view",
+    meta: { title: setTitle("Visualizar modalidade de folga"), authRequired: true, panel: "owner", permission: "day_off_modalities.read" },
+    component: () => import("@/pages/panels/owner/day-off-modalities/view.vue"),
   },
   {
     path: "/scale-types",
@@ -1198,6 +1233,16 @@ const panelRoutes = [
             component: () => import("@/pages/panels/owner/users/index.vue"),
           },
           {
+            path: "roles",
+            name: "company.branch.roles",
+            meta: {
+              title: setTitle("Filial — Cargos"),
+              authRequired: true,
+              permission: ["roles.index", "roles.read"],
+            },
+            component: () => import("@/pages/panels/owner/roles/index.vue"),
+          },
+          {
             path: "shifts",
             name: "company.branch.shifts",
             meta: {
@@ -1211,7 +1256,7 @@ const panelRoutes = [
             path: "modality-types",
             name: "company.branch.modality-types",
             meta: {
-              title: setTitle("Filial — Modalidades"),
+              title: setTitle("Filial — Modalidade de domingo"),
               authRequired: true,
               permission: ["modality_types.index", "modality_types.read"],
             },
@@ -1423,7 +1468,7 @@ const panelRoutes = [
         path: "modality-types",
         name: "company.modality-types",
         meta: {
-          title: setTitle("Modalidades da empresa"),
+          title: setTitle("Modalidade de domingo (empresa)"),
           authRequired: true,
           permission: ["modality_types.index", "modality_types.read"],
         },
@@ -1433,7 +1478,7 @@ const panelRoutes = [
         path: "modality-types/create",
         name: "company.modality-types.create",
         meta: {
-          title: setTitle("Nova modalidade"),
+          title: setTitle("Nova modalidade de domingo"),
           authRequired: true,
           permission: "modality_types.create",
         },
@@ -1443,7 +1488,7 @@ const panelRoutes = [
         path: "modality-types/:id/edit",
         name: "company.modality-types.edit",
         meta: {
-          title: setTitle("Editar modalidade"),
+          title: setTitle("Editar modalidade de domingo"),
           authRequired: true,
           permission: "modality_types.update",
         },
@@ -1453,11 +1498,35 @@ const panelRoutes = [
         path: "modality-types/:id",
         name: "company.modality-types.view",
         meta: {
-          title: setTitle("Visualizar modalidade"),
+          title: setTitle("Visualizar modalidade de domingo"),
           authRequired: true,
           permission: "modality_types.read",
         },
         component: () => import("@/pages/panels/owner/modality-types/view.vue"),
+      },
+      {
+        path: "day-off-modalities",
+        name: "company.day-off-modalities",
+        meta: { title: setTitle("Modalidades de folga"), authRequired: true, permission: ["day_off_modalities.index", "day_off_modalities.read"] },
+        component: () => import("@/pages/panels/owner/day-off-modalities/index.vue"),
+      },
+      {
+        path: "day-off-modalities/create",
+        name: "company.day-off-modalities.create",
+        meta: { title: setTitle("Nova modalidade de folga"), authRequired: true, permission: "day_off_modalities.create" },
+        component: () => import("@/pages/panels/owner/day-off-modalities/create.vue"),
+      },
+      {
+        path: "day-off-modalities/:id/edit",
+        name: "company.day-off-modalities.edit",
+        meta: { title: setTitle("Editar modalidade de folga"), authRequired: true, permission: "day_off_modalities.update" },
+        component: () => import("@/pages/panels/owner/day-off-modalities/edit.vue"),
+      },
+      {
+        path: "day-off-modalities/:id",
+        name: "company.day-off-modalities.view",
+        meta: { title: setTitle("Visualizar modalidade de folga"), authRequired: true, permission: "day_off_modalities.read" },
+        component: () => import("@/pages/panels/owner/day-off-modalities/view.vue"),
       },
       {
         path: "scale-types",
@@ -1800,7 +1869,7 @@ const panelRoutes = [
     path: "/branch/modality-types",
     name: "branch.modality-types",
     meta: {
-      title: setTitle("Modalidades da filial"),
+      title: setTitle("Modalidade de domingo (filial)"),
       authRequired: true,
       permission: ["modality_types.index", "modality_types.read"],
       role: ["branch_manager", "branch", "filial"],
@@ -1812,7 +1881,7 @@ const panelRoutes = [
     path: "/branch/modality-types/create",
     name: "branch.modality-types.create",
     meta: {
-      title: setTitle("Nova modalidade"),
+      title: setTitle("Nova modalidade de domingo"),
       authRequired: true,
       permission: "modality_types.create",
       role: ["branch_manager", "branch", "filial"],
@@ -1824,7 +1893,7 @@ const panelRoutes = [
     path: "/branch/modality-types/:id/edit",
     name: "branch.modality-types.edit",
     meta: {
-      title: setTitle("Editar modalidade"),
+      title: setTitle("Editar modalidade de domingo"),
       authRequired: true,
       permission: "modality_types.update",
       role: ["branch_manager", "branch", "filial"],
@@ -1836,13 +1905,61 @@ const panelRoutes = [
     path: "/branch/modality-types/:id",
     name: "branch.modality-types.view",
     meta: {
-      title: setTitle("Visualizar modalidade"),
+      title: setTitle("Visualizar modalidade de domingo"),
       authRequired: true,
       permission: "modality_types.read",
       role: ["branch_manager", "branch", "filial"],
       rolePrefix: ["filial-b"],
     },
     component: () => import("@/pages/panels/owner/modality-types/view.vue"),
+  },
+  {
+    path: "/branch/day-off-modalities",
+    name: "branch.day-off-modalities",
+    meta: {
+      title: setTitle("Modalidades de folga da filial"),
+      authRequired: true,
+      permission: ["day_off_modalities.index", "day_off_modalities.read"],
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/day-off-modalities/index.vue"),
+  },
+  {
+    path: "/branch/day-off-modalities/create",
+    name: "branch.day-off-modalities.create",
+    meta: {
+      title: setTitle("Nova modalidade de folga"),
+      authRequired: true,
+      permission: "day_off_modalities.create",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/day-off-modalities/create.vue"),
+  },
+  {
+    path: "/branch/day-off-modalities/:id/edit",
+    name: "branch.day-off-modalities.edit",
+    meta: {
+      title: setTitle("Editar modalidade de folga"),
+      authRequired: true,
+      permission: "day_off_modalities.update",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/day-off-modalities/edit.vue"),
+  },
+  {
+    path: "/branch/day-off-modalities/:id",
+    name: "branch.day-off-modalities.view",
+    meta: {
+      title: setTitle("Visualizar modalidade de folga"),
+      authRequired: true,
+      permission: "day_off_modalities.read",
+      role: ["branch_manager", "branch", "filial"],
+      rolePrefix: ["filial-b"],
+    },
+    component: () => import("@/pages/panels/owner/day-off-modalities/view.vue"),
   },
   {
     path: "/branch/scale-types",

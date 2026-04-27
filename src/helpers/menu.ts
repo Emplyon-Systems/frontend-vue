@@ -85,6 +85,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     "scale_types.delete",
     "scale_types.plucks",
   ]);
+  const canDayOffModalities = hasAny([
+    "day_off_modalities.index",
+    "day_off_modalities.read",
+    "day_off_modalities.create",
+    "day_off_modalities.update",
+    "day_off_modalities.delete",
+    "day_off_modalities.plucks",
+  ]);
   const canEmployeeLeaveRequests = hasAny([
     "employee_leave_requests.index",
     "employee_leave_requests.read",
@@ -192,6 +200,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
   if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canShifts || canModalityTypes || canScaleTypes || canEmployeeLeaveRequests)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canShifts || canModalityTypes || canScaleTypes || canDayOffModalities || canEmployeeLeaveRequests)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
       if (canBranches) {
@@ -246,8 +255,16 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
         baseMenu.push({
           key: "modality-types-list",
           icon: "iconoir-book",
-          label: "Modalidades",
+          label: "Modalidade de domingo",
           route: { name: "branch.modality-types" },
+        });
+      }
+      if (canDayOffModalities) {
+        baseMenu.push({
+          key: "day-off-modalities-list",
+          icon: "iconoir-calendar-minus",
+          label: "Modalidades de folga",
+          route: { name: "branch.day-off-modalities" },
         });
       }
       if (canScaleTypes) {

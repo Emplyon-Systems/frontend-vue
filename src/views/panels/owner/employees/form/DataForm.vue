@@ -5,9 +5,9 @@ import UIComponentCard from "@/components/UIComponentCard.vue";
 import InputMask from "@/components/InputMask.vue";
 import type { EmployeeFormData } from "@/core/schemas";
 import type { SectorPluckItem } from "@/api/resources/sectors";
-import { sectorsApi, usersApi } from "@/api/resources";
 import type { PositionPluckItem } from "@/api/resources/positions";
-import { positionsApi } from "@/api/resources";
+import type { ModalityTypePluckItem } from "@/api/resources/modality-types";
+import { modalityTypesApi, positionsApi, sectorsApi, usersApi } from "@/api/resources";
 import { notifyError } from "@/helpers/notify";
 
 const props = withDefaults(
@@ -134,8 +134,18 @@ const branchSelectEls = new Map<number, HTMLSelectElement>();
 const branchAssignmentSelectrs = new Map<number, any>();
 const sectorSelectEls = new Map<number, HTMLSelectElement>();
 const sectorAssignmentSelectrs = new Map<number, any>();
+const modalitySelectEls = new Map<number, HTMLSelectElement>();
+const modalityAssignmentSelectrs = new Map<number, any>();
 
 const sectorOptionsByRow = ref<SectorPluckItem[][]>([]);
+const modalityOptionsByRow = ref<ModalityTypePluckItem[][]>([]);
+
+function modalityTypeLabelForRow(index: number, row: { modality_type_id?: number }): string {
+  const id = Number(row.modality_type_id ?? 0);
+  if (id <= 0) return "—";
+  const o = (modalityOptionsByRow.value[index] ?? []).find((m) => m.id === id);
+  return o?.name?.trim() || `— #${id}`;
+}
 
 const lockedCompanyDisplayName = computed(() => {
   const id = Number(props.lockCompanyId ?? 0);
@@ -361,7 +371,7 @@ function generateNewUserPassword(length: number = 16) {
 
 function updateAssignment(
   index: number,
-  patch: Partial<{ branch_id: number; sector_id: number; is_primary: boolean }>
+  patch: Partial<{ branch_id: number; sector_id: number; modality_type_id: number; is_primary: boolean }>
 ) {
   const next = [...localForm.value.assignments];
   const cur = { ...next[index], ...patch };
@@ -369,6 +379,7 @@ function updateAssignment(
   updateField("assignments", next);
   emit("clear-error", `assignments.${index}.branch_id`);
   emit("clear-error", `assignments.${index}.sector_id`);
+  emit("clear-error", `assignments.${index}.modality_type_id`);
 }
 
 function onCompanyChange(event: Event) {
@@ -555,6 +566,14 @@ function setSectorSelectEl(index: number, el: unknown) {
   }
 }
 
+function setModalitySelectEl(index: number, el: unknown) {
+  if (el instanceof HTMLSelectElement) {
+    modalitySelectEls.set(index, el);
+  } else {
+    modalitySelectEls.delete(index);
+  }
+}
+
 function destroyBranchAssignmentSelectrs() {
   branchAssignmentSelectrs.forEach((s) => s.destroy?.());
   branchAssignmentSelectrs.clear();
@@ -563,6 +582,11 @@ function destroyBranchAssignmentSelectrs() {
 function destroySectorAssignmentSelectrs() {
   sectorAssignmentSelectrs.forEach((s) => s.destroy?.());
   sectorAssignmentSelectrs.clear();
+}
+
+function destroyModalityAssignmentSelectrs() {
+  modalityAssignmentSelectrs.forEach((s) => s.destroy?.());
+  modalityAssignmentSelectrs.clear();
 }
 
 async function initBranchAssignmentSelectrs() {
@@ -616,9 +640,36 @@ async function initSectorAssignmentSelectrs() {
   }
 }
 
+async function initModalityAssignmentSelectrs() {
+  destroyModalityAssignmentSelectrs();
+  if (!useAssignmentSelectrs.value) return;
+  await nextTick();
+  const rows = props.modelValue.assignments.length;
+  for (let index = 0; index < rows; index++) {
+    const el = modalitySelectEls.get(index);
+    if (!el) continue;
+    const row = props.modelValue.assignments[index];
+    const selr = new Selectr(el, {
+      searchable: true,
+      multiple: false,
+      placeholder: "Selecione a modalidade de domingo",
+    });
+    selr.on("selectr.change", () => {
+      const raw = selr.getValue();
+      const mid = raw === "" || raw == null ? 0 : Number(raw);
+      updateAssignment(index, { modality_type_id: mid });
+    });
+    modalityAssignmentSelectrs.set(index, selr);
+    const mId = Number(row?.modality_type_id ?? 0);
+    if (mId > 0) selr.setValue(mId);
+    else selr.setValue("");
+  }
+}
+
 async function initAssignmentRowSelectrs() {
   await initBranchAssignmentSelectrs();
   await initSectorAssignmentSelectrs();
+  await initModalityAssignmentSelectrs();
 }
 
 async function loadSectorsForRow(index: number, branchId: number) {
@@ -634,18 +685,36 @@ async function loadSectorsForRow(index: number, branchId: number) {
   }
 }
 
+async function loadModalityTypesForRow(index: number, branchId: number) {
+  if (branchId <= 0) {
+    modalityOptionsByRow.value[index] = [];
+    return;
+  }
+  try {
+    const plucks = await modalityTypesApi.plucks({ branch_id: branchId });
+    modalityOptionsByRow.value[index] = plucks;
+  } catch {
+    modalityOptionsByRow.value[index] = [];
+  }
+}
+
 async function onAssignmentBranchChange(index: number, branchId: number) {
-  updateAssignment(index, { branch_id: branchId, sector_id: 0 });
+  updateAssignment(index, { branch_id: branchId, sector_id: 0, modality_type_id: 0 });
   await loadSectorsForRow(index, branchId);
+  await loadModalityTypesForRow(index, branchId);
 }
 
 function addAssignmentRow() {
-  const next = [...localForm.value.assignments, { branch_id: 0, sector_id: 0, is_primary: false }];
+  const next = [
+    ...localForm.value.assignments,
+    { branch_id: 0, sector_id: 0, modality_type_id: 0, is_primary: false },
+  ];
   if (!next.some((a) => a.is_primary)) {
     next[0] = { ...next[0], is_primary: true };
   }
   updateField("assignments", next);
   sectorOptionsByRow.value.push([]);
+  modalityOptionsByRow.value.push([]);
 }
 
 function removeAssignmentRow(index: number) {
@@ -656,6 +725,7 @@ function removeAssignmentRow(index: number) {
   }
   updateField("assignments", next);
   sectorOptionsByRow.value.splice(index, 1);
+  modalityOptionsByRow.value.splice(index, 1);
 }
 
 function setPrimary(index: number) {
@@ -673,6 +743,7 @@ watch(
     for (let i = 0; i < props.modelValue.assignments.length; i++) {
       const bid = props.modelValue.assignments[i].branch_id;
       await loadSectorsForRow(i, bid);
+      await loadModalityTypesForRow(i, bid);
     }
   },
   { immediate: true }
@@ -715,9 +786,14 @@ const assignmentSelectSignature = computed(() =>
     unlocked: useAssignmentSelectrs.value,
     hideBranchCol: props.hideBranchAssignmentField,
     company_id: props.modelValue.company_id,
-    assignments: props.modelValue.assignments.map((a) => ({ b: a.branch_id, s: a.sector_id })),
+    assignments: props.modelValue.assignments.map((a) => ({
+      b: a.branch_id,
+      s: a.sector_id,
+      m: a.modality_type_id,
+    })),
     branches: branchesFilteredForForm.value.map((b) => b.id),
     sectorRows: sectorOptionsByRow.value.map((row) => row.map((s) => s.id)),
+    modalityRows: modalityOptionsByRow.value.map((row) => row.map((m) => m.id)),
     n: props.modelValue.assignments.length,
   })
 );
@@ -746,7 +822,9 @@ onMounted(async () => {
   initUserSelectr();
   initPositionSelectr();
   for (let i = 0; i < props.modelValue.assignments.length; i++) {
-    await loadSectorsForRow(i, props.modelValue.assignments[i].branch_id);
+    const bid = props.modelValue.assignments[i].branch_id;
+    await loadSectorsForRow(i, bid);
+    await loadModalityTypesForRow(i, bid);
   }
   await initAssignmentRowSelectrs();
 });
@@ -758,6 +836,7 @@ onBeforeUnmount(() => {
   }
   destroyBranchAssignmentSelectrs();
   destroySectorAssignmentSelectrs();
+  destroyModalityAssignmentSelectrs();
   destroySelectrs();
   destroyUserSelectr();
   destroyPositionSelectr();
@@ -1000,9 +1079,9 @@ onBeforeUnmount(() => {
   <UIComponentCard :title="assignmentCardTitle" class="mt-3 employee-card employee-card-assignment">
     <p v-if="!isView" class="text-muted small mb-3">
       <template v-if="hideBranchAssignmentField || isBranchLocked">
-        Escolha o setor desta filial. Não é possível vincular outras filiais.
+        Escolha o setor e a modalidade de domingo desta filial. Não é possível vincular outras filiais.
       </template>
-      <template v-else>Em cada filial, indique o setor do colaborador.</template>
+      <template v-else> Em cada filial, indique o setor e a modalidade de domingo (obrigatórios) do colaborador. </template>
     </p>
     <b-form-invalid-feedback v-if="errors?.assignments" class="d-block mb-2">{{ errors.assignments }}</b-form-invalid-feedback>
     <div
@@ -1032,7 +1111,7 @@ onBeforeUnmount(() => {
             </b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-        <b-col :md="hideBranchAssignmentField ? 8 : 4">
+        <b-col :md="hideBranchAssignmentField ? 8 : 5">
           <b-form-group :label-for="`emp-s-${index}`">
             <template #label>
               Setor<span v-if="reqSector" class="text-danger ms-1" aria-hidden="true">*</span>
@@ -1052,7 +1131,7 @@ onBeforeUnmount(() => {
             </b-form-invalid-feedback>
           </b-form-group>
         </b-col>
-        <b-col :md="hideBranchAssignmentField ? 4 : 3">
+        <b-col :md="hideBranchAssignmentField ? 4 : 2">
           <b-form-group label="Principal">
             <b-form-checkbox
               :model-value="!!row.is_primary"
@@ -1067,6 +1146,48 @@ onBeforeUnmount(() => {
           <b-button variant="outline-danger" size="sm" :disabled="modelValue.assignments.length <= 1" @click="removeAssignmentRow(index)">
             <i class="iconoir-trash"></i>
           </b-button>
+        </b-col>
+      </b-row>
+      <b-row v-if="row.branch_id" class="g-3 mt-1">
+        <b-col md="12">
+          <b-form-group
+            :label-for="`emp-m-${index}`"
+          >
+            <template #label>
+              <span v-if="hideBranchAssignmentField">Modalidade de domingo</span>
+              <span v-else>Modalidade de domingo (filial #{{ index + 1 }})</span
+              ><span
+                v-if="req && row.branch_id"
+                class="text-danger ms-1"
+                aria-hidden="true"
+                >*</span
+              >
+            </template>
+            <b-form-input
+              v-if="isView"
+              :id="`emp-m-${index}`"
+              readonly
+              tabindex="-1"
+              class="bg-light"
+              :model-value="modalityTypeLabelForRow(index, row)"
+            />
+            <template v-else>
+              <select
+                :id="`emp-m-${index}`"
+                :ref="(el) => setModalitySelectEl(index, el)"
+                class="form-select"
+                :disabled="isView || !row.branch_id"
+                :class="{ 'is-invalid': errors?.[`assignments.${index}.modality_type_id`] }"
+              >
+                <option value="">Selecione</option>
+                <option v-for="m in modalityOptionsByRow[index] ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
+              <b-form-text> Obrigatório: tipo de modalidade de domingo da filial para este colaborador. </b-form-text>
+              <b-form-invalid-feedback v-if="errors?.[`assignments.${index}.modality_type_id`]">
+                {{ errors[`assignments.${index}.modality_type_id`] }}
+              </b-form-invalid-feedback>
+            </template>
+          </b-form-group>
         </b-col>
       </b-row>
     </div>

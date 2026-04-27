@@ -67,7 +67,7 @@ const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "slug", label: "Slug", sortable: true, align: "start" as const },
-  { key: "is_default", label: "Modalidade padrão", sortable: false, align: "start" as const },
+  { key: "is_default", label: "Padrão (domingo)", sortable: false, align: "start" as const },
   ...(isOwnerModalityTypes.value && !isCompanyFixed.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
   ...(branchScoped.value ? [] : [{ key: "branch", label: "Filial", sortable: false, align: "start" as const }]),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
@@ -159,7 +159,7 @@ function doDelete() {
   modalityTypesApi.remove(deleteId.value).then(() => {
     deleteModal.value = false;
     deleteId.value = null;
-    notifySuccess("Modalidade eliminada com sucesso.");
+    notifySuccess("Tipo de modalidade de domingo eliminado com sucesso.");
     loadList(pagination.value.current_page);
   });
 }
@@ -204,7 +204,7 @@ function onToggleDefault(item: ModalityTypeRecord, value: boolean) {
   modalityTypesApi
     .update(id, { is_default: value })
     .then(() => {
-      notifySuccess(value ? "Modalidade definida como padrão." : "Modalidade já não é a padrão.");
+      notifySuccess(value ? "Definida como padrão (domingo)." : "Já não é a padrão (domingo).");
       loadList(pagination.value.current_page);
     })
     .catch((err: unknown) => {
@@ -212,7 +212,7 @@ function onToggleDefault(item: ModalityTypeRecord, value: boolean) {
         err && typeof err === "object" && "response" in err
           ? String((err as { response?: { data?: { message?: string } } }).response?.data?.message ?? "")
           : "";
-      notifyError(msg || "Não foi possível atualizar a modalidade padrão.");
+      notifyError(msg || "Não foi possível atualizar o padrão (domingo).");
     })
     .finally(() => {
       defaultToggleBusyId.value = null;
@@ -234,16 +234,22 @@ onMounted(async () => {
     <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Modalidades</h1>
+          <h1 class="h4 mb-1">Modalidade de domingo</h1>
           <p class="text-muted mb-0 small">
-            {{ branchScoped ? "Modalidades da sua filial." : isCompanyFixed ? "Listar e criar modalidades das filiais desta empresa." : "Listar e criar modalidades vinculadas às filiais." }}
+            {{
+              branchScoped
+                ? "Tipos de modalidade de domingo desta filial."
+                : isCompanyFixed
+                  ? "Listar e gerir os tipos de modalidade de domingo das filiais desta empresa."
+                  : "Listar e criar tipos de modalidade de domingo vinculados às filiais."
+            }}
           </p>
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" />
           <b-button v-if="canCreate" variant="primary" @click="goCreate">
             <i class="iconoir-plus me-1"></i>
-            Nova modalidade
+            Nova modalidade de domingo
           </b-button>
         </div>
       </div>
@@ -271,7 +277,7 @@ onMounted(async () => {
         :order-dir="orderDir"
         :result-label="resultLabel"
         :has-active-filters="hasActiveFilters"
-        empty-message="Nenhuma modalidade encontrada."
+        empty-message="Nenhum tipo de modalidade de domingo encontrado."
         result-badge-class="result-badge-default"
         @update:per-page="onPerPageChange"
         @update:sort="onSortChange"
@@ -288,7 +294,7 @@ onMounted(async () => {
                 class="mb-0"
                 :model-value="!!(item as ModalityTypeRecord).is_default"
                 :disabled="!canUpdate || defaultToggleBusyId === (item as ModalityTypeRecord).id"
-                :aria-label="`Modalidade padrão: ${(item as ModalityTypeRecord).name}`"
+                :aria-label="`Padrão (domingo): ${(item as ModalityTypeRecord).name}`"
                 @update:model-value="(v: boolean | string) => onToggleDefault(item as ModalityTypeRecord, !!v)"
               />
             </b-td>
@@ -317,8 +323,8 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Excluir modalidade"
-      message="Tem certeza de que deseja excluir esta modalidade?"
+      title="Excluir modalidade de domingo"
+      message="Tem certeza de que deseja excluir este tipo de modalidade de domingo?"
       @confirm="doDelete"
     />
   </component>

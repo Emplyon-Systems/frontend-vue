@@ -216,6 +216,7 @@ export interface BranchRecord {
 export interface EmployeeBranchPivot {
   sector_id: number;
   is_primary?: boolean;
+  modality_type_id?: number | null;
 }
 
 export interface EmployeeRecord {
@@ -266,6 +267,12 @@ export interface EmployeeRecord {
       branch_id?: number;
       name: string;
       slug?: string;
+    } | null;
+    pivot_modality_type?: {
+      id: number;
+      branch_id?: number;
+      name: string;
+      slug: string;
     } | null;
   }>;
 }
@@ -340,6 +347,24 @@ export interface ScaleTypeRecord {
   branch_id: number;
   name: string;
   slug: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+    company?: { id: number; name?: string } | null;
+  } | null;
+}
+
+export interface DayOffModalityRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  is_default?: boolean;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;

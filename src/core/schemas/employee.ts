@@ -19,6 +19,10 @@ const assignmentRowSchema = z.object({
   branch_id: z.number({ required_error: "Filial é obrigatória." }).int().positive("Selecione uma filial."),
   sector_id: z.number({ required_error: "Setor é obrigatório." }).int().positive("Selecione um setor."),
   is_primary: z.boolean().optional(),
+  modality_type_id: z
+    .number({ required_error: "Selecione a modalidade de domingo." })
+    .int()
+    .positive("Selecione a modalidade de domingo."),
 });
 
 const employeeBaseSchema = z.object({
@@ -89,7 +93,9 @@ export type EmployeeFormData = z.input<typeof employeeBaseSchema>;
 export type EmployeeCreateData = z.output<typeof employeeCreateSchema>;
 export type EmployeeEditData = z.output<typeof employeeEditSchema>;
 export type EmployeeFormMode = "create" | "edit";
-export type EmployeeFieldErrors = Partial<Record<keyof EmployeeFormData | "assignments" | `assignments.${number}`, string>>;
+export type EmployeeFieldErrors = Partial<
+  Record<keyof EmployeeFormData | "assignments" | `assignments.${number}` | `assignments.${number}.branch_id` | `assignments.${number}.sector_id` | `assignments.${number}.modality_type_id`, string>
+>;
 
 export type EmployeeFormValidationOptions = {
   tenantEmailDomain?: string | null;
@@ -109,7 +115,7 @@ export function employeeInitialForm(): EmployeeFormData {
     zip_code: "",
     city: "",
     state: "",
-    assignments: [{ branch_id: 0, sector_id: 0, is_primary: true }],
+    assignments: [{ branch_id: 0, sector_id: 0, modality_type_id: 0, is_primary: true }],
   };
 }
 

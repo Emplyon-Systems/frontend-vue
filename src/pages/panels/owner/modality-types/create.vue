@@ -58,7 +58,7 @@ function submit() {
   modalityTypesApi
     .create(payload)
     .then(() => {
-      notifySuccess("Modalidade criada com sucesso.");
+      notifySuccess("Modalidade de domingo criada com sucesso.");
       router.push({ name: modalityTypesListRoute() });
     })
     .catch(onApiError)
@@ -107,12 +107,12 @@ onMounted(async () => {
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Nova modalidade</h1>
+          <h1 class="h4 mb-1">Nova modalidade de domingo</h1>
           <p class="text-muted mb-0 small">
             {{
               branchScoped
-                ? "Criar tipo de modalidade nesta filial. O slug é gerado automaticamente."
-                : "Criar tipo de modalidade vinculado a uma filial. O slug é gerado automaticamente."
+                ? "Criar um tipo de modalidade de domingo nesta filial. O slug é gerado automaticamente."
+                : "Criar um tipo de modalidade de domingo vinculado a uma filial. O slug é gerado automaticamente."
             }}
           </p>
         </div>

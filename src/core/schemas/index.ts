@@ -4,6 +4,7 @@ export * from "./employee";
 export * from "./example";
 export * from "./modality-type";
 export * from "./position";
+export * from "./day-off-modality";
 export * from "./role";
 export * from "./scale-type";
 export * from "./sector";

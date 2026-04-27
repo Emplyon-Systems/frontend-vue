@@ -241,9 +241,10 @@ function fillFormFromEmployee(data: Awaited<ReturnType<typeof employeesApi.getBy
       ? (e.branches ?? []).map((b) => ({
           branch_id: b.id,
           sector_id: Number(b.pivot?.sector_id ?? 0),
+          modality_type_id: Number(b.pivot?.modality_type_id ?? 0),
           is_primary: !!b.pivot?.is_primary,
         }))
-      : [{ branch_id: 0, sector_id: 0, is_primary: true }];
+      : [{ branch_id: 0, sector_id: 0, modality_type_id: 0, is_primary: true }];
   form.value = {
     company_id: e.company_id ?? 0,
     user_id: e.user_id != null && Number(e.user_id) > 0 ? Number(e.user_id) : 0,
@@ -378,6 +379,7 @@ function submit() {
             branch_id: a.branch_id,
             sector_id: a.sector_id,
             is_primary: !!a.is_primary,
+            modality_type_id: a.modality_type_id,
           })),
         });
       })
@@ -419,6 +421,7 @@ function submit() {
         branch_id: a.branch_id,
         sector_id: a.sector_id,
         is_primary: !!a.is_primary,
+        modality_type_id: a.modality_type_id,
       })),
     })
     .then(() => {
