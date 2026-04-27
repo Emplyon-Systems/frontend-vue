@@ -309,6 +309,35 @@ export interface PositionRecord {
   } | null;
 }
 
+export interface TutorialCategoryRecord {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+}
+
+export interface TutorialTargetRecord {
+  id: number;
+  tutorial_id: number;
+  target: string;
+}
+
+export interface TutorialRecord {
+  id: number;
+  tutorial_category_id: number;
+  title: string;
+  url: string;
+  thumbnail: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  category?: TutorialCategoryRecord | null;
+  targets?: TutorialTargetRecord[];
+}
+
 export interface ShiftRecord {
   id: number;
   branch_id: number;

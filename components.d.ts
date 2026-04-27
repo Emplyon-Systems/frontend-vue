@@ -24,6 +24,7 @@ declare module 'vue' {
     BCollapse: typeof import('bootstrap-vue-next')['BCollapse']
     BForm: typeof import('bootstrap-vue-next')['BForm']
     BFormCheckbox: typeof import('bootstrap-vue-next')['BFormCheckbox']
+    BFormCheckboxGroup: typeof import('bootstrap-vue-next')['BFormCheckboxGroup']
     BFormGroup: typeof import('bootstrap-vue-next')['BFormGroup']
     BFormInput: typeof import('bootstrap-vue-next')['BFormInput']
     BFormInvalidFeedback: typeof import('bootstrap-vue-next')['BFormInvalidFeedback']
@@ -69,6 +70,8 @@ declare module 'vue' {
     StandardFilterDropdown: typeof import('./src/components/filters/StandardFilterDropdown.vue')['default']
     StandardFiltersPanel: typeof import('./src/components/filters/StandardFiltersPanel.vue')['default']
     TableActionButtons: typeof import('./src/components/TableActionButtons.vue')['default']
+    TutorialThumbnailField: typeof import('./src/components/tutorials/TutorialThumbnailField.vue')['default']
+    TutorialVideoPlayer: typeof import('./src/components/tutorials/TutorialVideoPlayer.vue')['default']
     UIComponentCard: typeof import('./src/components/UIComponentCard.vue')['default']
   }
 }

@@ -147,6 +147,29 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
             } as MenuItemType,
           ]
         : []),
+      ...(isSuperadmin
+        ? [
+            {
+              key: "tutorials-admin",
+              icon: "iconoir-play",
+              label: "Tutoriais",
+              children: [
+                {
+                  key: "tutorial-categories",
+                  icon: "iconoir-book-stack",
+                  label: "Categorias",
+                  route: { name: "owner.tutorial-categories" },
+                },
+                {
+                  key: "tutorials-content",
+                  icon: "iconoir-page",
+                  label: "Conteúdo",
+                  route: { name: "owner.tutorials" },
+                },
+              ],
+            } as MenuItemType,
+          ]
+        : []),
       ...(systemChildren.length
         ? [
             {
@@ -189,6 +212,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
       route: { name: "employee.day-offs" },
     });
   }
+  // Tutoriais no menu lateral: só superadmin; tenants acessam pelo cartão no rodapé da sidebar.
   // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
   if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canModalityTypes || canScaleTypes || canDayOffModalities || canEmployeeLeaveRequests)) {
@@ -288,7 +312,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
       return baseMenu;
     }
 
-    /** Painel empresa: só organização (Minha empresa + Filiais). Setores/etc. só após entrar numa filial (ecrã Ver filial). */
+    /** Painel empresa: só organização (Minha empresa + Filiais). Setores/etc. só após entrar numa filial (tela Ver filial). */
     if (path === "/company") {
       baseMenu.push({
         key: "my-company-top",

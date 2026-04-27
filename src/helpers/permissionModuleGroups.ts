@@ -76,6 +76,8 @@ const MODULE_LABELS: Record<string, string> = {
   roles: "Perfis",
   sectors: "Setores",
   shifts: "Turnos",
+  tutorial_categories: "Categorias de tutoriais",
+  tutorials: "Tutoriais",
   users: "Usuários",
 };
 

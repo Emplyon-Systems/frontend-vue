@@ -17,4 +17,6 @@ export * as rolesApi from "./roles";
 export * as scaleTypesApi from "./scale-types";
 export * as sectorsApi from "./sectors";
 export * as shiftsApi from "./shifts";
+export * as tutorialCategoriesApi from "./tutorial-categories";
+export * as tutorialsApi from "./tutorials";
 export * as usersApi from "./users";

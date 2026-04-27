@@ -4,6 +4,7 @@
   .page-content {
     // width: calc(100% - var(--#{$prefix}startbar-width));
     width: 100%;
+    min-width: 0; /* evita overflow horizontal quando o main é flex item (conteúdo largo / grids) */
     margin-left: var(--#{$prefix}startbar-width);
     position: relative;
     min-height: calc(100vh - var(--#{$prefix}topbar-height));

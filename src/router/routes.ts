@@ -1015,6 +1015,72 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/role-templates/edit.vue"),
   },
   {
+    path: "/tutorial-categories",
+    name: "owner.tutorial-categories",
+    meta: {
+      title: setTitle("Categorias de tutoriais"),
+      authRequired: true,
+      panel: "owner",
+      permission: ["tutorial_categories.index", "tutorial_categories.read"],
+    },
+    component: () => import("@/pages/panels/owner/tutorial-categories/index.vue"),
+  },
+  {
+    path: "/tutorial-categories/create",
+    name: "owner.tutorial-categories.create",
+    meta: {
+      title: setTitle("Nova categoria de tutorial"),
+      authRequired: true,
+      panel: "owner",
+      permission: "tutorial_categories.create",
+    },
+    component: () => import("@/pages/panels/owner/tutorial-categories/create.vue"),
+  },
+  {
+    path: "/tutorial-categories/:id/edit",
+    name: "owner.tutorial-categories.edit",
+    meta: {
+      title: setTitle("Editar categoria de tutorial"),
+      authRequired: true,
+      panel: "owner",
+      permission: "tutorial_categories.update",
+    },
+    component: () => import("@/pages/panels/owner/tutorial-categories/edit.vue"),
+  },
+  {
+    path: "/tutorials",
+    name: "owner.tutorials",
+    meta: {
+      title: setTitle("Tutoriais (administração)"),
+      authRequired: true,
+      panel: "owner",
+      permission: ["tutorials.index", "tutorials.read"],
+    },
+    component: () => import("@/pages/panels/owner/tutorials/index.vue"),
+  },
+  {
+    path: "/tutorials/create",
+    name: "owner.tutorials.create",
+    meta: {
+      title: setTitle("Novo tutorial"),
+      authRequired: true,
+      panel: "owner",
+      permission: "tutorials.create",
+    },
+    component: () => import("@/pages/panels/owner/tutorials/create.vue"),
+  },
+  {
+    path: "/tutorials/:id/edit",
+    name: "owner.tutorials.edit",
+    meta: {
+      title: setTitle("Editar tutorial"),
+      authRequired: true,
+      panel: "owner",
+      permission: "tutorials.update",
+    },
+    component: () => import("@/pages/panels/owner/tutorials/edit.vue"),
+  },
+  {
     path: "/audits",
     name: "owner.audits",
     meta: {
@@ -1105,6 +1171,26 @@ const panelRoutes = [
           authRequired: true,
         },
         component: () => import("@/views/panels/company/companies/EditMyCompany.vue"),
+      },
+      {
+        path: "tutorials",
+        name: "company.tutorials",
+        meta: {
+          title: setTitle("Tutoriais"),
+          authRequired: true,
+          permission: ["tutorials.index", "tutorials.read"],
+        },
+        component: () => import("@/pages/panels/company/tutorials/index.vue"),
+      },
+      {
+        path: "tutorials/:id",
+        name: "company.tutorials.detail",
+        meta: {
+          title: setTitle("Tutorial"),
+          authRequired: true,
+          permission: "tutorials.read",
+        },
+        component: () => import("@/pages/panels/company/tutorials/detail.vue"),
       },
       {
         path: "branches",
@@ -1531,6 +1617,30 @@ const panelRoutes = [
     component: () => import("@/views/panels/branch/branches/EditMyBranch.vue"),
   },
   {
+    path: "/branch/tutorials",
+    name: "branch.tutorials",
+    meta: {
+      title: setTitle("Tutoriais"),
+      authRequired: true,
+      permission: ["tutorials.index", "tutorials.read"],
+      role: ["branch_manager", "branch", "filial", "setor"],
+      rolePrefix: ["filial-b", "setor-b"],
+    },
+    component: () => import("@/pages/panels/branch/tutorials/index.vue"),
+  },
+  {
+    path: "/branch/tutorials/:id",
+    name: "branch.tutorials.detail",
+    meta: {
+      title: setTitle("Tutorial"),
+      authRequired: true,
+      permission: "tutorials.read",
+      role: ["branch_manager", "branch", "filial", "setor"],
+      rolePrefix: ["filial-b", "setor-b"],
+    },
+    component: () => import("@/pages/panels/branch/tutorials/detail.vue"),
+  },
+  {
     path: "/branch/sectors",
     name: "branch.sectors",
     meta: {
@@ -1887,6 +1997,30 @@ const panelRoutes = [
       rolePrefix: ["colaborador-b"],
     },
     component: () => import("@/views/panels/employee/profile/Edit.vue"),
+  },
+  {
+    path: "/employee/tutorials",
+    name: "employee.tutorials",
+    meta: {
+      title: setTitle("Tutoriais"),
+      authRequired: true,
+      permission: ["tutorials.index", "tutorials.read"],
+      role: ["user", "employee", "colaborador"],
+      rolePrefix: ["colaborador-b"],
+    },
+    component: () => import("@/pages/panels/employee/tutorials/index.vue"),
+  },
+  {
+    path: "/employee/tutorials/:id",
+    name: "employee.tutorials.detail",
+    meta: {
+      title: setTitle("Tutorial"),
+      authRequired: true,
+      permission: "tutorials.read",
+      role: ["user", "employee", "colaborador"],
+      rolePrefix: ["colaborador-b"],
+    },
+    component: () => import("@/pages/panels/employee/tutorials/detail.vue"),
   },
   {
     path: "/employee/leave-requests",
