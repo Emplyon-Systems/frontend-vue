@@ -226,7 +226,13 @@ export interface EmployeeRecord {
   cpf?: string | null;
   email: string;
   phone?: string | null;
-  job_title: string;
+  position_id?: number | null;
+  position?: {
+    id: number;
+    name: string;
+    slug?: string;
+    branch_id?: number;
+  } | null;
   street?: string | null;
   street_number?: string | null;
   complement?: string | null;
@@ -265,6 +271,21 @@ export interface EmployeeRecord {
 }
 
 export interface SectorRecord {
+  id: number;
+  branch_id: number;
+  name: string;
+  slug: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  branch?: {
+    id: number;
+    name?: string;
+    company_id?: number;
+  } | null;
+}
+
+export interface PositionRecord {
   id: number;
   branch_id: number;
   name: string;

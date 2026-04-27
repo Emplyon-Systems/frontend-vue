@@ -9,7 +9,7 @@ type Row = {
   id: number;
   name: string;
   email: string;
-  job_title: string;
+  positionName: string;
   sectorName: string;
   isPrimaryInBranch: boolean;
 };
@@ -30,7 +30,7 @@ const columns = [
   { key: "id", label: "ID", sortable: false, align: "start" as const },
   { key: "name", label: "Nome", sortable: false, align: "start" as const },
   { key: "email", label: "E-mail", sortable: false, align: "start" as const },
-  { key: "job_title", label: "Cargo", sortable: false, align: "start" as const },
+  { key: "positionName", label: "Cargo", sortable: false, align: "start" as const },
   { key: "sector", label: "Setor", sortable: false, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ];
@@ -54,7 +54,7 @@ const rows = computed<Row[]>(() => {
       id: emp.id,
       name: emp.name,
       email: emp.email,
-      job_title: emp.job_title,
+      positionName: emp.position?.name ?? "—",
       sectorName,
       isPrimaryInBranch: isPrimary,
     };
@@ -184,7 +184,7 @@ watch(
           <b-badge v-if="(item as Row).isPrimaryInBranch" variant="success" class="ms-2">Principal</b-badge>
         </b-td>
         <b-td>{{ (item as Row).email }}</b-td>
-        <b-td>{{ (item as Row).job_title }}</b-td>
+        <b-td>{{ (item as Row).positionName }}</b-td>
         <b-td>{{ (item as Row).sectorName }}</b-td>
         <b-td class="text-end">
           <b-button size="sm" variant="outline-primary" @click="goView((item as Row).id)">Ver funcionário</b-button>

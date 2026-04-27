@@ -45,6 +45,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     "sectors.delete",
     "sectors.plucks",
   ]);
+  const canPositions = hasAny([
+    "positions.index",
+    "positions.read",
+    "positions.create",
+    "positions.update",
+    "positions.delete",
+    "positions.plucks",
+  ]);
   const canEmployees = hasAny([
     "employees.index",
     "employees.read",
@@ -183,7 +191,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   }
   // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canEmployees || canShifts || canModalityTypes || canScaleTypes || canEmployeeLeaveRequests)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canShifts || canModalityTypes || canScaleTypes || canEmployeeLeaveRequests)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
       if (canBranches) {
@@ -200,6 +208,14 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
           icon: "iconoir-folder",
           label: "Setores",
           route: { name: "branch.sectors" },
+        });
+      }
+      if (canPositions) {
+        baseMenu.push({
+          key: "positions-list",
+          icon: "iconoir-user-crown",
+          label: "Cargos",
+          route: { name: "branch.positions" },
         });
       }
       if (canEmployees) {

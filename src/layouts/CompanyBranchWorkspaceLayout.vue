@@ -59,6 +59,12 @@ const tabs = computed<TabDef[]>(() => {
       name: "company.branch.scale-types",
       visible: isSuperadmin || canAny(["scale_types.index", "scale_types.read"]),
     },
+    {
+      key: "positions",
+      label: "Cargos",
+      name: "company.branch.positions",
+      visible: isSuperadmin || canAny(["positions.index", "positions.read"]),
+    },
   ];
 
   return main.filter((t) => t.visible !== false);

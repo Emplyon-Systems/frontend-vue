@@ -5,7 +5,7 @@ import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "./form/DataForm.vue";
-import { employeesApi, branchesApi, companiesApi, usersApi, rolesApi } from "@/api/resources";
+import { employeesApi, branchesApi, companiesApi, usersApi, rolesApi, positionsApi } from "@/api/resources";
 import { loadUsersForCompany, loadUsersAvailableForEmployeeLink } from "@/helpers/employeeCompanyUsers";
 import { employeeInitialForm, validateEmployeeForm, type EmployeeFormData } from "@/core/schemas";
 import { notifyError, notifySuccess } from "@/helpers/notify";
@@ -52,10 +52,33 @@ const newUserPassword = ref("");
 const newUserPasswordConfirm = ref("");
 const newUserRoleId = ref(0);
 const roleOptions = ref<Array<{ id: number; name: string }>>([]);
+const positionOptions = ref<Array<{ id: number; name: string; branch_id: number; slug: string }>>([]);
 const employeePhotoUrl = ref<string | null>(null);
 const employeePhotoUploading = ref(false);
 
 const hideCreateUserOption = computed(() => form.value.user_id > 0);
+
+const primaryAssignmentBranchId = computed(() => {
+  const rows = form.value.assignments ?? [];
+  const primary = rows.find((a) => !!a.is_primary) ?? rows[0];
+  return Number(primary?.branch_id ?? 0);
+});
+
+watch(
+  primaryAssignmentBranchId,
+  async (branchId) => {
+    if (branchId <= 0) {
+      positionOptions.value = [];
+      return;
+    }
+    try {
+      positionOptions.value = await positionsApi.plucks({ branch_id: branchId });
+    } catch {
+      positionOptions.value = [];
+    }
+  },
+  { immediate: true }
+);
 
 const resolvedTenantEmailDomain = computed((): string | null => {
   const cid = Number(form.value.company_id ?? 0);
@@ -226,7 +249,7 @@ function fillFormFromEmployee(data: Awaited<ReturnType<typeof employeesApi.getBy
     user_id: e.user_id != null && Number(e.user_id) > 0 ? Number(e.user_id) : 0,
     name: e.name ?? "",
     email: e.email ?? "",
-    job_title: e.job_title ?? "",
+    position_id: Number(e.position_id ?? 0),
     street: e.street ?? "",
     street_number: e.street_number ?? "",
     complement: e.complement ?? "",
@@ -343,7 +366,7 @@ function submit() {
           user_id: uid,
           name: d.name,
           email: d.email,
-          job_title: d.job_title,
+          position_id: d.position_id && d.position_id > 0 ? d.position_id : undefined,
           street: d.street,
           street_number: d.street_number,
           complement: d.complement,
@@ -384,7 +407,7 @@ function submit() {
       user_id: d.user_id > 0 ? d.user_id : null,
       name: d.name,
       email: d.email,
-      job_title: d.job_title,
+      position_id: d.position_id && d.position_id > 0 ? d.position_id : undefined,
       street: d.street,
       street_number: d.street_number,
       complement: d.complement,
@@ -494,6 +517,7 @@ onMounted(async () => {
           :new-user-role-id="newUserRoleId"
           :role-options="roleOptions"
           :hide-create-user-option="hideCreateUserOption"
+          :position-options="positionOptions"
           mode="edit"
           @clear-error="clearError"
           @update:user-access-mode="userAccessMode = $event"

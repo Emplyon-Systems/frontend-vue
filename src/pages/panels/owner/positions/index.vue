@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import FilterTriggerButton from "@/components/filters/FilterTriggerButton.vue";
 import ListagemCard from "@/components/ListagemCard.vue";
 import TableActionButtons from "@/components/TableActionButtons.vue";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal.vue";
-import EmployeesFilter from "@/views/panels/owner/employees/Filter.vue";
-import type { EmployeesFilterModel } from "@/views/panels/owner/employees/Filter.vue";
-import { employeesApi } from "@/api/resources";
-import type { EmployeeRecord } from "@/types/api";
+import PositionsFilter from "@/views/panels/owner/positions/Filter.vue";
+import type { PositionsFilterModel } from "@/views/panels/owner/positions/Filter.vue";
+import { positionsApi, branchesApi } from "@/api/resources";
+import type { PositionRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
-import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 import { useModulePermissions } from "@/composables/usePermissions";
 import { usePanelScope } from "@/composables/usePanelScope";
@@ -20,14 +19,14 @@ import { useFilterState } from "@/composables/useFilterState";
 import { useListPageState } from "@/composables/useListPageState";
 import { useScopePlucks } from "@/composables/useScopePlucks";
 
-const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const { loadBranchOptionsByScope, loadCompanyOptionsByScope } = useScopePlucks();
-const employeePermissions = useModulePermissions("employees");
+const positionPermissions = useModulePermissions("positions");
 const {
   routeName,
+  isCompanyBranchWorkspace,
+  companyBranchWorkspaceId: companyBranchWsId,
   isOwnerWorkspace,
   workspaceCompanyId,
   isCompanyScoped: companyScoped,
@@ -35,8 +34,9 @@ const {
   isCompanyFixed,
   currentBranchId,
 } = usePanelScope();
+
 const loading = ref(true);
-const employees = ref<EmployeeRecord[]>([]);
+const positions = ref<PositionRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 const branchOptions = ref<Array<{ id: number; name: string; company_id?: number }>>([]);
 const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
@@ -44,59 +44,72 @@ const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useL
   orderBy: "id",
   orderDir: "desc",
 });
-const initialFilters = (): EmployeesFilterModel => ({
-  search: "",
+
+const initialFilters = (): PositionsFilterModel => ({
+  name: "",
   company_ids: [] as number[],
   branch_ids: [] as number[],
   created_at_from: "",
   created_at_until: "",
   per_page: 15,
 });
+
 const { filters, appliedFilters, hasActiveFilters, applyFilters, resetFilters } = useFilterState(
   initialFilters,
   (f) =>
-    !!f.search.trim() ||
+    !!f.name.trim() ||
     (f.company_ids?.length ?? 0) > 0 ||
     (f.branch_ids?.length ?? 0) > 0 ||
     !!f.created_at_from ||
     !!f.created_at_until
 );
-const isOwnerEmployees = computed(() => routeName.value.startsWith("owner.") && !routeName.value.startsWith("owner.company.workspace"));
+
+const isOwnerPositions = computed(() => routeName.value.startsWith("owner.") && !routeName.value.startsWith("owner.company.workspace"));
 
 const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
-  { key: "email", label: "E-mail", sortable: true, align: "start" as const },
-  { key: "job_title", label: "Cargo", sortable: true, align: "start" as const },
-  ...(isOwnerEmployees.value && !isCompanyFixed.value
+  { key: "slug", label: "Slug", sortable: true, align: "start" as const },
+  ...((isOwnerPositions.value && !isCompanyFixed.value)
     ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }]
     : []),
-  { key: "branches", label: "Filiais", sortable: false, align: "start" as const },
+  ...(branchScoped.value || isCompanyBranchWorkspace.value
+    ? []
+    : [{ key: "branch", label: "Filial", sortable: false, align: "start" as const }]),
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
+
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
 const showFilters = ref(false);
-const canCreate = employeePermissions.canCreate;
-const canRead = employeePermissions.canRead;
-const canUpdate = employeePermissions.canUpdate;
-const canDelete = employeePermissions.canDelete;
+const canCreate = positionPermissions.canCreate;
+const canRead = positionPermissions.canRead;
+const canUpdate = positionPermissions.canUpdate;
+const canDelete = positionPermissions.canDelete;
 
 async function loadPlucks() {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    try {
+      const res = await branchesApi.getById(companyBranchWsId.value);
+      const nm = res.branch?.name?.trim() || `Filial #${companyBranchWsId.value}`;
+      branchOptions.value = [{ id: companyBranchWsId.value, name: nm, company_id: res.branch?.company_id }];
+    } catch {
+      branchOptions.value = [{ id: companyBranchWsId.value, name: `Filial #${companyBranchWsId.value}`, company_id: undefined }];
+    }
+    return;
+  }
   branchOptions.value = await loadBranchOptionsByScope({
     branchScoped: branchScoped.value,
     currentBranchId: currentBranchId.value,
     workspaceCompanyId: workspaceCompanyId.value,
   });
-  if (isOwnerEmployees.value) {
-    companyOptions.value = await loadCompanyOptionsByScope({
-      companyScoped: false,
-      scopedCompanyId: 0,
-    });
+  if (isOwnerPositions.value) {
+    companyOptions.value = await loadCompanyOptionsByScope({ companyScoped: false, scopedCompanyId: 0 });
   }
 }
 
 function getEffectiveBranchIds(): number[] | undefined {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) return [companyBranchWsId.value];
   if (branchScoped.value && currentBranchId.value > 0) return [currentBranchId.value];
   if (isOwnerWorkspace.value && branchOptions.value.length > 0) {
     const af = appliedFilters.value;
@@ -118,11 +131,11 @@ function getEffectiveBranchIds(): number[] | undefined {
 function loadList(page = 1) {
   loading.value = true;
   const branchIds = getEffectiveBranchIds();
-  employeesApi
+  positionsApi
     .list({
       page,
       per_page: appliedFilters.value.per_page,
-      search: appliedFilters.value.search.trim() || undefined,
+      name: appliedFilters.value.name.trim() || undefined,
       branch_ids: branchIds,
       created_at_from: appliedFilters.value.created_at_from || undefined,
       created_at_until: appliedFilters.value.created_at_until || undefined,
@@ -130,40 +143,44 @@ function loadList(page = 1) {
       order_dir: orderDir.value,
     })
     .then((data) => {
-      employees.value = data.employees?.data ?? [];
+      positions.value = data.positions?.data ?? [];
       pagination.value = {
-        current_page: data.employees?.current_page ?? 1,
-        per_page: data.employees?.per_page ?? appliedFilters.value.per_page,
-        total: data.employees?.total ?? 0,
-        last_page: data.employees?.last_page ?? 1,
+        current_page: data.positions?.current_page ?? 1,
+        per_page: data.positions?.per_page ?? appliedFilters.value.per_page,
+        total: data.positions?.total ?? 0,
+        last_page: data.positions?.last_page ?? 1,
       };
     })
     .finally(() => (loading.value = false));
 }
 
-function confirmDelete(emp: EmployeeRecord) {
-  deleteId.value = emp.id;
+function confirmDelete(position: PositionRecord) {
+  deleteId.value = position.id;
   deleteModal.value = true;
 }
 
 function doDelete() {
   if (deleteId.value == null) return;
-  employeesApi.remove(deleteId.value).then(() => {
+  positionsApi.remove(deleteId.value).then(() => {
     deleteModal.value = false;
     deleteId.value = null;
-    notifySuccess("Funcionário eliminado com sucesso.");
+    notifySuccess("Cargo eliminado com sucesso.");
     loadList(pagination.value.current_page);
   });
 }
 
 function routeNameFor(op: "list" | "create" | "view" | "edit"): string {
-  if (branchScoped.value) return `branch.employees.${op}`;
-  if (companyScoped.value) return `company.employees.${op}`;
-  return `owner.employees.${op}`;
+  if (branchScoped.value) return `branch.positions.${op}`;
+  if (companyScoped.value) return `company.positions.${op}`;
+  return `owner.positions.${op}`;
 }
 
 function goCreate() {
   if (!canCreate.value) return;
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    router.push({ name: "company.positions.create", query: { branch_id: String(companyBranchWsId.value) } });
+    return;
+  }
   router.push({ name: routeNameFor("create") });
 }
 
@@ -189,19 +206,11 @@ function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir
   loadList(1);
 }
 
-function branchesLabel(item: EmployeeRecord): string {
-  const list = item.branches ?? [];
-  if (!list.length) return "—";
-  return list.map((b) => b.name ?? `#${b.id}`).join(", ");
-}
-
-function companyLabel(item: EmployeeRecord): string {
-  if (item.company?.name) return item.company.name;
-  return companyOptions.value.find((c) => c.id === item.company_id)?.name ?? "—";
-}
-
 onMounted(async () => {
-  if (branchScoped.value && currentBranchId.value > 0) {
+  if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
+    filters.value.branch_ids = [companyBranchWsId.value];
+    appliedFilters.value.branch_ids = [companyBranchWsId.value];
+  } else if (branchScoped.value && currentBranchId.value > 0) {
     filters.value.branch_ids = [currentBranchId.value];
     appliedFilters.value.branch_ids = [currentBranchId.value];
   }
@@ -215,14 +224,16 @@ onMounted(async () => {
     <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Funcionários</h1>
+          <h1 class="h4 mb-1">Cargos</h1>
           <p class="text-muted mb-0 small">
             {{
-              branchScoped
-                ? "Funcionários vinculados à sua filial."
-                : isCompanyFixed
-                  ? "Listar e criar funcionários das filiais desta empresa."
-                  : "Listar e criar funcionários por empresa e filial."
+              isCompanyBranchWorkspace
+                ? "Cargos apenas desta filial."
+                : branchScoped
+                  ? "Cargos da sua filial."
+                  : isCompanyFixed
+                    ? "Listar e criar cargos das filiais desta empresa."
+                    : "Listar e criar cargos vinculados às filiais."
             }}
           </p>
         </div>
@@ -230,19 +241,19 @@ onMounted(async () => {
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" />
           <b-button v-if="canCreate" variant="primary" @click="goCreate">
             <i class="iconoir-plus me-1"></i>
-            Novo funcionário
+            Novo cargo
           </b-button>
         </div>
       </div>
 
       <UIComponentCard v-if="showFilters" title="Filtros" class="mb-3">
-        <EmployeesFilter
+        <PositionsFilter
           v-model="filters"
           :active="hasActiveFilters"
           :company-options="companyOptions"
           :branch-options="branchOptions"
-          :show-company-filter="isOwnerEmployees && !isCompanyFixed"
-          :hide-branch-selector="branchScoped"
+          :show-company-filter="isOwnerPositions && !isCompanyFixed"
+          :hide-branch-selector="branchScoped || isCompanyBranchWorkspace"
           @apply="() => { applyFilters(); loadList(1); }"
           @reset="() => { resetFilters(); loadList(1); }"
         />
@@ -250,7 +261,7 @@ onMounted(async () => {
 
       <ListagemCard
         :columns="listagemColumns"
-        :data="employees"
+        :data="positions"
         :loading="loading"
         :pagination="pagination"
         :per-page-options="[10, 15, 25, 50, 100]"
@@ -258,7 +269,7 @@ onMounted(async () => {
         :order-dir="orderDir"
         :result-label="resultLabel"
         :has-active-filters="hasActiveFilters"
-        empty-message="Nenhum funcionário encontrado."
+        empty-message="Nenhum cargo encontrado."
         result-badge-class="result-badge-default"
         @update:per-page="onPerPageChange"
         @update:sort="onSortChange"
@@ -266,17 +277,16 @@ onMounted(async () => {
       >
         <template #row="{ item }">
           <b-tr>
-            <b-td>{{ (item as EmployeeRecord).id }}</b-td>
-            <b-td>{{ (item as EmployeeRecord).name }}</b-td>
-            <b-td>{{ (item as EmployeeRecord).email }}</b-td>
-            <b-td>{{ (item as EmployeeRecord).position?.name || "—" }}</b-td>
-            <b-td v-if="isOwnerEmployees && !isCompanyFixed">
-              {{ companyLabel(item as EmployeeRecord) }}
+            <b-td>{{ (item as PositionRecord).id }}</b-td>
+            <b-td>{{ (item as PositionRecord).name }}</b-td>
+            <b-td><code>{{ (item as PositionRecord).slug }}</code></b-td>
+            <b-td v-if="isOwnerPositions && !isCompanyFixed">
+              {{ companyOptions.find((c) => c.id === (item as PositionRecord).branch?.company_id)?.name ?? "—" }}
             </b-td>
-            <b-td>{{ branchesLabel(item as EmployeeRecord) }}</b-td>
+            <b-td v-if="!branchScoped && !isCompanyBranchWorkspace">{{ (item as PositionRecord).branch?.name ?? "—" }}</b-td>
             <b-td class="text-end">
               <TableActionButtons
-                :item-id="(item as EmployeeRecord).id"
+                :item-id="(item as PositionRecord).id"
                 :show-view="canRead"
                 :show-edit="canUpdate"
                 :show-delete="canDelete"
@@ -285,7 +295,7 @@ onMounted(async () => {
                 delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
-                @delete="(id) => { const e = employees.find((x) => x.id === id); if (e) confirmDelete(e); }"
+                @delete="(id) => { const p = positions.find((x) => x.id === id); if (p) confirmDelete(p); }"
               />
             </b-td>
           </b-tr>
@@ -295,8 +305,8 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Excluir funcionário"
-      message="Tem certeza de que deseja excluir este funcionário?"
+      title="Excluir cargo"
+      message="Tem certeza de que deseja excluir este cargo?"
       @confirm="doDelete"
     />
   </component>

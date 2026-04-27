@@ -3,6 +3,7 @@ export * from "./company";
 export * from "./employee";
 export * from "./example";
 export * from "./modality-type";
+export * from "./position";
 export * from "./role";
 export * from "./scale-type";
 export * from "./sector";

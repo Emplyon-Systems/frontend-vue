@@ -5,6 +5,7 @@ import BranchUsersTab from "./BranchUsersTab.vue";
 import BranchSectorsTab from "./BranchSectorsTab.vue";
 import BranchEmployeesTab from "./BranchEmployeesTab.vue";
 import BranchScheduleRulesTab from "./BranchScheduleRulesTab.vue";
+import BranchPositionsTab from "./BranchPositionsTab.vue";
 import type { BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 withDefaults(
@@ -99,6 +100,9 @@ withDefaults(
               </b-tab>
               <b-tab v-if="!branchWorkspaceOverview && showEmployeesTab && branchId" title="Funcionários">
                 <BranchEmployeesTab :branch-id="branchId" />
+              </b-tab>
+              <b-tab v-if="branchId && !branchWorkspaceOverview" title="Cargos">
+                <BranchPositionsTab :branch-id="branchId" />
               </b-tab>
             </b-tabs>
           </b-card-body>

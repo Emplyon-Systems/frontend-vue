@@ -25,3 +25,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+
+.supervisor
+.mcp.json
+.claude

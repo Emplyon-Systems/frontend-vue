@@ -10,6 +10,7 @@ export * as employeeMedicalCertificatesApi from "./employee-medical-certificates
 export * as employeeVacationsApi from "./employee-vacations";
 export * as modalityTypesApi from "./modality-types";
 export * as permissionsApi from "./permissions";
+export * as positionsApi from "./positions";
 export * as roleTemplatesApi from "./role-templates";
 export * as rolesApi from "./roles";
 export * as scaleTypesApi from "./scale-types";
