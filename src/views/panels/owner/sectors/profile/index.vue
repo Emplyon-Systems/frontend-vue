@@ -9,6 +9,8 @@ withDefaults(
     name?: string;
     slug?: string;
     branchName?: string;
+    startTime?: string;
+    endTime?: string;
     subtitle?: string;
     hideBranchContext?: boolean;
     users?: SectorUser[];
@@ -46,6 +48,8 @@ withDefaults(
                     :name="name"
                     :slug="slug"
                     :branch-name="branchName"
+                    :start-time="startTime"
+                    :end-time="endTime"
                     :hide-branch-context="hideBranchContext"
                     :on-edit="onEdit"
                     full-width

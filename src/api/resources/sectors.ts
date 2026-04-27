@@ -26,11 +26,15 @@ export interface SectorsListParams {
 export interface SectorCreatePayload {
   branch_id: number;
   name: string;
+  start_time: string;
+  end_time: string;
 }
 
 export interface SectorUpdatePayload {
   branch_id?: number;
   name?: string;
+  start_time?: string;
+  end_time?: string;
 }
 
 export async function list(params?: SectorsListParams) {
@@ -69,6 +73,8 @@ export interface SectorPluckItem {
   branch_name?: string;
   name: string;
   slug: string;
+  start_time?: string;
+  end_time?: string;
 }
 
 export async function plucks(params?: SectorsPlucksParams): Promise<SectorPluckItem[]> {

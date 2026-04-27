@@ -296,18 +296,18 @@ watch(
 
 const layoutOrder = computed(() => {
   return {
-    /** Sempre no topo: contexto antes dos dados pessoais. */
-    branch: "order-1",
-    sectors: "order-1",
-    /** Nome e e-mail sempre abaixo de Filial/Setores. */
-    name: "order-2",
-    email: "order-2",
+    /** Contexto primeiro: empresa antes de filial. */
+    company: "order-1",
+    companyEmpty: "order-1",
+    branch: "order-2",
+    sectors: "order-2",
+    /** Dados pessoais na mesma linha, com nome primeiro. */
+    name: "order-3",
+    email: "order-3",
     /** Linha seguinte: senhas lado a lado. */
     pwd: "order-3",
     pwd2: "order-3",
-    /** Empresa (quando visível) depois dos dados principais. */
-    company: "order-4",
-    companyEmpty: "order-4",
+    status: "order-5",
   };
 });
 

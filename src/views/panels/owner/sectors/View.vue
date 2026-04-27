@@ -32,6 +32,8 @@ const branchOptions = ref<Array<{ id: number; name: string }>>([]);
 const sectorSlug = ref("");
 const users = ref<SectorUser[]>([]);
 const usersCount = ref(0);
+const sectorStartTime = ref("");
+const sectorEndTime = ref("");
 const canEditSector = computed(() => authStore.hasRole("superadmin") || sectorPermissions.canUpdate.value);
 
 function back() {
@@ -50,8 +52,12 @@ function fillFromSector(data: Awaited<ReturnType<typeof sectorsApi.getById>>) {
   form.value = {
     branch_id: sector.branch_id ?? 0,
     name: sector.name ?? "",
+    start_time: sector.start_time ?? "",
+    end_time: sector.end_time ?? "",
   };
   sectorSlug.value = sector.slug ?? "";
+  sectorStartTime.value = sector.start_time ?? "";
+  sectorEndTime.value = sector.end_time ?? "";
   users.value = sector.users ?? [];
   usersCount.value = sector.users?.length ?? 0;
 }
@@ -110,6 +116,8 @@ onMounted(async () => {
         :branch-name="branchName"
         :subtitle="branchScoped ? undefined : branchName"
         :hide-branch-context="branchScoped"
+        :start-time="sectorStartTime"
+        :end-time="sectorEndTime"
         :users="users"
         :users-count="usersCount"
         :on-edit="canEditSector ? goEdit : undefined"

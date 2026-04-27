@@ -55,6 +55,8 @@ export interface BranchUpdatePayload {
 export interface BranchSetupSubmitPayload {
   schedule_rules: BranchScheduleRulePayloadItem[];
   sector_name: string;
+  sector_start_time: string;
+  sector_end_time: string;
   employee: {
     name: string;
     email: string;

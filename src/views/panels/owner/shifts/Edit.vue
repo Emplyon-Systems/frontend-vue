@@ -121,7 +121,15 @@ onMounted(async () => {
           {{ Object.values(errors)[0] ?? "Corrija os erros antes de continuar." }}
         </AppAlert>
         <b-form @submit.prevent="submit">
-        <DataForm v-model="form" :errors="errors" :branch-options="branchOptions" :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null" mode="edit" @clear-error="clearError">
+        <DataForm
+          v-model="form"
+          :errors="errors"
+          :branch-options="branchOptions"
+          :show-branch-company-name="!companyScoped && !branchScoped"
+          :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
+          mode="edit"
+          @clear-error="clearError"
+        >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
               {{ loading ? "Salvando..." : "Salvar" }}

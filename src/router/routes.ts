@@ -606,12 +606,6 @@ const panelRoutes = [
         component: () => import("@/pages/panels/owner/companies/workspace/employees.vue"),
       },
       {
-        path: "shifts",
-        name: "owner.company.workspace.shifts",
-        meta: { title: setTitle("Empresa — Turnos"), authRequired: true, panel: "owner", permission: ["shifts.index", "shifts.read"] },
-        component: () => import("@/pages/panels/owner/companies/workspace/shifts.vue"),
-      },
-      {
         path: "modality-types",
         name: "owner.company.workspace.modality-types",
         meta: { title: setTitle("Empresa — Modalidade de domingo"), authRequired: true, panel: "owner", permission: ["modality_types.index", "modality_types.read"] },
@@ -630,9 +624,15 @@ const panelRoutes = [
         component: () => import("@/pages/panels/owner/companies/workspace/users.vue"),
       },
       {
+        path: "positions",
+        name: "owner.company.workspace.positions",
+        meta: { title: setTitle("Empresa — Cargos"), authRequired: true, panel: "owner", permission: ["positions.index", "positions.read", "roles.index", "roles.read"] },
+        component: () => import("@/pages/panels/owner/positions/index.vue"),
+      },
+      {
         path: "roles",
         name: "owner.company.workspace.roles",
-        meta: { title: setTitle("Empresa — Cargos"), authRequired: true, panel: "owner", permission: ["roles.index", "roles.read"] },
+        meta: { title: setTitle("Empresa — Perfis"), authRequired: true, panel: "owner", permission: ["roles.index", "roles.read"] },
         component: () => import("@/pages/panels/owner/roles/index.vue"),
       },
     ],
@@ -836,50 +836,6 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/employees/view.vue"),
   },
   {
-    path: "/shifts",
-    name: "owner.shifts",
-    meta: {
-      title: setTitle("Turnos"),
-      authRequired: true,
-      panel: "owner",
-      permission: ["shifts.index", "shifts.read"],
-    },
-    component: () => import("@/pages/panels/owner/shifts/index.vue"),
-  },
-  {
-    path: "/shifts/create",
-    name: "owner.shifts.create",
-    meta: {
-      title: setTitle("Novo turno"),
-      authRequired: true,
-      panel: "owner",
-      permission: "shifts.create",
-    },
-    component: () => import("@/pages/panels/owner/shifts/create.vue"),
-  },
-  {
-    path: "/shifts/:id/edit",
-    name: "owner.shifts.edit",
-    meta: {
-      title: setTitle("Editar turno"),
-      authRequired: true,
-      panel: "owner",
-      permission: "shifts.update",
-    },
-    component: () => import("@/pages/panels/owner/shifts/edit.vue"),
-  },
-  {
-    path: "/shifts/:id",
-    name: "owner.shifts.view",
-    meta: {
-      title: setTitle("Visualizar turno"),
-      authRequired: true,
-      panel: "owner",
-      permission: "shifts.read",
-    },
-    component: () => import("@/pages/panels/owner/shifts/view.vue"),
-  },
-  {
     path: "/modality-types",
     name: "owner.modality-types",
     meta: {
@@ -1000,7 +956,6 @@ const panelRoutes = [
   { path: "/branches", redirect: "/companies" },
   { path: "/sectors", redirect: "/companies" },
   { path: "/employees", redirect: "/companies" },
-  { path: "/shifts", redirect: "/companies" },
   { path: "/modality-types", redirect: "/companies" },
   { path: "/scale-types", redirect: "/companies" },
   {
@@ -1236,21 +1191,11 @@ const panelRoutes = [
             path: "roles",
             name: "company.branch.roles",
             meta: {
-              title: setTitle("Filial — Cargos"),
+              title: setTitle("Filial — Perfis"),
               authRequired: true,
               permission: ["roles.index", "roles.read"],
             },
             component: () => import("@/pages/panels/owner/roles/index.vue"),
-          },
-          {
-            path: "shifts",
-            name: "company.branch.shifts",
-            meta: {
-              title: setTitle("Filial — Turnos"),
-              authRequired: true,
-              permission: ["shifts.index", "shifts.read"],
-            },
-            component: () => import("@/pages/panels/owner/shifts/index.vue"),
           },
           {
             path: "modality-types",
@@ -1278,7 +1223,7 @@ const panelRoutes = [
             meta: {
               title: setTitle("Filial — Cargos"),
               authRequired: true,
-              permission: ["positions.index", "positions.read"],
+              permission: ["positions.index", "positions.read", "roles.index", "roles.read"],
             },
             component: () => import("@/pages/panels/owner/positions/index.vue"),
           },
@@ -1290,7 +1235,7 @@ const panelRoutes = [
         meta: {
           title: setTitle("Cargos da empresa"),
           authRequired: true,
-          permission: ["positions.index", "positions.read"],
+          permission: ["positions.index", "positions.read", "roles.index", "roles.read"],
         },
         component: () => import("@/pages/panels/owner/positions/index.vue"),
       },
@@ -1300,7 +1245,7 @@ const panelRoutes = [
         meta: {
           title: setTitle("Novo cargo"),
           authRequired: true,
-          permission: "positions.create",
+          permission: ["positions.create", "roles.create"],
         },
         component: () => import("@/pages/panels/owner/positions/create.vue"),
       },
@@ -1310,7 +1255,7 @@ const panelRoutes = [
         meta: {
           title: setTitle("Editar cargo"),
           authRequired: true,
-          permission: "positions.update",
+          permission: ["positions.update", "roles.update"],
         },
         component: () => import("@/pages/panels/owner/positions/edit.vue"),
       },
@@ -1320,7 +1265,7 @@ const panelRoutes = [
         meta: {
           title: setTitle("Visualizar cargo"),
           authRequired: true,
-          permission: "positions.read",
+          permission: ["positions.read", "roles.read"],
         },
         component: () => import("@/pages/panels/owner/positions/view.vue"),
       },
@@ -1423,46 +1368,6 @@ const panelRoutes = [
           permission: "employees.read",
         },
         component: () => import("@/pages/panels/owner/employees/view.vue"),
-      },
-      {
-        path: "shifts",
-        name: "company.shifts",
-        meta: {
-          title: setTitle("Turnos da empresa"),
-          authRequired: true,
-          permission: ["shifts.index", "shifts.read"],
-        },
-        component: () => import("@/pages/panels/owner/shifts/index.vue"),
-      },
-      {
-        path: "shifts/create",
-        name: "company.shifts.create",
-        meta: {
-          title: setTitle("Novo turno"),
-          authRequired: true,
-          permission: "shifts.create",
-        },
-        component: () => import("@/pages/panels/owner/shifts/create.vue"),
-      },
-      {
-        path: "shifts/:id/edit",
-        name: "company.shifts.edit",
-        meta: {
-          title: setTitle("Editar turno"),
-          authRequired: true,
-          permission: "shifts.update",
-        },
-        component: () => import("@/pages/panels/owner/shifts/edit.vue"),
-      },
-      {
-        path: "shifts/:id",
-        name: "company.shifts.view",
-        meta: {
-          title: setTitle("Visualizar turno"),
-          authRequired: true,
-          permission: "shifts.read",
-        },
-        component: () => import("@/pages/panels/owner/shifts/view.vue"),
       },
       {
         path: "modality-types",
@@ -1816,54 +1721,6 @@ const panelRoutes = [
       rolePrefix: ["filial-b", "setor-b"],
     },
     component: () => import("@/views/panels/common/notifications/index.vue"),
-  },
-  {
-    path: "/branch/shifts",
-    name: "branch.shifts",
-    meta: {
-      title: setTitle("Turnos da filial"),
-      authRequired: true,
-      permission: ["shifts.index", "shifts.read"],
-      role: ["branch_manager", "branch", "filial"],
-      rolePrefix: ["filial-b"],
-    },
-    component: () => import("@/pages/panels/owner/shifts/index.vue"),
-  },
-  {
-    path: "/branch/shifts/create",
-    name: "branch.shifts.create",
-    meta: {
-      title: setTitle("Novo turno"),
-      authRequired: true,
-      permission: "shifts.create",
-      role: ["branch_manager", "branch", "filial"],
-      rolePrefix: ["filial-b"],
-    },
-    component: () => import("@/pages/panels/owner/shifts/create.vue"),
-  },
-  {
-    path: "/branch/shifts/:id/edit",
-    name: "branch.shifts.edit",
-    meta: {
-      title: setTitle("Editar turno"),
-      authRequired: true,
-      permission: "shifts.update",
-      role: ["branch_manager", "branch", "filial"],
-      rolePrefix: ["filial-b"],
-    },
-    component: () => import("@/pages/panels/owner/shifts/edit.vue"),
-  },
-  {
-    path: "/branch/shifts/:id",
-    name: "branch.shifts.view",
-    meta: {
-      title: setTitle("Visualizar turno"),
-      authRequired: true,
-      permission: "shifts.read",
-      role: ["branch_manager", "branch", "filial"],
-      rolePrefix: ["filial-b"],
-    },
-    component: () => import("@/pages/panels/owner/shifts/view.vue"),
   },
   {
     path: "/branch/modality-types",

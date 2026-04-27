@@ -95,7 +95,6 @@ router.beforeEach(async (to, _from) => {
   const companyOperationalListRoutes = new Set([
     "company.sectors",
     "company.employees",
-    "company.shifts",
     "company.modality-types",
     "company.scale-types",
   ]);

@@ -18,8 +18,10 @@ import { usePanelScope } from "@/composables/usePanelScope";
 import { useFilterState } from "@/composables/useFilterState";
 import { useListPageState } from "@/composables/useListPageState";
 import { useScopePlucks } from "@/composables/useScopePlucks";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
+const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const { loadBranchOptionsByScope, loadCompanyOptionsByScope } = useScopePlucks();
 const positionPermissions = useModulePermissions("positions");
@@ -86,6 +88,30 @@ const canCreate = positionPermissions.canCreate;
 const canRead = positionPermissions.canRead;
 const canUpdate = positionPermissions.canUpdate;
 const canDelete = positionPermissions.canDelete;
+const canReadByRoleProfile = computed(
+  () =>
+    (companyScoped.value || isCompanyBranchWorkspace.value || isOwnerWorkspace.value) &&
+    authStore.hasPermission("roles.read")
+);
+const canCreateByRoleProfile = computed(
+  () =>
+    (companyScoped.value || isCompanyBranchWorkspace.value || isOwnerWorkspace.value) &&
+    authStore.hasPermission("roles.create")
+);
+const canUpdateByRoleProfile = computed(
+  () =>
+    (companyScoped.value || isCompanyBranchWorkspace.value || isOwnerWorkspace.value) &&
+    authStore.hasPermission("roles.update")
+);
+const canDeleteByRoleProfile = computed(
+  () =>
+    (companyScoped.value || isCompanyBranchWorkspace.value || isOwnerWorkspace.value) &&
+    authStore.hasPermission("roles.delete")
+);
+const canReadPosition = computed(() => canRead.value || canReadByRoleProfile.value);
+const canCreatePosition = computed(() => canCreate.value || canCreateByRoleProfile.value);
+const canUpdatePosition = computed(() => canUpdate.value || canUpdateByRoleProfile.value);
+const canDeletePosition = computed(() => canDelete.value || canDeleteByRoleProfile.value);
 
 async function loadPlucks() {
   if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
@@ -176,7 +202,7 @@ function routeNameFor(op: "list" | "create" | "view" | "edit"): string {
 }
 
 function goCreate() {
-  if (!canCreate.value) return;
+  if (!canCreatePosition.value) return;
   if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
     router.push({ name: "company.positions.create", query: { branch_id: String(companyBranchWsId.value) } });
     return;
@@ -185,12 +211,12 @@ function goCreate() {
 }
 
 function goView(id: number) {
-  if (!canRead.value) return;
+  if (!canReadPosition.value) return;
   router.push({ name: routeNameFor("view"), params: { id: String(id) } });
 }
 
 function goEdit(id: number) {
-  if (!canUpdate.value) return;
+  if (!canUpdatePosition.value) return;
   router.push({ name: routeNameFor("edit"), params: { id: String(id) } });
 }
 
@@ -239,7 +265,7 @@ onMounted(async () => {
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" />
-          <b-button v-if="canCreate" variant="primary" @click="goCreate">
+          <b-button v-if="canCreatePosition" variant="primary" @click="goCreate">
             <i class="iconoir-plus me-1"></i>
             Novo cargo
           </b-button>
@@ -287,9 +313,9 @@ onMounted(async () => {
             <b-td class="text-end">
               <TableActionButtons
                 :item-id="(item as PositionRecord).id"
-                :show-view="canRead"
-                :show-edit="canUpdate"
-                :show-delete="canDelete"
+                :show-view="canReadPosition"
+                :show-edit="canUpdatePosition"
+                :show-delete="canDeletePosition"
                 view-title="Visualizar"
                 edit-title="Editar"
                 delete-title="Excluir"

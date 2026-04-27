@@ -31,6 +31,12 @@ const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors(
   notifyOnEmptyResponse: false,
 });
 const branchOptions = ref<Array<{ id: number; name: string }>>([]);
+const branchExpedientEnvelopeById = ref<Record<number, { start: string; end: string } | null>>({});
+const branchScheduleHint = computed(() => {
+  const envelope = branchExpedientEnvelopeById.value[Number(form.value.branch_id ?? 0)] ?? null;
+  if (!envelope) return "";
+  return `Horário permitido nesta filial: ${envelope.start} às ${envelope.end}.`;
+});
 
 function cancel() {
   router.push({ name: sectorsListRoute() });
@@ -42,6 +48,8 @@ function fillFormFromSector(data: Awaited<ReturnType<typeof sectorsApi.getById>>
   form.value = {
     branch_id: sector.branch_id ?? 0,
     name: sector.name ?? "",
+    start_time: sector.start_time ?? "08:00",
+    end_time: sector.end_time ?? "17:00",
   };
 }
 
@@ -69,6 +77,23 @@ function submit() {
     errors.value = validation.errors;
     return;
   }
+  const envelope = branchExpedientEnvelopeById.value[Number(form.value.branch_id ?? 0)] ?? null;
+  if (envelope) {
+    if (form.value.start_time < envelope.start || form.value.start_time > envelope.end) {
+      errors.value = {
+        ...errors.value,
+        start_time: `Horário de início deve estar entre ${envelope.start} e ${envelope.end} (funcionamento da filial).`,
+      };
+      return;
+    }
+    if (form.value.end_time < envelope.start || form.value.end_time > envelope.end) {
+      errors.value = {
+        ...errors.value,
+        end_time: `Horário de término deve estar entre ${envelope.start} e ${envelope.end} (funcionamento da filial).`,
+      };
+      return;
+    }
+  }
 
   loading.value = true;
   sectorsApi
@@ -82,10 +107,33 @@ function submit() {
 }
 
 onMounted(async () => {
+  const envelopeFromRules = (rules?: Array<{ is_closed?: boolean; expedient_start_time?: string | null; expedient_end_time?: string | null }>) => {
+    const valid = (rules ?? [])
+      .filter((r) => !r.is_closed && r.expedient_start_time && r.expedient_end_time)
+      .map((r) => ({
+        start: String(r.expedient_start_time ?? "").slice(0, 5),
+        end: String(r.expedient_end_time ?? "").slice(0, 5),
+      }));
+    if (!valid.length) return null;
+    const start = valid.reduce((acc, item) => (item.start < acc ? item.start : acc), valid[0].start);
+    const end = valid.reduce((acc, item) => (item.end > acc ? item.end : acc), valid[0].end);
+    return { start, end };
+  };
+
   const branches = await branchesApi.plucks();
   branchOptions.value = (branches as { id: number; name?: string }[])
     .map((b) => ({ id: b.id, name: b.name ?? `Filial #${b.id}` }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  await Promise.all(
+    branchOptions.value.map(async (b) => {
+      try {
+        const branchRes = await branchesApi.getById(b.id);
+        branchExpedientEnvelopeById.value[b.id] = envelopeFromRules(branchRes.branch?.schedule_rules);
+      } catch {
+        branchExpedientEnvelopeById.value[b.id] = null;
+      }
+    })
+  );
   loadSector();
 });
 </script>
@@ -119,6 +167,9 @@ onMounted(async () => {
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>
         </DataForm>
+        <p v-if="branchScheduleHint" class="text-muted small mt-2 mb-0">
+          {{ branchScheduleHint }}
+        </p>
       </b-form>
     </div>
   </component>

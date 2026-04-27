@@ -7,7 +7,8 @@ import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "@/views/panels/owner/companies/form/DataForm.vue";
 import { companiesApi } from "@/api/resources";
 import { companyInitialForm, validateCompanyForm, type CompanyFormData } from "@/core/schemas";
-import { notifySuccess } from "@/helpers/notify";
+import { notifyError, notifySuccess } from "@/helpers/notify";
+import { parseApiValidationResponse, pickToastMessage } from "@/helpers/map-laravel-errors";
 import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
@@ -71,6 +72,11 @@ async function onLogoSelect(file: File) {
     notifySuccess("Logo da empresa atualizado.");
   } catch (e) {
     onApiError(e);
+    const parsed = parseApiValidationResponse((e as { response?: { data?: unknown } })?.response?.data);
+    const message = parsed.fieldErrors
+      ? pickToastMessage(parsed.fieldErrors, ["file", "company", "general"])
+      : parsed.messageOnly;
+    notifyError(message || "Falha ao enviar a imagem da empresa.");
   } finally {
     logoUploading.value = false;
   }

@@ -47,6 +47,8 @@ const state = reactive({
   breakHhMm: "01:00",
 
   sectorInput: "",
+  sectorStartTime: "08:00",
+  sectorEndTime: "17:00",
 
   empName: "",
   empEmail: "",
@@ -118,6 +120,22 @@ function addSector() {
 }
 
 const canonicalSectorName = computed(() => state.sectorInput.trim());
+const setupExpedientEnvelope = computed(() => {
+  const starts: string[] = [];
+  const ends: string[] = [];
+  if (state.weekdays.length > 0 && state.weekExpStart && state.weekExpEnd) {
+    starts.push(state.weekExpStart);
+    ends.push(state.weekExpEnd);
+  }
+  if (!state.sundayClosed && state.sunExpStart && state.sunExpEnd) {
+    starts.push(state.sunExpStart);
+    ends.push(state.sunExpEnd);
+  }
+  if (!starts.length || !ends.length) return null;
+  const minStart = [...starts].sort()[0];
+  const maxEnd = [...ends].sort().at(-1) ?? "";
+  return minStart && maxEnd ? { start: minStart, end: maxEnd } : null;
+});
 
 /** Alinhado ao backend: setor + nº utilizador + ordem da filial (2 dígitos cada até 99, depois cresce). */
 const previewEmployeeEmail = ref("");
@@ -197,7 +215,20 @@ const stepError = computed<string>(() => {
   }
   if (s === 4 && !/^\d+:\d{2}$/.test(state.dailyWorkHhMm)) return "Insira a carga horária no formato HH:MM.";
   if (s === 5 && !/^\d+:\d{2}$/.test(state.breakHhMm)) return "Insira o tempo de refeição no formato HH:MM.";
-  if (s === 6 && !state.sectorInput.trim()) return "Informe o nome do setor.";
+  if (s === 6) {
+    if (!state.sectorInput.trim()) return "Informe o nome do setor.";
+    if (!state.sectorStartTime || !state.sectorEndTime) return "Defina início e fim do setor.";
+    if (state.sectorStartTime >= state.sectorEndTime) return "Início do setor deve ser antes do fim.";
+    const envelope = setupExpedientEnvelope.value;
+    if (envelope) {
+      if (state.sectorStartTime < envelope.start || state.sectorStartTime > envelope.end) {
+        return `Início do setor deve estar entre ${envelope.start} e ${envelope.end}.`;
+      }
+      if (state.sectorEndTime < envelope.start || state.sectorEndTime > envelope.end) {
+        return `Fim do setor deve estar entre ${envelope.start} e ${envelope.end}.`;
+      }
+    }
+  }
   if (s === 7) {
     if (!state.empName.trim()) return "Nome do funcionário é obrigatório.";
     if (!previewEmployeeEmail.value) return "E-mail automático indisponível. Verifique setor e domínio.";
@@ -294,6 +325,8 @@ async function finish() {
     await branchesApi.submitSetup(branchId.value, {
       schedule_rules: scheduleRules,
       sector_name: canonicalSectorName.value,
+      sector_start_time: state.sectorStartTime,
+      sector_end_time: state.sectorEndTime,
       employee: {
         name: state.empName.trim(),
         email: previewEmployeeEmail.value,
@@ -509,7 +542,20 @@ defineExpose({
             @blur="addSector"
           />
         </div>
-        <p class="text-muted fs-13 mb-0">Será criado apenas 1 setor nesta etapa.</p>
+        <b-row class="g-3 mb-2">
+          <b-col sm="6">
+            <label class="form-label fw-semibold" style="color: var(--bs-label-color)">Início do setor</label>
+            <input v-model="state.sectorStartTime" type="time" class="form-control form-control-lg time-field" />
+          </b-col>
+          <b-col sm="6">
+            <label class="form-label fw-semibold" style="color: var(--bs-label-color)">Fim do setor</label>
+            <input v-model="state.sectorEndTime" type="time" class="form-control form-control-lg time-field" />
+          </b-col>
+        </b-row>
+        <p v-if="setupExpedientEnvelope" class="text-muted fs-13 mb-0">
+          Horário permitido nesta filial: {{ setupExpedientEnvelope.start }} às {{ setupExpedientEnvelope.end }}.
+        </p>
+        <p v-else class="text-muted fs-13 mb-0">Será criado apenas 1 setor nesta etapa.</p>
       </div>
 
       <!-- Etapa 7 – Funcionário -->
@@ -555,6 +601,7 @@ defineExpose({
           <b-col sm="6">
             <label class="form-label fw-semibold" style="color: var(--bs-label-color)">Cargo <span class="text-danger">*</span></label>
             <input v-model="state.empJobTitle" type="text" class="form-control" placeholder="Nome do Cargo" />
+            <p class="form-text mb-0 fs-13">Se não existir, o cargo será criado automaticamente nesta filial.</p>
           </b-col>
           <b-col sm="6">
             <label class="form-label fw-semibold" style="color: var(--bs-label-color)">Setor</label>

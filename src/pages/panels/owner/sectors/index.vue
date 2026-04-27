@@ -67,6 +67,8 @@ const listagemColumns = computed(() => [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "slug", label: "Slug", sortable: true, align: "start" as const },
+  { key: "start_time", label: "De", sortable: false, align: "start" as const },
+  { key: "end_time", label: "Até", sortable: false, align: "start" as const },
   ...((isOwnerSectors.value && !isCompanyFixed.value)
     ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }]
     : []),
@@ -214,6 +216,12 @@ function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir
   loadList(1);
 }
 
+function formatTime(value?: string) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "—";
+  return raw.slice(0, 5);
+}
+
 onMounted(async () => {
   if (isCompanyBranchWorkspace.value && companyBranchWsId.value > 0) {
     filters.value.branch_ids = [companyBranchWsId.value];
@@ -288,10 +296,12 @@ onMounted(async () => {
             <b-td>{{ (item as SectorRecord).id }}</b-td>
             <b-td>{{ (item as SectorRecord).name }}</b-td>
             <b-td><code>{{ (item as SectorRecord).slug }}</code></b-td>
+            <b-td>{{ formatTime((item as SectorRecord).start_time) }}</b-td>
+            <b-td>{{ formatTime((item as SectorRecord).end_time) }}</b-td>
             <b-td v-if="isOwnerSectors && !isCompanyFixed">
               {{ companyOptions.find((c) => c.id === (item as SectorRecord).branch?.company_id)?.name ?? "—" }}
             </b-td>
-            <b-td v-if="!branchScoped">{{ (item as SectorRecord).branch?.name ?? "—" }}</b-td>
+            <b-td v-if="!branchScoped && !isCompanyBranchWorkspace">{{ (item as SectorRecord).branch?.name ?? "—" }}</b-td>
             <b-td class="text-end">
               <TableActionButtons
                 :item-id="(item as SectorRecord).id"

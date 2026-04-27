@@ -128,6 +128,7 @@ onMounted(async () => {
           v-model="form"
           :errors="errors"
           :branch-options="branchOptions"
+          :show-branch-company-name="!companyScoped && !branchScoped"
           :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
           mode="create"
           @clear-error="clearError"

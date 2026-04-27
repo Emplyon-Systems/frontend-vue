@@ -43,6 +43,13 @@ const {
 const isSuperadmin = ref(false);
 /** Em contexto filial, a filial vem fixa (pré-selecionada e bloqueada). */
 const fixedBranchId = computed(() => authStore.activeContext?.branch_id ?? null);
+const hasScopedCompanyFromRoute = computed(() => {
+  const qCid = Number(route.query.company_id ?? 0);
+  return Number.isFinite(qCid) && qCid > 0;
+});
+const showCompanySelector = computed(
+  () => isSuperadmin.value && !fixedBranchId.value && !hasScopedCompanyFromRoute.value
+);
 const selectedCompanyIds = computed(() => (form.value.company_ids ?? []).filter((id) => Number.isFinite(id) && id > 0));
 const selectedBranchIds = computed(() =>
   (form.value.branch_ids ?? []).filter((id) => Number.isFinite(id) && id > 0)
@@ -409,7 +416,7 @@ watch(
             :branch-options="filteredBranchOptions"
             :sector-options="sectorOptions"
             :fixed-branch-id="fixedBranchId"
-            :show-company-selector="isSuperadmin"
+            :show-company-selector="showCompanySelector"
             :tenant-email-domain="allowSyntheticEmailBypass ? null : resolvedTenantEmailDomain ?? null"
             @clear-error="clearError"
           />

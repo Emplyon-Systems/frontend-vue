@@ -35,6 +35,8 @@ withDefaults(
     scheduleRules?: BranchScheduleRuleRecord[];
     /** Painel empresa: resumo da filial com tabs superiores — esconde Setores/Funcionários duplicados. */
     branchWorkspaceOverview?: boolean;
+    /** Contexto "minha filial": mantém apenas as abas essenciais. */
+    onlyBranchInformation?: boolean;
   }>(),
   {
     users: () => [],
@@ -46,6 +48,7 @@ withDefaults(
     showEmployeesTab: false,
     scheduleRules: () => [],
     branchWorkspaceOverview: false,
+    onlyBranchInformation: false,
   }
 );
 </script>
@@ -84,24 +87,28 @@ withDefaults(
                     :state="state"
                     :user-limit="userLimit"
                     :users-used="usersUsedDisplay"
+                    :schedule-rules="scheduleRules"
                     :onEdit="onEdit"
                     full-width
                   />
                 </b-row>
               </b-tab>
-              <b-tab title="Usuários">
+              <b-tab v-if="!onlyBranchInformation" title="Usuários">
                 <BranchUsersTab :users="users" />
               </b-tab>
-              <b-tab v-if="!branchWorkspaceOverview" title="Setores">
+              <b-tab v-if="!branchWorkspaceOverview && !onlyBranchInformation" title="Setores">
                 <BranchSectorsTab :sectors="sectors" />
               </b-tab>
-              <b-tab title="Horários">
+              <b-tab v-if="!onlyBranchInformation" title="Horários">
                 <BranchScheduleRulesTab :rules="scheduleRules" />
               </b-tab>
-              <b-tab v-if="!branchWorkspaceOverview && showEmployeesTab && branchId" title="Funcionários">
+              <b-tab
+                v-if="!branchWorkspaceOverview && !onlyBranchInformation && showEmployeesTab && branchId"
+                title="Funcionários"
+              >
                 <BranchEmployeesTab :branch-id="branchId" />
               </b-tab>
-              <b-tab v-if="branchId && !branchWorkspaceOverview" title="Cargos">
+              <b-tab v-if="branchId && !branchWorkspaceOverview && !onlyBranchInformation" title="Cargos">
                 <BranchPositionsTab :branch-id="branchId" />
               </b-tab>
             </b-tabs>

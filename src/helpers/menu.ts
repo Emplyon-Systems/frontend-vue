@@ -61,14 +61,6 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
     "employees.delete",
     "employees.plucks",
   ]);
-  const canShifts = hasAny([
-    "shifts.index",
-    "shifts.read",
-    "shifts.create",
-    "shifts.update",
-    "shifts.delete",
-    "shifts.plucks",
-  ]);
   const canModalityTypes = hasAny([
     "modality_types.index",
     "modality_types.read",
@@ -199,10 +191,12 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   }
   // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canShifts || canModalityTypes || canScaleTypes || canEmployeeLeaveRequests)) {
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canShifts || canModalityTypes || canScaleTypes || canDayOffModalities || canEmployeeLeaveRequests)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canModalityTypes || canScaleTypes || canDayOffModalities || canEmployeeLeaveRequests)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
+      const branchManagementChildren: MenuItemType[] = [];
+      const branchWorkforceChildren: MenuItemType[] = [];
+
       if (canBranches) {
         baseMenu.push({
           key: "branch",
@@ -212,7 +206,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
         });
       }
       if (canSectors) {
-        baseMenu.push({
+        branchManagementChildren.push({
           key: "sectors-list",
           icon: "iconoir-folder",
           label: "Setores",
@@ -220,7 +214,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
         });
       }
       if (canPositions) {
-        baseMenu.push({
+        branchManagementChildren.push({
           key: "positions-list",
           icon: "iconoir-user-crown",
           label: "Cargos",
@@ -228,7 +222,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
         });
       }
       if (canEmployees) {
-        baseMenu.push({
+        branchManagementChildren.push({
           key: "employees-list",
           icon: "iconoir-community",
           label: "Funcionários",
@@ -243,16 +237,8 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
           route: { name: "branch.leave-requests" },
         });
       }
-      if (canShifts) {
-        baseMenu.push({
-          key: "shifts-list",
-          icon: "iconoir-clock",
-          label: "Turnos",
-          route: { name: "branch.shifts" },
-        });
-      }
       if (canModalityTypes) {
-        baseMenu.push({
+        branchWorkforceChildren.push({
           key: "modality-types-list",
           icon: "iconoir-book",
           label: "Modalidade de domingo",
@@ -260,7 +246,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
         });
       }
       if (canDayOffModalities) {
-        baseMenu.push({
+        branchWorkforceChildren.push({
           key: "day-off-modalities-list",
           icon: "iconoir-calendar-minus",
           label: "Modalidades de folga",
@@ -268,11 +254,27 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
         });
       }
       if (canScaleTypes) {
-        baseMenu.push({
+        branchWorkforceChildren.push({
           key: "scale-types-list",
           icon: "iconoir-calendar",
           label: "Tipos de escala",
           route: { name: "branch.scale-types" },
+        });
+      }
+      if (branchManagementChildren.length) {
+        baseMenu.push({
+          key: "branch-management",
+          icon: "iconoir-building",
+          label: "Gestão da filial",
+          children: branchManagementChildren,
+        });
+      }
+      if (branchWorkforceChildren.length) {
+        baseMenu.push({
+          key: "branch-workforce",
+          icon: "iconoir-clock",
+          label: "Jornada",
+          children: branchWorkforceChildren,
         });
       }
       if (systemChildren.length) {
@@ -286,7 +288,7 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
       return baseMenu;
     }
 
-    /** Painel empresa: só organização (Minha empresa + Filiais). Setores/turnos/etc. só após entrar numa filial (ecrã Ver filial). */
+    /** Painel empresa: só organização (Minha empresa + Filiais). Setores/etc. só após entrar numa filial (ecrã Ver filial). */
     if (path === "/company") {
       baseMenu.push({
         key: "my-company-top",

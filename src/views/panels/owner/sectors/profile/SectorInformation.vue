@@ -4,6 +4,8 @@ withDefaults(
     name?: string;
     slug?: string;
     branchName?: string;
+    startTime?: string;
+    endTime?: string;
     fullWidth?: boolean;
     hideBranchContext?: boolean;
     onEdit?: () => void;
@@ -39,7 +41,7 @@ withDefaults(
       </b-card-header>
       <b-card-body>
         <b-row class="g-3">
-          <b-col cols="12" :md="hideBranchContext ? 12 : 6">
+          <b-col cols="12" :md="hideBranchContext ? 12 : 4">
             <div class="border rounded p-3 h-100">
               <h6 class="mb-3">Identificação</h6>
               <div class="d-flex align-items-start mb-2">
@@ -58,7 +60,26 @@ withDefaults(
               </div>
             </div>
           </b-col>
-          <b-col v-if="!hideBranchContext" cols="12" md="6">
+          <b-col cols="12" :md="hideBranchContext ? 12 : 4">
+            <div class="border rounded p-3 h-100">
+              <h6 class="mb-3">Horário do setor</h6>
+              <div class="d-flex align-items-start mb-2">
+                <i class="iconoir-clock me-2 text-secondary fs-18"></i>
+                <div>
+                  <p class="text-muted mb-0 small">Início</p>
+                  <p class="mb-0 fw-medium">{{ startTime || "—" }}</p>
+                </div>
+              </div>
+              <div class="d-flex align-items-start">
+                <i class="iconoir-timer me-2 text-secondary fs-18"></i>
+                <div>
+                  <p class="text-muted mb-0 small">Término</p>
+                  <p class="mb-0 fw-medium">{{ endTime || "—" }}</p>
+                </div>
+              </div>
+            </div>
+          </b-col>
+          <b-col v-if="!hideBranchContext" cols="12" md="4">
             <div class="border rounded p-3 h-100">
               <h6 class="mb-3">Vinculação</h6>
               <div class="d-flex align-items-start">

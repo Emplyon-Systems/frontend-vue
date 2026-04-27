@@ -14,12 +14,14 @@ import { notifySuccess, notifyError } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 import { useModulePermissions } from "@/composables/usePermissions";
 import { usePanelScope } from "@/composables/usePanelScope";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 import { useFilterState } from "@/composables/useFilterState";
 import { useListPageState } from "@/composables/useListPageState";
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const rolePermissions = useModulePermissions("roles");
 const { scopedCompanyId, currentBranchId } = usePanelScope();
 const loading = ref(true);
@@ -233,8 +235,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div :class="isInsideCompanyPanelWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Perfis</h1>
@@ -315,5 +317,5 @@ onMounted(async () => {
       message="Tem certeza de que deseja excluir este perfil?"
       @confirm="doDelete"
     />
-  </DefaultLayout>
+  </component>
 </template>

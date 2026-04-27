@@ -208,6 +208,7 @@ onMounted(async () => {
         :show-employees-tab="showBranchEmployeesTab"
         :schedule-rules="scheduleRulesView"
         :branch-workspace-overview="isCompanyBranchOverview"
+        :only-branch-information="branchScoped"
       />
     </div>
   </component>

@@ -43,12 +43,6 @@ const tabs = computed<TabDef[]>(() => {
       visible: isSuperadmin || canAny(["employees.index", "employees.read"]),
     },
     {
-      key: "shifts",
-      label: "Turnos",
-      name: "owner.company.workspace.shifts",
-      visible: isSuperadmin || canAny(["shifts.index", "shifts.read"]),
-    },
-    {
       key: "modality-types",
       label: "Modalidade de domingo",
       name: "owner.company.workspace.modality-types",
@@ -67,8 +61,14 @@ const tabs = computed<TabDef[]>(() => {
       visible: isSuperadmin || canAny(["users.index", "users.read"]),
     },
     {
-      key: "roles",
+      key: "positions",
       label: "Cargos",
+      name: "owner.company.workspace.positions",
+      visible: isSuperadmin || canAny(["positions.index", "positions.read"]),
+    },
+    {
+      key: "roles",
+      label: "Perfis",
       name: "owner.company.workspace.roles",
       visible: isSuperadmin || canAny(["roles.index", "roles.read"]),
     },

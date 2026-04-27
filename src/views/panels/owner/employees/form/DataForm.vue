@@ -140,6 +140,18 @@ const modalityAssignmentSelectrs = new Map<number, any>();
 const sectorOptionsByRow = ref<SectorPluckItem[][]>([]);
 const modalityOptionsByRow = ref<ModalityTypePluckItem[][]>([]);
 
+function sectorScheduleForRow(index: number, sectorId?: number): string {
+  const sid = Number(sectorId ?? 0);
+  if (sid <= 0) return "";
+  const sector = (sectorOptionsByRow.value[index] ?? []).find((s) => s.id === sid) as
+    | (SectorPluckItem & { start_time?: string; end_time?: string })
+    | undefined;
+  const start = String(sector?.start_time ?? "").trim();
+  const end = String(sector?.end_time ?? "").trim();
+  if (!start || !end) return "";
+  return `${start} às ${end}`;
+}
+
 function modalityTypeLabelForRow(index: number, row: { modality_type_id?: number }): string {
   const id = Number(row.modality_type_id ?? 0);
   if (id <= 0) return "—";
@@ -179,6 +191,19 @@ const branchesFilteredForForm = computed(() => {
     .filter((b) => b.company_id == null || b.company_id === cid)
     .map((b) => ({ id: b.id, name: b.name }));
 });
+
+const selectedAssignmentBranchIds = computed(() =>
+  (props.modelValue.assignments ?? [])
+    .map((a) => Number(a.branch_id ?? 0))
+    .filter((id) => id > 0)
+);
+
+const availableBranchIdsForNewRow = computed(() => {
+  const selected = new Set(selectedAssignmentBranchIds.value);
+  return branchesFilteredForForm.value.map((b) => b.id).filter((id) => !selected.has(id));
+});
+
+const canAddAssignmentRow = computed(() => availableBranchIdsForNewRow.value.length > 0);
 
 const localForm = computed({
   get: () => props.modelValue,
@@ -550,6 +575,15 @@ function parseSingleBranchSelectValue(raw: unknown): number {
   return Number(raw) || 0;
 }
 
+function isBranchSelectedInOtherRow(index: number, branchId: number): boolean {
+  if (branchId <= 0) return false;
+  return props.modelValue.assignments.some((row, rowIndex) => rowIndex !== index && Number(row.branch_id ?? 0) === branchId);
+}
+
+function branchOptionDisabledForRow(index: number, branchId: number): boolean {
+  return isBranchSelectedInOtherRow(index, branchId);
+}
+
 function setBranchSelectEl(index: number, el: unknown) {
   if (el instanceof HTMLSelectElement) {
     branchSelectEls.set(index, el);
@@ -623,6 +657,8 @@ async function initSectorAssignmentSelectrs() {
     const el = sectorSelectEls.get(index);
     if (!el) continue;
     const row = props.modelValue.assignments[index];
+    const branchId = Number(row?.branch_id ?? 0);
+    if (branchId <= 0) continue;
     const selr = new Selectr(el, {
       searchable: true,
       multiple: false,
@@ -699,15 +735,27 @@ async function loadModalityTypesForRow(index: number, branchId: number) {
 }
 
 async function onAssignmentBranchChange(index: number, branchId: number) {
+  const previousBranchId = Number(props.modelValue.assignments[index]?.branch_id ?? 0);
+  if (branchId > 0 && isBranchSelectedInOtherRow(index, branchId) && branchId !== previousBranchId) {
+    notifyError("Esta filial já foi selecionada noutra linha. Escolha uma filial diferente.");
+    const selr = branchAssignmentSelectrs.get(index);
+    if (selr) {
+      if (previousBranchId > 0) selr.setValue(previousBranchId);
+      else selr.setValue("");
+    }
+    return;
+  }
   updateAssignment(index, { branch_id: branchId, sector_id: 0, modality_type_id: 0 });
   await loadSectorsForRow(index, branchId);
   await loadModalityTypesForRow(index, branchId);
 }
 
 function addAssignmentRow() {
+  if (!canAddAssignmentRow.value) return;
+  const nextBranchId = Number(availableBranchIdsForNewRow.value[0] ?? 0);
   const next = [
     ...localForm.value.assignments,
-    { branch_id: 0, sector_id: 0, modality_type_id: 0, is_primary: false },
+    { branch_id: nextBranchId, sector_id: 0, modality_type_id: 0, is_primary: false },
   ];
   if (!next.some((a) => a.is_primary)) {
     next[0] = { ...next[0], is_primary: true };
@@ -786,11 +834,7 @@ const assignmentSelectSignature = computed(() =>
     unlocked: useAssignmentSelectrs.value,
     hideBranchCol: props.hideBranchAssignmentField,
     company_id: props.modelValue.company_id,
-    assignments: props.modelValue.assignments.map((a) => ({
-      b: a.branch_id,
-      s: a.sector_id,
-      m: a.modality_type_id,
-    })),
+    assignmentBranches: props.modelValue.assignments.map((a) => a.branch_id),
     branches: branchesFilteredForForm.value.map((b) => b.id),
     sectorRows: sectorOptionsByRow.value.map((row) => row.map((s) => s.id)),
     modalityRows: modalityOptionsByRow.value.map((row) => row.map((m) => m.id)),
@@ -1104,7 +1148,14 @@ onBeforeUnmount(() => {
               :class="{ 'is-invalid': errors?.[`assignments.${index}.branch_id`] }"
             >
               <option value="">Selecione</option>
-              <option v-for="b in branchesFilteredForForm" :key="b.id" :value="b.id">{{ b.name }}</option>
+              <option
+                v-for="b in branchesFilteredForForm"
+                :key="b.id"
+                :value="b.id"
+                :disabled="branchOptionDisabledForRow(index, b.id)"
+              >
+                {{ b.name }}
+              </option>
             </select>
             <b-form-invalid-feedback v-if="errors?.[`assignments.${index}.branch_id`]">
               {{ errors[`assignments.${index}.branch_id`] }}
@@ -1129,6 +1180,9 @@ onBeforeUnmount(() => {
             <b-form-invalid-feedback v-if="errors?.[`assignments.${index}.sector_id`]">
               {{ errors[`assignments.${index}.sector_id`] }}
             </b-form-invalid-feedback>
+            <b-form-text v-if="sectorScheduleForRow(index, row.sector_id)">
+              Horário do setor: {{ sectorScheduleForRow(index, row.sector_id) }}
+            </b-form-text>
           </b-form-group>
         </b-col>
         <b-col :md="hideBranchAssignmentField ? 4 : 2">
@@ -1191,7 +1245,12 @@ onBeforeUnmount(() => {
         </b-col>
       </b-row>
     </div>
-    <b-button v-if="!isView && !isBranchLocked && !hideBranchAssignmentField" variant="outline-primary" size="sm" @click="addAssignmentRow">
+    <b-button
+      v-if="!isView && !isBranchLocked && !hideBranchAssignmentField && canAddAssignmentRow"
+      variant="outline-primary"
+      size="sm"
+      @click="addAssignmentRow"
+    >
       <i class="iconoir-plus me-1"></i>
       Adicionar filial
     </b-button>

@@ -12,12 +12,14 @@ const props = withDefaults(
     mode?: "create" | "edit" | "view";
     branchOptions?: Array<{ id: number; name: string; company_name?: string }>;
     lockBranchId?: number | null;
+    showBranchCompanyName?: boolean;
   }>(),
   {
     errors: () => ({}),
     mode: "create",
     branchOptions: () => [],
     lockBranchId: null,
+    showBranchCompanyName: true,
   }
 );
 
@@ -37,6 +39,7 @@ const localForm = computed({
 });
 
 function branchLabel(branch: { id: number; name: string; company_name?: string }) {
+  if (!props.showBranchCompanyName) return branch.name;
   return branch.company_name ? `${branch.name} (${branch.company_name})` : branch.name;
 }
 

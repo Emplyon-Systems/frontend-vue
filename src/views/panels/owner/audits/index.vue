@@ -7,7 +7,7 @@ import FilterTriggerButton from "@/components/filters/FilterTriggerButton.vue";
 import ListagemCard from "@/components/ListagemCard.vue";
 import TableActionButtons from "@/components/TableActionButtons.vue";
 import AuditsFilter from "@/views/panels/owner/audits/Filter.vue";
-import { auditsApi } from "@/api/resources";
+import { auditsApi, companiesApi, branchesApi } from "@/api/resources";
 import type { AuditRecord } from "@/types/api";
 
 const router = useRouter();
@@ -15,8 +15,10 @@ const loading = ref(true);
 const audits = ref<AuditRecord[]>([]);
 const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
 const initialFilters = () => ({
-  event: "",
-  auditable_type: "",
+  events: [] as string[],
+  auditable_types: [] as string[],
+  company_ids: [] as number[],
+  branch_ids: [] as number[],
   created_at_from: "",
   created_at_until: "",
 });
@@ -26,10 +28,25 @@ const appliedFilters = ref(initialFilters());
 const orderBy = ref("created_at");
 const orderDir = ref<"asc" | "desc">("desc");
 const showFilters = ref(false);
+const companyOptions = ref<Array<{ id: number; name: string }>>([]);
+const branchOptions = ref<Array<{ id: number; company_id?: number; name: string }>>([]);
+const eventOptions = ref<Array<{ value: string; label: string }>>([
+  { value: "created", label: "Criado" },
+  { value: "updated", label: "Atualizado" },
+  { value: "deleted", label: "Eliminado" },
+]);
+const auditableTypeOptions = ref<Array<{ value: string; label: string }>>([
+  { value: "App\\Models\\Company", label: "Empresa" },
+  { value: "App\\Models\\Branch", label: "Filial" },
+  { value: "App\\Models\\User", label: "Usuário" },
+  { value: "App\\Models\\Role", label: "Perfil" },
+]);
 const hasActiveFilters = computed(
   () =>
-    !!appliedFilters.value.event.trim() ||
-    !!appliedFilters.value.auditable_type.trim() ||
+    (appliedFilters.value.events?.length ?? 0) > 0 ||
+    (appliedFilters.value.auditable_types?.length ?? 0) > 0 ||
+    (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
+    (appliedFilters.value.branch_ids?.length ?? 0) > 0 ||
     !!appliedFilters.value.created_at_from ||
     !!appliedFilters.value.created_at_until
 );
@@ -58,8 +75,10 @@ function loadList(page = 1) {
     order_by: orderBy.value,
     order_dir: orderDir.value,
   };
-  if (appliedFilters.value.event.trim()) params.event = appliedFilters.value.event.trim();
-  if (appliedFilters.value.auditable_type.trim()) params.auditable_type = appliedFilters.value.auditable_type.trim();
+  if (appliedFilters.value.events?.length) params.events = appliedFilters.value.events;
+  if (appliedFilters.value.auditable_types?.length) params.auditable_types = appliedFilters.value.auditable_types;
+  if (appliedFilters.value.company_ids?.length) params.company_ids = appliedFilters.value.company_ids;
+  if (appliedFilters.value.branch_ids?.length) params.branch_ids = appliedFilters.value.branch_ids;
   if (appliedFilters.value.created_at_from) params.created_at_from = appliedFilters.value.created_at_from;
   if (appliedFilters.value.created_at_until) params.created_at_until = appliedFilters.value.created_at_until;
 
@@ -115,7 +134,16 @@ function goView(id: number) {
   router.push({ name: "owner.audits.show", params: { id: String(id) } });
 }
 
-onMounted(() => loadList());
+onMounted(async () => {
+  const [companies, branches] = await Promise.all([companiesApi.plucks(), branchesApi.plucks()]);
+  companyOptions.value = companies
+    .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  branchOptions.value = branches
+    .map((b) => ({ id: b.id, company_id: b.company_id, name: b.name ?? `Filial #${b.id}` }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  loadList();
+});
 </script>
 
 <template>
@@ -132,6 +160,10 @@ onMounted(() => loadList());
       <UIComponentCard v-if="showFilters" title="Filtros" class="mb-3">
         <AuditsFilter
           v-model="filters"
+          :event-options="eventOptions"
+          :auditable-type-options="auditableTypeOptions"
+          :company-options="companyOptions"
+          :branch-options="branchOptions"
           @apply="applyFilters"
           @reset="resetFilters"
         />

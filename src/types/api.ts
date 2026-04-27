@@ -282,6 +282,8 @@ export interface SectorRecord {
   branch_id: number;
   name: string;
   slug: string;
+  start_time?: string;
+  end_time?: string;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;

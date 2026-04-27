@@ -28,8 +28,13 @@ const emit = defineEmits<{
 
 const inputRef = ref<HTMLInputElement | null>(null);
 
-const MAX_BYTES = 5 * 1024 * 1024;
-const ACCEPT_MIME = ["image/jpeg", "image/png", "image/webp"];
+const ACCEPT_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ACCEPT_EXT = [".jpg", ".jpeg", ".png", ".webp"];
+
+function hasAllowedExtension(fileName: string): boolean {
+  const lower = fileName.toLowerCase();
+  return ACCEPT_EXT.some((ext) => lower.endsWith(ext));
+}
 
 function triggerPick() {
   if (props.disabled || props.uploading) return;
@@ -42,12 +47,10 @@ function onFileChange(e: Event) {
   input.value = "";
   if (!file) return;
 
-  if (!ACCEPT_MIME.includes(file.type)) {
+  const mimeOk = ACCEPT_MIME.includes((file.type || "").toLowerCase());
+  const extOk = hasAllowedExtension(file.name);
+  if (!mimeOk && !extOk) {
     notifyError("Use JPEG, PNG ou WebP.");
-    return;
-  }
-  if (file.size > MAX_BYTES) {
-    notifyError("O arquivo deve ter no máximo 5 MB.");
     return;
   }
   emit("select", file);
@@ -92,7 +95,7 @@ function onFileChange(e: Event) {
         >
           {{ uploading ? "Enviando…" : previewUrl ? "Alterar imagem" : "Carregar imagem" }}
         </b-button>
-        <div class="small text-muted mt-2">JPEG, PNG ou WebP · máx. 5 MB</div>
+        <div class="small text-muted mt-2">JPEG, PNG ou WebP</div>
       </div>
     </div>
   </UIComponentCard>
