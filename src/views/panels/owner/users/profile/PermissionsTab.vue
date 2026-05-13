@@ -107,6 +107,29 @@ const groupedPermissions = computed(() => {
                   </b-row>
                 </div>
               </template>
+              <template v-else-if="group.kind === 'templates'">
+                <div
+                  v-for="section in group.sections"
+                  :key="section.sectionKey"
+                  class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                >
+                  <div class="fw-semibold text-body mb-2">{{ section.sectionLabel }}</div>
+                  <b-row>
+                    <b-col
+                      v-for="permission in section.permissions"
+                      :key="permission.slug"
+                      cols="12"
+                      md="6"
+                      lg="4"
+                      class="mb-2"
+                    >
+                      <div class="border rounded px-2 py-1 h-100 bg-white">
+                        <p class="mb-0 fw-medium">{{ permission.name }}</p>
+                      </div>
+                    </b-col>
+                  </b-row>
+                </div>
+              </template>
               <template v-else>
                 <b-row>
                   <b-col

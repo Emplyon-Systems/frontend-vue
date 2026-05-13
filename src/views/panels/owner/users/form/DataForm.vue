@@ -7,8 +7,10 @@ import {
   buildGroupedPermissionModules,
   collectPermissionIdsFromEmployeesSection,
   collectPermissionIdsFromGroup,
+  collectPermissionIdsFromTemplatesSection,
   type EmployeesNestedPermissionGroup,
   type GroupedPermissionModule,
+  type TemplatesNestedPermissionGroup,
 } from "@/helpers/permissionModuleGroups";
 
 const props = withDefaults(
@@ -459,6 +461,11 @@ type UserPermissionGroup =
       checked: number;
       extras: number;
       sections: Array<EmployeesNestedPermissionGroup["sections"][number] & { extras: number }>;
+    })
+  | (TemplatesNestedPermissionGroup & {
+      checked: number;
+      extras: number;
+      sections: Array<TemplatesNestedPermissionGroup["sections"][number] & { extras: number }>;
     });
 
 const groupedPermissions = computed((): UserPermissionGroup[] => {
@@ -473,6 +480,14 @@ const groupedPermissions = computed((): UserPermissionGroup[] => {
     if (g.kind === "simple") {
       const extras = g.options.filter((o) => direct.has(o.id)).length;
       return { ...g, checked: g.selected, extras };
+    }
+    if (g.kind === "templates") {
+      const sections = g.sections.map((s) => ({
+        ...s,
+        extras: s.options.filter((o) => direct.has(o.id)).length,
+      }));
+      const extras = sections.reduce((sum, s) => sum + s.extras, 0);
+      return { ...g, sections, checked: g.selected, extras };
     }
     const sections = g.sections.map((s) => ({
       ...s,
@@ -549,6 +564,19 @@ function toggleEmployeesSection(sectionKey: string, checked: boolean) {
   updateField("direct_permission_ids", [...current]);
 }
 
+function toggleTemplatesSection(sectionKey: string, checked: boolean) {
+  const group = groupedPermissions.value.find((g) => g.kind === "templates");
+  if (!group || group.kind !== "templates") return;
+  const current = new Set(props.modelValue.direct_permission_ids ?? []);
+  const ids = collectPermissionIdsFromTemplatesSection(group, sectionKey);
+  for (const id of ids) {
+    if (isInheritedPermission(id)) continue;
+    if (checked) current.add(id);
+    else current.delete(id);
+  }
+  updateField("direct_permission_ids", [...current]);
+}
+
 function simpleModuleExtrasToggleState(group: UserPermissionGroup): boolean {
   if (group.kind !== "simple") return false;
   const nonInherited = group.options.filter((o) => !isInheritedPermission(o.id));
@@ -558,6 +586,14 @@ function simpleModuleExtrasToggleState(group: UserPermissionGroup): boolean {
 
 function employeesGroupExtrasToggleState(group: UserPermissionGroup): boolean {
   if (group.kind !== "employees") return false;
+  const opts = group.sections.flatMap((s) => s.options);
+  const nonInherited = opts.filter((o) => !isInheritedPermission(o.id));
+  if (!nonInherited.length) return false;
+  return nonInherited.every((o) => isExtraPermission(o.id));
+}
+
+function templatesGroupExtrasToggleState(group: UserPermissionGroup): boolean {
+  if (group.kind !== "templates") return false;
   const opts = group.sections.flatMap((s) => s.options);
   const nonInherited = opts.filter((o) => !isInheritedPermission(o.id));
   if (!nonInherited.length) return false;
@@ -1289,6 +1325,63 @@ function generateRandomPassword(length = 12): void {
                             class="mb-2 permission-extra-toggle"
                             :model-value="sectionExtrasToggleState(section)"
                             @update:model-value="toggleEmployeesSection(section.sectionKey, Boolean($event))"
+                          >
+                            Marcar extras desta secção
+                          </b-form-checkbox>
+                          <b-row>
+                            <b-col
+                              v-for="permission in section.options"
+                              :key="permission.id"
+                              cols="12"
+                              md="6"
+                              lg="4"
+                              class="mb-1 d-flex align-items-center justify-content-between gap-2 permission-item"
+                              :class="{
+                                'permission-item--inherited': isInheritedPermission(permission.id),
+                                'permission-item--extra': isExtraPermission(permission.id),
+                              }"
+                            >
+                              <b-form-checkbox
+                                :model-value="isPermissionChecked(permission.id)"
+                                :disabled="isInheritedPermission(permission.id)"
+                                @update:model-value="togglePermission(permission.id, Boolean($event))"
+                              >
+                                {{ permission.name }}
+                              </b-form-checkbox>
+                              <span v-if="isExtraPermission(permission.id)" class="badge permission-badge permission-badge--extra">+EXTRA</span>
+                              <span v-else-if="isInheritedPermission(permission.id)" class="badge permission-badge permission-badge--inherited">Perfil</span>
+                            </b-col>
+                          </b-row>
+                        </div>
+                      </template>
+                      <template v-else-if="group.kind === 'templates'">
+                        <b-form-checkbox
+                          class="mb-3 permission-extra-toggle"
+                          :model-value="templatesGroupExtrasToggleState(group)"
+                          @update:model-value="toggleModule('templates', Boolean($event))"
+                        >
+                          Marcar extras do bloco Templates
+                        </b-form-checkbox>
+                        <div
+                          v-for="section in group.sections"
+                          :key="section.sectionKey"
+                          class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                        >
+                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <span class="fw-semibold text-body">{{ section.sectionLabel }}</span>
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="badge bg-light text-dark border"
+                                >{{ section.selected }}/{{ section.total }}</span
+                              >
+                              <span v-if="section.extras > 0" class="badge bg-warning text-dark"
+                                >+{{ section.extras }} EXTRA</span
+                              >
+                            </div>
+                          </div>
+                          <b-form-checkbox
+                            class="mb-2 permission-extra-toggle"
+                            :model-value="sectionExtrasToggleState(section)"
+                            @update:model-value="toggleTemplatesSection(section.sectionKey, Boolean($event))"
                           >
                             Marcar extras desta secção
                           </b-form-checkbox>

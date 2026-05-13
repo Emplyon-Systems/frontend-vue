@@ -10,7 +10,7 @@ const ownerSlugs = ["superadmin"];
 
 /**
  * Menu com o Dashboard a apontar para o painel do usuário (owner / company / branch / employee).
- * No painel owner mostra "Sistema" com submenu: Usuários, Perfis, Auditoria.
+ * O agrupador "Templates" usa ícone como outros menus com submenu; as entradas *dentro* de Templates não têm ícone (apenas texto + bullet lateral).
  */
 export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: AuthContext | null): MenuItemType[] {
   const path = getPanelHomeForUser(user, context);
@@ -111,7 +111,8 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
   if (hasAny(["roles.index", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.plucks"])) {
     systemChildren.push({ key: "roles", icon: "iconoir-shield", label: "Perfis", route: { name: "owner.roles" } });
   }
-  /** Superadmin vê sempre; outros precisam das permissões (payload /me pode não listar tudo até novo login após seed). */
+  /** Submenu agrupador: templates globais em vários domínios. */
+  const templateMenuChildren: MenuItemType[] = [];
   if (
     isSuperadmin ||
     hasAny([
@@ -122,11 +123,35 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: 
       "role_templates.delete",
     ])
   ) {
-    systemChildren.push({
+    templateMenuChildren.push({
       key: "role-templates",
-      icon: "iconoir-book-stack",
-      label: "Templates de perfil",
+      label: "Perfis",
       route: { name: "owner.role-templates" },
+    });
+  }
+  if (
+    isSuperadmin ||
+    hasAny([
+      "modality_type_templates.index",
+      "modality_type_templates.read",
+      "modality_type_templates.create",
+      "modality_type_templates.update",
+      "modality_type_templates.delete",
+      "modality_type_templates.plucks",
+    ])
+  ) {
+    templateMenuChildren.push({
+      key: "modality-type-templates",
+      label: "Modalidades de domingo",
+      route: { name: "owner.modality-type-templates" },
+    });
+  }
+  if (templateMenuChildren.length > 0) {
+    systemChildren.push({
+      key: "templates-hub",
+      icon: "iconoir-book-stack",
+      label: "Templates",
+      children: templateMenuChildren,
     });
   }
   if (hasAny(["audits.index", "audits.read"])) {

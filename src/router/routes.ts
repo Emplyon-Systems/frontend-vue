@@ -1015,6 +1015,55 @@ const panelRoutes = [
     component: () => import("@/pages/panels/owner/role-templates/edit.vue"),
   },
   {
+    path: "/modality-type-templates",
+    name: "owner.modality-type-templates",
+    meta: {
+      title: setTitle("Templates de modalidades"),
+      authRequired: true,
+      panel: "owner",
+      permission: [
+        "modality_type_templates.index",
+        "modality_type_templates.read",
+        "modality_type_templates.create",
+        "modality_type_templates.update",
+        "modality_type_templates.delete",
+        "modality_type_templates.plucks",
+      ],
+    },
+    component: () => import("@/pages/panels/owner/modality-type-templates/index.vue"),
+  },
+  {
+    path: "/modality-type-templates/create",
+    name: "owner.modality-type-templates.create",
+    meta: {
+      title: setTitle("Novo template de modalidade"),
+      authRequired: true,
+      panel: "owner",
+      permission: ["modality_type_templates.create"],
+    },
+    component: () => import("@/pages/panels/owner/modality-type-templates/create.vue"),
+  },
+  {
+    path: "/modality-type-templates/:id/edit",
+    name: "owner.modality-type-templates.edit",
+    meta: {
+      title: setTitle("Editar template de modalidade"),
+      authRequired: true,
+      panel: "owner",
+      permission: [
+        "modality_type_templates.index",
+        "modality_type_templates.read",
+        "modality_type_templates.update",
+        "modality_type_template_items.index",
+        "modality_type_template_items.read",
+        "modality_type_template_items.create",
+        "modality_type_template_items.update",
+        "modality_type_template_items.delete",
+      ],
+    },
+    component: () => import("@/pages/panels/owner/modality-type-templates/edit.vue"),
+  },
+  {
     path: "/tutorial-categories",
     name: "owner.tutorial-categories",
     meta: {

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import ListagemCard from "@/components/ListagemCard.vue";
 import TableActionButtons from "@/components/TableActionButtons.vue";
-import { roleTemplatesApi } from "@/api/resources";
-import type { RoleTemplateRecord } from "@/types/api";
+import { modalityTypeTemplatesApi } from "@/api/resources";
+import type { ModalityTypeTemplateRecord } from "@/types/api";
 import { notifyError, notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
 import { useModulePermissions } from "@/composables/usePermissions";
@@ -13,29 +13,29 @@ import { useListPageState } from "@/composables/useListPageState";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const roleTemplatePermissions = useModulePermissions("role_templates");
+const templatePerms = useModulePermissions("modality_type_templates");
 
 const canCreateTemplate = computed(
-  () => authStore.hasRole("superadmin") || roleTemplatePermissions.canCreate.value,
+  () => authStore.hasRole("superadmin") || templatePerms.canCreate.value,
 );
 const canViewTemplate = computed(
   () =>
     authStore.hasRole("superadmin") ||
-    roleTemplatePermissions.canList.value ||
-    roleTemplatePermissions.canRead.value,
+    templatePerms.canList.value ||
+    templatePerms.canRead.value,
 );
 const canEditTemplate = computed(
-  () => authStore.hasRole("superadmin") || roleTemplatePermissions.canUpdate.value,
+  () => authStore.hasRole("superadmin") || templatePerms.canUpdate.value,
 );
 const canDeleteTemplate = computed(
-  () => authStore.hasRole("superadmin") || roleTemplatePermissions.canDelete.value,
+  () => authStore.hasRole("superadmin") || templatePerms.canDelete.value,
 );
 
 const loading = ref(true);
-const allTemplates = ref<RoleTemplateRecord[]>([]);
+const templates = ref<ModalityTypeTemplateRecord[]>([]);
 const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
   perPage: 15,
-  orderBy: "id",
+  orderBy: "sort_order",
   orderDir: "desc",
 });
 
@@ -49,79 +49,28 @@ const listagemColumns = computed(() => [
   { key: "name", label: "Nome", sortable: true, align: "start" as const },
   { key: "provision_scope", label: "Escopo", sortable: true, align: "start" as const },
   { key: "key", label: "Chave", sortable: true, align: "start" as const },
-  { key: "slug_prefix", label: "Prefixo slug", sortable: true, align: "start" as const },
   { key: "is_active", label: "Estado", sortable: true, align: "start" as const },
   { key: "actions", label: "Ações", sortable: false, align: "end" as const },
 ]);
 
-const sortedTemplates = computed(() => {
-  const rows = [...allTemplates.value];
-  const key = orderBy.value;
-  const dir = orderDir.value === "asc" ? 1 : -1;
-  rows.sort((a, b) => {
-    let cmp = 0;
-    switch (key) {
-      case "id":
-        cmp = a.id - b.id;
-        break;
-      case "name":
-        cmp = (a.name ?? "").localeCompare(b.name ?? "", "pt");
-        break;
-      case "provision_scope":
-        cmp = (a.provision_scope ?? "").localeCompare(b.provision_scope ?? "", "pt");
-        break;
-      case "key":
-        cmp = (a.key ?? "").localeCompare(b.key ?? "", "pt");
-        break;
-      case "slug_prefix":
-        cmp = (a.slug_prefix ?? "").localeCompare(b.slug_prefix ?? "", "pt");
-        break;
-      case "is_active": {
-        const av = a.is_active !== false ? 1 : 0;
-        const bv = b.is_active !== false ? 1 : 0;
-        cmp = av - bv;
-        break;
-      }
-      default:
-        cmp = a.id - b.id;
-    }
-    if (cmp !== 0) return cmp * dir;
-    return (b.id - a.id) * dir;
-  });
-  return rows;
-});
-
-const pagedTemplates = computed(() => {
-  const sorted = sortedTemplates.value;
-  const total = sorted.length;
-  const per = pagination.value.per_page;
-  const last = Math.max(1, Math.ceil(total / per) || 1);
-  const page = Math.min(pagination.value.current_page, last);
-  const start = (page - 1) * per;
-  return sorted.slice(start, start + per);
-});
-
-watch(
-  [sortedTemplates, () => pagination.value.per_page, () => pagination.value.current_page],
-  () => {
-    const total = sortedTemplates.value.length;
-    const per = pagination.value.per_page;
-    const last = Math.max(1, Math.ceil(total / per) || 1);
-    pagination.value.total = total;
-    pagination.value.last_page = last;
-    if (pagination.value.current_page > last) {
-      pagination.value.current_page = last;
-    }
-  },
-  { immediate: true },
-);
-
-function load() {
+function loadList(page = 1) {
   loading.value = true;
-  roleTemplatesApi
-    .list()
+  modalityTypeTemplatesApi
+    .list({
+      page,
+      per_page: pagination.value.per_page,
+      order_by: orderBy.value,
+      order_dir: orderDir.value,
+    })
     .then((res) => {
-      allTemplates.value = res.role_templates ?? [];
+      const p = res.modalityTypeTemplates;
+      templates.value = p?.data ?? [];
+      pagination.value = {
+        current_page: p?.current_page ?? 1,
+        per_page: p?.per_page ?? pagination.value.per_page,
+        total: p?.total ?? 0,
+        last_page: p?.last_page ?? 1,
+      };
     })
     .catch(() => notifyError("Não foi possível carregar os templates."))
     .finally(() => {
@@ -131,17 +80,17 @@ function load() {
 
 function onPerPageChange(value: number) {
   setPerPage(value);
-  pagination.value.current_page = 1;
+  loadList(1);
 }
 
 function onSortChange(next: { orderBy: string; orderDir: "asc" | "desc" }) {
   setSort(next);
-  pagination.value.current_page = 1;
+  loadList(1);
 }
 
 function goView(id: number) {
   router.push({
-    name: "owner.role-templates.edit",
+    name: "owner.modality-type-templates.edit",
     params: { id: String(id) },
     query: { view: "1" },
   });
@@ -158,7 +107,7 @@ function confirmEditAfterRisk() {
   pendingEditId.value = null;
   if (id != null) {
     router.push({
-      name: "owner.role-templates.edit",
+      name: "owner.modality-type-templates.edit",
       params: { id: String(id) },
       query: {},
     });
@@ -180,15 +129,15 @@ function confirmDeleteAfterRisk() {
   deleteRiskModalOpen.value = false;
   pendingDeleteId.value = null;
   if (id == null) return;
-  roleTemplatesApi
+  modalityTypeTemplatesApi
     .remove(id)
     .then(() => {
       notifySuccess("Template eliminado permanentemente.");
-      load();
+      loadList(pagination.value.current_page);
     })
     .catch((err: unknown) => {
       const e = err as { response?: { data?: { errors?: Record<string, string[]> } } };
-      const msg = e.response?.data?.errors?.role_template?.[0];
+      const msg = e.response?.data?.errors?.modalityTypeTemplate?.[0];
       notifyError(msg ?? "Não foi possível excluir.");
     });
 }
@@ -199,14 +148,14 @@ function cancelDeleteRisk() {
 }
 
 function goCreate() {
-  router.push({ name: "owner.role-templates.create" });
+  router.push({ name: "owner.modality-type-templates.create" });
 }
 
-function isTemplateActive(t: RoleTemplateRecord) {
+function isTemplateActive(t: ModalityTypeTemplateRecord) {
   return t.is_active !== false;
 }
 
-onMounted(load);
+onMounted(() => loadList(1));
 </script>
 
 <template>
@@ -214,9 +163,10 @@ onMounted(load);
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Templates de perfil</h1>
+          <h1 class="h4 mb-1">Templates de modalidades de domingo</h1>
           <p class="text-muted mb-0 small">
             Templates de <strong>filial</strong> disparam ao criar uma filial; de <strong>empresa</strong>, ao criar uma empresa.
+            A chave é gerada automaticamente a partir do nome.
           </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -229,7 +179,7 @@ onMounted(load);
 
       <ListagemCard
         :columns="listagemColumns"
-        :data="pagedTemplates"
+        :data="templates"
         :loading="loading"
         :pagination="pagination"
         :per-page-options="[10, 15, 25, 50, 100]"
@@ -241,30 +191,29 @@ onMounted(load);
         result-badge-class="result-badge-default"
         @update:per-page="onPerPageChange"
         @update:sort="onSortChange"
-        @update:page="(p) => { pagination.current_page = p; }"
+        @update:page="loadList"
       >
         <template #row="{ item }">
           <b-tr>
-            <b-td>{{ (item as RoleTemplateRecord).id }}</b-td>
-            <b-td>{{ (item as RoleTemplateRecord).name }}</b-td>
+            <b-td>{{ (item as ModalityTypeTemplateRecord).id }}</b-td>
+            <b-td>{{ (item as ModalityTypeTemplateRecord).name }}</b-td>
             <b-td>
-              <span v-if="(item as RoleTemplateRecord).provision_scope === 'company'" class="badge bg-primary"
+              <span v-if="(item as ModalityTypeTemplateRecord).provision_scope === 'company'" class="badge bg-primary"
                 >Empresa</span
               >
               <span v-else class="badge bg-info text-dark">Filial</span>
             </b-td>
-            <b-td><code>{{ (item as RoleTemplateRecord).key }}</code></b-td>
-            <b-td><code>{{ (item as RoleTemplateRecord).slug_prefix }}</code></b-td>
+            <b-td><code>{{ (item as ModalityTypeTemplateRecord).key }}</code></b-td>
             <b-td>
-              <span v-if="isTemplateActive(item as RoleTemplateRecord)" class="badge bg-success">Ativo</span>
+              <span v-if="isTemplateActive(item as ModalityTypeTemplateRecord)" class="badge bg-success">Ativo</span>
               <span v-else class="badge bg-secondary">Inativo</span>
             </b-td>
             <b-td class="text-end">
               <TableActionButtons
-                :item-id="(item as RoleTemplateRecord).id"
+                :item-id="(item as ModalityTypeTemplateRecord).id"
                 :show-view="canViewTemplate"
                 :show-edit="canEditTemplate"
-                :show-delete="canDeleteTemplate && !(item as RoleTemplateRecord).is_locked"
+                :show-delete="canDeleteTemplate && !(item as ModalityTypeTemplateRecord).is_locked"
                 view-title="Visualizar"
                 edit-title="Editar"
                 delete-title="Excluir permanentemente"
@@ -279,25 +228,22 @@ onMounted(load);
 
       <b-modal
         :model-value="editRiskModalOpen"
-        title="Editar template de perfil"
-        modal-class="role-template-edit-risk-modal"
+        title="Editar template de modalidade de domingo"
+        modal-class="modality-template-edit-risk-modal"
         header-class="border-bottom"
         body-class="pt-3"
         centered
         @update:model-value="(v: boolean) => { if (!v) cancelEditRisk(); }"
       >
         <p class="fw-semibold text-body mb-2">
-          Você está prestes a alterar um template que define permissões copiadas para perfis automáticos.
+          Você está prestes a alterar um template que define modalidades copiadas para filiais ou empresas automaticamente.
         </p>
         <ul class="small text-muted mb-0 ps-3">
           <li class="mb-2">
-            Mudanças nas <strong>permissões</strong> afetam o comportamento de <strong>novos</strong> perfis criados a partir deste modelo, conforme a regra de negócio da sua organização.
-          </li>
-          <li class="mb-2">
-            Perfis <strong>já existentes</strong> nas filiais ou empresas podem <strong>não</strong> ser atualizados automaticamente — pode ser necessário revisar manualmente.
+            Mudanças afetam o comportamento de <strong>novas</strong> filiais ou empresas criadas a partir deste modelo, conforme a regra de negócio da sua organização.
           </li>
           <li>
-            Permissões em excesso ou em falta podem <strong>expor dados indevidamente</strong> ou <strong>bloquear acessos legítimos</strong>.
+            Modalidades <strong>já existentes</strong> nas filiais podem <strong>não</strong> ser atualizadas automaticamente — pode ser necessário revisar manualmente.
           </li>
         </ul>
         <template #footer>
@@ -310,8 +256,8 @@ onMounted(load);
 
       <b-modal
         :model-value="deleteRiskModalOpen"
-        title="Excluir template de perfil"
-        modal-class="role-template-delete-risk-modal"
+        title="Excluir template de modalidade de domingo"
+        modal-class="modality-template-delete-risk-modal"
         header-class="border-bottom"
         body-class="pt-3"
         centered
@@ -322,7 +268,7 @@ onMounted(load);
         </p>
         <ul class="small text-muted mb-0 ps-3">
           <li class="mb-2">
-            Perfis <strong>já criados</strong> a partir deste modelo <strong>mantêm-se</strong>, mas deixam de estar associados a este template.
+            Modalidades <strong>já criadas</strong> nas filiais a partir deste modelo <strong>mantêm-se</strong>, mas deixam de estar associadas a este template.
           </li>
           <li>
             Só elimine se tiver a certeza de que este modelo já não é necessário para a sua organização.

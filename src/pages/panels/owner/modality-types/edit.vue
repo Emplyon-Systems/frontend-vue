@@ -19,12 +19,18 @@ const { loadBranchOptionsByScope } = useScopePlucks();
 const modalityTypeId = computed(() => Number(route.params.id));
 const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped, currentBranchId } = usePanelScope();
 
+function routeNameFor(op: "list" | "create" | "view" | "edit"): string {
+  if (branchScoped.value) {
+    return op === "list" ? "branch.modality-types" : `branch.modality-types.${op}`;
+  }
+  if (companyScoped.value) {
+    return op === "list" ? "company.modality-types" : `company.modality-types.${op}`;
+  }
+  return op === "list" ? "owner.modality-types" : `owner.modality-types.${op}`;
+}
+
 function modalityTypesListRoute() {
-  return branchScoped.value
-    ? "branch.modality-types"
-    : companyScoped.value
-      ? "company.modality-types"
-      : "owner.modality-types";
+  return routeNameFor("list");
 }
 
 const loading = ref(false);
@@ -63,7 +69,14 @@ function loadModalityType() {
 
   modalityTypesApi
     .getById(modalityTypeId.value)
-    .then(fillFormFromModalityType)
+    .then((data) => {
+      const mt = data.modalityType;
+      if (mt?.modality_type_template_id != null) {
+        router.replace({ name: routeNameFor("view"), params: { id: String(modalityTypeId.value) } });
+        return;
+      }
+      fillFormFromModalityType(data);
+    })
     .catch(() => (loadError.value = "Modalidade de domingo não encontrada."))
     .finally(() => (loadingModalityType.value = false));
 }

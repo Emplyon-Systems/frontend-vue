@@ -11,6 +11,7 @@ import {
   buildGroupedPermissionModules,
   collectPermissionIdsFromEmployeesSection,
   collectPermissionIdsFromGroup,
+  collectPermissionIdsFromTemplatesSection,
   type GroupedPermissionModule,
 } from "@/helpers/permissionModuleGroups";
 
@@ -101,6 +102,20 @@ function toggleEmployeesSection(sectionKey: string, checked: boolean) {
 
   const current = new Set(form.value.permissions);
   const ids = collectPermissionIdsFromEmployeesSection(target, sectionKey);
+  for (const id of ids) {
+    if (checked) current.add(id);
+    else current.delete(id);
+  }
+  form.value.permissions = [...current];
+  errors.value.permissions = "";
+}
+
+function toggleTemplatesSection(sectionKey: string, checked: boolean) {
+  const target = groupedPermissions.value.find((g) => g.kind === "templates");
+  if (!target || target.kind !== "templates") return;
+
+  const current = new Set(form.value.permissions);
+  const ids = collectPermissionIdsFromTemplatesSection(target, sectionKey);
   for (const id of ids) {
     if (checked) current.add(id);
     else current.delete(id);
@@ -319,6 +334,54 @@ watch(
                         </b-row>
                       </div>
                     </template>
+                    <template v-else-if="group.kind === 'templates'">
+                      <b-form-checkbox
+                        class="mb-3"
+                        :model-value="group.selected > 0 && group.selected === group.total"
+                        :disabled="isRoleLocked"
+                        @update:model-value="toggleModule('templates', Boolean($event))"
+                      >
+                        Marcar todo o bloco Templates
+                      </b-form-checkbox>
+                      <div
+                        v-for="section in group.sections"
+                        :key="section.sectionKey"
+                        class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                      >
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                          <span class="fw-semibold text-body">{{ section.sectionLabel }}</span>
+                          <span class="badge bg-white text-dark border small"
+                            >{{ section.selected }}/{{ section.total }}</span
+                          >
+                        </div>
+                        <b-form-checkbox
+                          class="mb-2"
+                          :model-value="section.total > 0 && section.selected === section.total"
+                          :disabled="isRoleLocked"
+                          @update:model-value="toggleTemplatesSection(section.sectionKey, Boolean($event))"
+                        >
+                          Marcar {{ section.sectionLabel.toLowerCase() }}
+                        </b-form-checkbox>
+                        <b-row>
+                          <b-col
+                            v-for="permission in section.options"
+                            :key="permission.id"
+                            cols="12"
+                            md="6"
+                            lg="4"
+                            class="mb-1"
+                          >
+                            <b-form-checkbox
+                              :model-value="isPermissionSelected(permission.id)"
+                              :disabled="isRoleLocked"
+                              @update:model-value="togglePermission(permission.id, Boolean($event))"
+                            >
+                              {{ permission.label }}
+                            </b-form-checkbox>
+                          </b-col>
+                        </b-row>
+                      </div>
+                    </template>
                     <template v-else>
                       <b-form-checkbox
                         class="mb-2"
@@ -357,7 +420,8 @@ watch(
               </b-form-invalid-feedback>
               <small class="text-muted d-block mt-2">
                 Clique em cada módulo para expandir. Em <strong>Funcionários</strong> estão o cadastro e, em blocos
-                separados, férias, atestados médicos e afastamentos. O contador
+                separados, férias, atestados médicos e afastamentos. Em <strong>Templates</strong> estão templates de
+                perfil, modalidades de domingo (globais) e itens — como no menu do sistema. O contador
                 <span class="text-nowrap">(ex.: 0/6)</span> indica quantas permissões estão ativas naquele grupo.
               </small>
             </b-form-group>

@@ -85,6 +85,11 @@ const canRead = computed(() => hasModalityTypesAccess.value || modalityTypePermi
 const canUpdate = computed(() => hasModalityTypesAccess.value || modalityTypePermissions.canUpdate.value);
 const canDelete = computed(() => hasModalityTypesAccess.value || modalityTypePermissions.canDelete.value);
 
+/** Linhas criadas pelo provisionamento a partir dos templates globais (somente nova manual). */
+function isProvisionedLocked(m: ModalityTypeRecord): boolean {
+  return m.modality_type_template_id != null;
+}
+
 async function loadPlucks() {
   branchOptions.value = await loadBranchOptionsByScope({
     branchScoped: branchScoped.value,
@@ -198,7 +203,7 @@ function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir
 }
 
 function onToggleDefault(item: ModalityTypeRecord, value: boolean) {
-  if (!canUpdate.value) return;
+  if (!canUpdate.value || isProvisionedLocked(item)) return;
   const id = item.id;
   defaultToggleBusyId.value = id;
   modalityTypesApi
@@ -293,7 +298,7 @@ onMounted(async () => {
                 switch
                 class="mb-0"
                 :model-value="!!(item as ModalityTypeRecord).is_default"
-                :disabled="!canUpdate || defaultToggleBusyId === (item as ModalityTypeRecord).id"
+                :disabled="!canUpdate || isProvisionedLocked(item as ModalityTypeRecord) || defaultToggleBusyId === (item as ModalityTypeRecord).id"
                 :aria-label="`Padrão (domingo): ${(item as ModalityTypeRecord).name}`"
                 @update:model-value="(v: boolean | string) => onToggleDefault(item as ModalityTypeRecord, !!v)"
               />
@@ -306,8 +311,8 @@ onMounted(async () => {
               <TableActionButtons
                 :item-id="(item as ModalityTypeRecord).id"
                 :show-view="canRead"
-                :show-edit="canUpdate"
-                :show-delete="canDelete"
+                :show-edit="canUpdate && !isProvisionedLocked(item as ModalityTypeRecord)"
+                :show-delete="canDelete && !isProvisionedLocked(item as ModalityTypeRecord)"
                 view-title="Visualizar"
                 edit-title="Editar"
                 delete-title="Excluir"

@@ -9,6 +9,8 @@ export * as employeeDayOffsApi from "./employee-day-offs";
 export * as dayOffModalitiesApi from "./day-off-modalities";
 export * as employeeMedicalCertificatesApi from "./employee-medical-certificates";
 export * as employeeVacationsApi from "./employee-vacations";
+export * as modalityTypeTemplateItemsApi from "./modality-type-template-items";
+export * as modalityTypeTemplatesApi from "./modality-type-templates";
 export * as modalityTypesApi from "./modality-types";
 export * as permissionsApi from "./permissions";
 export * as positionsApi from "./positions";

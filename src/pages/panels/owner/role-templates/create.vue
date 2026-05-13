@@ -10,6 +10,7 @@ import {
   buildGroupedPermissionModules,
   collectPermissionIdsFromEmployeesSection,
   collectPermissionIdsFromGroup,
+  collectPermissionIdsFromTemplatesSection,
   type GroupedPermissionModule,
 } from "@/helpers/permissionModuleGroups";
 
@@ -75,6 +76,18 @@ function toggleEmployeesSection(sectionKey: string, checked: boolean) {
   if (!g || g.kind !== "employees") return;
   const s = new Set(selectedPermissionIds.value);
   const ids = collectPermissionIdsFromEmployeesSection(g, sectionKey);
+  for (const id of ids) {
+    if (checked) s.add(id);
+    else s.delete(id);
+  }
+  selectedPermissionIds.value = [...s];
+}
+
+function toggleTemplatesSection(sectionKey: string, checked: boolean) {
+  const g = groupedPermissions.value.find((x) => x.kind === "templates");
+  if (!g || g.kind !== "templates") return;
+  const s = new Set(selectedPermissionIds.value);
+  const ids = collectPermissionIdsFromTemplatesSection(g, sectionKey);
   for (const id of ids) {
     if (checked) s.add(id);
     else s.delete(id);
@@ -237,6 +250,51 @@ onMounted(async () => {
                     class="mb-2"
                     :model-value="section.total > 0 && section.selected === section.total"
                     @update:model-value="toggleEmployeesSection(section.sectionKey, Boolean($event))"
+                  >
+                    Marcar {{ section.sectionLabel.toLowerCase() }}
+                  </b-form-checkbox>
+                  <b-row>
+                    <b-col
+                      v-for="opt in section.options"
+                      :key="opt.id"
+                      cols="12"
+                      md="6"
+                      lg="4"
+                      class="mb-1"
+                    >
+                      <b-form-checkbox
+                        :model-value="isSelected(opt.id)"
+                        @update:model-value="togglePermission(opt.id, Boolean($event))"
+                      >
+                        {{ opt.label }}
+                      </b-form-checkbox>
+                    </b-col>
+                  </b-row>
+                </div>
+              </template>
+              <template v-else-if="group.kind === 'templates'">
+                <b-form-checkbox
+                  class="mb-3"
+                  :model-value="group.selected > 0 && group.selected === group.total"
+                  @update:model-value="toggleModule('templates', Boolean($event))"
+                >
+                  Marcar todo o bloco Templates
+                </b-form-checkbox>
+                <div
+                  v-for="section in group.sections"
+                  :key="section.sectionKey"
+                  class="border rounded p-3 mb-3 bg-light bg-opacity-50"
+                >
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                    <span class="fw-semibold text-body">{{ section.sectionLabel }}</span>
+                    <span class="badge bg-white text-dark border small"
+                      >{{ section.selected }}/{{ section.total }}</span
+                    >
+                  </div>
+                  <b-form-checkbox
+                    class="mb-2"
+                    :model-value="section.total > 0 && section.selected === section.total"
+                    @update:model-value="toggleTemplatesSection(section.sectionKey, Boolean($event))"
                   >
                     Marcar {{ section.sectionLabel.toLowerCase() }}
                   </b-form-checkbox>

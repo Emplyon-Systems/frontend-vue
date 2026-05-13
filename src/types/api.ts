@@ -109,6 +109,32 @@ export interface RoleTemplateRecord {
   permissions?: RolePermission[];
 }
 
+/** Pacote modelo de modalidades (provisionamento futuro por filial/empresa). */
+export interface ModalityTypeTemplateRecord {
+  id: number;
+  key: string;
+  name: string;
+  description?: string | null;
+  provision_scope: string;
+  auto_provision: boolean;
+  sort_order: number;
+  is_locked: boolean;
+  is_active: boolean;
+  is_default: boolean;
+  modalityTypeTemplateItems?: number[];
+}
+
+/** Linha de um pacote modelo (slug exibido / nome para humanos). */
+export interface ModalityTypeTemplateItemRecord {
+  id: number;
+  modality_type_template_id: number;
+  slug: string;
+  name: string;
+  is_default: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
 export interface CompanyRecord {
   id: number;
   name: string;
@@ -359,6 +385,8 @@ export interface ShiftRecord {
 export interface ModalityTypeRecord {
   id: number;
   branch_id: number;
+  /** Presente quando a linha veio do provisionamento (modelo global); não permite editar nem apagar. */
+  modality_type_template_id?: number | null;
   name: string;
   slug: string;
   is_default?: boolean;

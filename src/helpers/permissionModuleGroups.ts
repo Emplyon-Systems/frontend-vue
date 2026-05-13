@@ -2,6 +2,8 @@
  * Agrupa permissões por prefixo do slug (módulo) para UI de perfis.
  * Os prefixos employee_vacations, employee_medical_certificates e employee_leaves
  * aparecem aninhados dentro de «Funcionários».
+ * role_templates, modality_type_templates e modality_type_template_items
+ * aparecem aninhados dentro de «Templates» (como no menu do painel).
  */
 
 export type PermissionPluck = { id: number; name: string; slug: string };
@@ -36,13 +38,32 @@ export type EmployeesNestedPermissionGroup = {
   selected: number;
 };
 
-export type GroupedPermissionModule = SimplePermissionGroup | EmployeesNestedPermissionGroup;
+/** Templates: perfis (provisionamento) + pacotes globais de modalidade + itens. */
+export type TemplatesNestedPermissionGroup = {
+  kind: "templates";
+  moduleName: "templates";
+  moduleLabel: string;
+  sections: EmployeesSection[];
+  total: number;
+  selected: number;
+};
+
+export type GroupedPermissionModule =
+  | SimplePermissionGroup
+  | EmployeesNestedPermissionGroup
+  | TemplatesNestedPermissionGroup;
 
 const EMPLOYEE_CLUSTER = new Set([
   "employees",
   "employee_vacations",
   "employee_medical_certificates",
   "employee_leaves",
+]);
+
+const TEMPLATES_CLUSTER = new Set([
+  "role_templates",
+  "modality_type_templates",
+  "modality_type_template_items",
 ]);
 
 /** Ordem das secções dentro de Funcionários. */
@@ -53,11 +74,25 @@ const EMPLOYEE_SECTION_ORDER = [
   "employee_leaves",
 ] as const;
 
+/** Ordem das secções dentro de Templates (novos módulos: acrescentar aqui e em TEMPLATES_CLUSTER). */
+const TEMPLATE_SECTION_ORDER = [
+  "role_templates",
+  "modality_type_templates",
+  "modality_type_template_items",
+] as const;
+
 const SECTION_LABELS: Record<string, string> = {
   employees: "Cadastro de funcionários",
   employee_vacations: "Férias",
   employee_medical_certificates: "Atestados médicos",
   employee_leaves: "Afastamentos",
+};
+
+/** Rótulos das subsecções de Templates (alinhados ao submenu «Templates» do menu). */
+const TEMPLATE_SECTION_LABELS: Record<string, string> = {
+  role_templates: "Templates de perfil",
+  modality_type_templates: "Modalidades de domingo",
+  modality_type_template_items: "Itens dos templates de modalidade",
 };
 
 const MODULE_LABELS: Record<string, string> = {
@@ -72,6 +107,8 @@ const MODULE_LABELS: Record<string, string> = {
   permissions: "Permissões",
   positions: "Cargos",
   role_templates: "Templates de perfil",
+  modality_type_templates: "Templates de modalidades (globais)",
+  modality_type_template_items: "Itens dos templates de modalidade",
   scale_types: "Tipos de escala",
   roles: "Perfis",
   sectors: "Setores",
@@ -120,6 +157,48 @@ function buildEmployeesNested(
   };
 }
 
+const TEMPLATES_HUB_LABEL = "Templates";
+
+function templateSectionSortKey(moduleKey: string): number {
+  const idx = (TEMPLATE_SECTION_ORDER as readonly string[]).indexOf(moduleKey);
+  return idx === -1 ? 1000 : idx;
+}
+
+function buildTemplatesNested(
+  groups: Map<string, PermissionOption[]>,
+  selected: Set<number>
+): TemplatesNestedPermissionGroup {
+  const moduleKeys = [...groups.keys()]
+    .filter((k) => TEMPLATES_CLUSTER.has(k) && groups.get(k)?.length)
+    .sort((a, b) => templateSectionSortKey(a) - templateSectionSortKey(b) || a.localeCompare(b));
+
+  const sections: EmployeesSection[] = [];
+  for (const key of moduleKeys) {
+    const raw = groups.get(key);
+    if (!raw?.length) continue;
+    const sorted = [...raw].sort((a, b) => a.label.localeCompare(b.label));
+    const sel = countSelected(sorted, selected);
+    sections.push({
+      sectionKey: key,
+      sectionLabel: TEMPLATE_SECTION_LABELS[key] ?? getPermissionModuleLabel(key),
+      options: sorted,
+      total: sorted.length,
+      selected: sel,
+    });
+  }
+  const total = sections.reduce((s, sec) => s + sec.total, 0);
+  const selectedCount = sections.reduce((s, sec) => s + sec.selected, 0);
+
+  return {
+    kind: "templates",
+    moduleName: "templates",
+    moduleLabel: TEMPLATES_HUB_LABEL,
+    sections,
+    total,
+    selected: selectedCount,
+  };
+}
+
 /**
  * @param permissionOptions lista da API (plucks)
  * @param selectedIds IDs atualmente selecionados no formulário
@@ -153,12 +232,21 @@ export function buildGroupedPermissionModules(
   const keys = [...groups.keys()].sort((a, b) => a.localeCompare(b));
   const out: GroupedPermissionModule[] = [];
   let mergedEmployeeCluster = false;
+  let mergedTemplatesCluster = false;
 
   for (const key of keys) {
     if (EMPLOYEE_CLUSTER.has(key)) {
       if (!mergedEmployeeCluster) {
         mergedEmployeeCluster = true;
         out.push(buildEmployeesNested(groups, selected));
+      }
+      continue;
+    }
+
+    if (TEMPLATES_CLUSTER.has(key)) {
+      if (!mergedTemplatesCluster) {
+        mergedTemplatesCluster = true;
+        out.push(buildTemplatesNested(groups, selected));
       }
       continue;
     }
@@ -179,7 +267,7 @@ export function buildGroupedPermissionModules(
   return out;
 }
 
-/** IDs de todas as permissões num grupo (simples ou employees aninhado). */
+/** IDs de todas as permissões num grupo (simples ou secções aninhadas). */
 export function collectPermissionIdsFromGroup(group: GroupedPermissionModule): number[] {
   if (group.kind === "simple") {
     return group.options.map((o) => o.id);
@@ -190,6 +278,15 @@ export function collectPermissionIdsFromGroup(group: GroupedPermissionModule): n
 /** IDs de uma secção dentro do grupo Funcionários. */
 export function collectPermissionIdsFromEmployeesSection(
   group: EmployeesNestedPermissionGroup,
+  sectionKey: string
+): number[] {
+  const sec = group.sections.find((s) => s.sectionKey === sectionKey);
+  return sec ? sec.options.map((o) => o.id) : [];
+}
+
+/** IDs de uma secção dentro do grupo Templates. */
+export function collectPermissionIdsFromTemplatesSection(
+  group: TemplatesNestedPermissionGroup,
   sectionKey: string
 ): number[] {
   const sec = group.sections.find((s) => s.sectionKey === sectionKey);
@@ -219,6 +316,13 @@ export type GroupedReadOnlyModule =
       moduleLabel: string;
       sections: ReadEmployeesSectionView[];
       total: number;
+    }
+  | {
+      kind: "templates";
+      moduleName: "templates";
+      moduleLabel: string;
+      sections: ReadEmployeesSectionView[];
+      total: number;
     };
 
 function buildEmployeesNestedRead(groups: Map<string, PermissionReadItem[]>): GroupedReadOnlyModule {
@@ -243,8 +347,34 @@ function buildEmployeesNestedRead(groups: Map<string, PermissionReadItem[]>): Gr
   };
 }
 
+function buildTemplatesNestedRead(groups: Map<string, PermissionReadItem[]>): GroupedReadOnlyModule {
+  const moduleKeys = [...groups.keys()]
+    .filter((k) => TEMPLATES_CLUSTER.has(k) && groups.get(k)?.length)
+    .sort((a, b) => templateSectionSortKey(a) - templateSectionSortKey(b) || a.localeCompare(b));
+
+  const sections: ReadEmployeesSectionView[] = [];
+  for (const key of moduleKeys) {
+    const raw = groups.get(key);
+    if (!raw?.length) continue;
+    const sorted = [...raw].sort((a, b) => a.name.localeCompare(b.name));
+    sections.push({
+      sectionKey: key,
+      sectionLabel: TEMPLATE_SECTION_LABELS[key] ?? getPermissionModuleLabel(key),
+      permissions: sorted,
+    });
+  }
+  const total = sections.reduce((s, sec) => s + sec.permissions.length, 0);
+  return {
+    kind: "templates",
+    moduleName: "templates",
+    moduleLabel: TEMPLATES_HUB_LABEL,
+    sections,
+    total,
+  };
+}
+
 /**
- * Agrupa permissões só leitura (nome/slug) com o mesmo aninhamento de Funcionários.
+ * Agrupa permissões só leitura (nome/slug) com o mesmo aninhamento de Funcionários e Templates.
  */
 export function buildGroupedReadOnlyModules(permissions: PermissionReadItem[]): GroupedReadOnlyModule[] {
   const groups = new Map<string, PermissionReadItem[]>();
@@ -257,12 +387,21 @@ export function buildGroupedReadOnlyModules(permissions: PermissionReadItem[]): 
   const keys = [...groups.keys()].sort((a, b) => a.localeCompare(b));
   const out: GroupedReadOnlyModule[] = [];
   let mergedEmployeeCluster = false;
+  let mergedTemplatesCluster = false;
 
   for (const key of keys) {
     if (EMPLOYEE_CLUSTER.has(key)) {
       if (!mergedEmployeeCluster) {
         mergedEmployeeCluster = true;
         out.push(buildEmployeesNestedRead(groups));
+      }
+      continue;
+    }
+
+    if (TEMPLATES_CLUSTER.has(key)) {
+      if (!mergedTemplatesCluster) {
+        mergedTemplatesCluster = true;
+        out.push(buildTemplatesNestedRead(groups));
       }
       continue;
     }

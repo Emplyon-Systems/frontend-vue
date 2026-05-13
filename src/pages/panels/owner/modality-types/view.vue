@@ -23,6 +23,8 @@ const loadError = ref("");
 const form = ref<ModalityTypeFormData>(modalityTypeInitialForm());
 const branchOptions = ref<Array<{ id: number; name: string; company_name?: string }>>([]);
 const canEditModalityType = modalityTypePermissions.canUpdate;
+/** Criado a partir de modelo global — só consulta / não permite ir para edição na UI. */
+const provisionedLocked = ref(false);
 
 function modalityTypesListRoute() {
   return branchScoped.value
@@ -37,7 +39,7 @@ function back() {
 }
 
 function goEdit() {
-  if (!canEditModalityType.value) return;
+  if (!canEditModalityType.value || provisionedLocked.value) return;
   const editName = branchScoped.value
     ? "branch.modality-types.edit"
     : companyScoped.value
@@ -49,6 +51,7 @@ function goEdit() {
 function fillFromModalityType(data: Awaited<ReturnType<typeof modalityTypesApi.getById>>) {
   const mt = data.modalityType;
   if (!mt) return;
+  provisionedLocked.value = mt.modality_type_template_id != null;
   form.value = {
     branch_id: mt.branch_id ?? 0,
     name: mt.name ?? "",
@@ -89,9 +92,12 @@ onMounted(async () => {
         <div>
           <h1 class="h4 mb-1">Visualizar modalidade de domingo</h1>
           <p class="text-muted mb-0 small">Consulta dos dados do tipo de modalidade de domingo.</p>
+          <p v-if="provisionedLocked" class="text-muted mb-0 small mt-2">
+            Criado pelo modelo global (provisionamento ao criar a filial). Não pode ser alterado nem eliminado pela interface.
+          </p>
         </div>
         <div class="d-flex gap-2">
-          <b-button v-if="canEditModalityType" variant="outline-primary" @click="goEdit">Editar</b-button>
+          <b-button v-if="canEditModalityType && !provisionedLocked" variant="outline-primary" @click="goEdit">Editar</b-button>
           <b-button variant="outline-secondary" @click="back">Voltar</b-button>
         </div>
       </div>
