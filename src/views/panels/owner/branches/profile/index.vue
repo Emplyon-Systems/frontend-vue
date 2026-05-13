@@ -6,6 +6,7 @@ import BranchSectorsTab from "./BranchSectorsTab.vue";
 import BranchEmployeesTab from "./BranchEmployeesTab.vue";
 import BranchScheduleRulesTab from "./BranchScheduleRulesTab.vue";
 import BranchPositionsTab from "./BranchPositionsTab.vue";
+import BranchHolidaysTab from "./BranchHolidaysTab.vue";
 import type { BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 withDefaults(
@@ -37,6 +38,10 @@ withDefaults(
     branchWorkspaceOverview?: boolean;
     /** Contexto "minha filial": mantém apenas as abas essenciais. */
     onlyBranchInformation?: boolean;
+    /** Mostrar aba Feriados (empresa + branch; oculto para superadmin). */
+    showHolidaysTab?: boolean;
+    /** Pode acionar re-sync manual na aba Feriados. */
+    canSyncHolidays?: boolean;
   }>(),
   {
     users: () => [],
@@ -49,6 +54,8 @@ withDefaults(
     scheduleRules: () => [],
     branchWorkspaceOverview: false,
     onlyBranchInformation: false,
+    showHolidaysTab: false,
+    canSyncHolidays: false,
   }
 );
 </script>
@@ -110,6 +117,9 @@ withDefaults(
               </b-tab>
               <b-tab v-if="branchId && !branchWorkspaceOverview && !onlyBranchInformation" title="Cargos">
                 <BranchPositionsTab :branch-id="branchId" />
+              </b-tab>
+              <b-tab v-if="branchId && showHolidaysTab" title="Feriados">
+                <BranchHolidaysTab :branch-id="branchId" :can-sync="canSyncHolidays" />
               </b-tab>
             </b-tabs>
           </b-card-body>

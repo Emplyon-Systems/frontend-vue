@@ -4,7 +4,7 @@
  */
 
 import http from "@/helpers/http-client";
-import type { ApiResponse, BranchRecord } from "@/types/api";
+import type { ApiResponse, BranchHolidayRecord, BranchRecord } from "@/types/api";
 import type {
   BranchCompleteSetupResponse,
   BranchCreatePayload,
@@ -84,4 +84,21 @@ export async function submitSetup(id: number | string, payload: BranchSetupSubmi
 export async function plucks() {
   const res = await http.get<BranchesPlucksResponse>(`${base}/plucks`);
   return res.data.plucks ?? [];
+}
+
+export interface BranchHolidaysResponse extends ApiResponse {
+  holidays: BranchHolidayRecord[];
+  year: number;
+  branch_id: number;
+}
+
+export async function holidays(id: number | string, year?: number): Promise<BranchHolidaysResponse> {
+  const params = year ? `?year=${year}` : "";
+  const res = await http.get<BranchHolidaysResponse>(`${base}/${id}/holidays${params}`);
+  return res.data;
+}
+
+export async function syncHolidays(id: number | string, year?: number): Promise<ApiResponse> {
+  const res = await http.post<ApiResponse>(`${base}/${id}/sync-holidays`, year ? { year } : {});
+  return res.data;
 }

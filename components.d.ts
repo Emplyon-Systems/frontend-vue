@@ -41,6 +41,7 @@ declare module 'vue' {
     BPagination: typeof import('bootstrap-vue-next')['BPagination']
     BProgress: typeof import('bootstrap-vue-next')['BProgress']
     BProgressBar: typeof import('bootstrap-vue-next')['BProgressBar']
+    BrazilBranchMap: typeof import('./src/components/BrazilBranchMap.vue')['default']
     BRow: typeof import('bootstrap-vue-next')['BRow']
     BSpinner: typeof import('bootstrap-vue-next')['BSpinner']
     BTab: typeof import('bootstrap-vue-next')['BTab']

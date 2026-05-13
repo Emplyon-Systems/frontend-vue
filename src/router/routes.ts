@@ -672,14 +672,116 @@ const panelRoutes = [
   },
   {
     path: "/branches/:id",
-    name: "owner.branches.view",
+    name: "owner.branch.workspace",
     meta: {
-      title: setTitle("Visualizar filial"),
       authRequired: true,
       panel: "owner",
       permission: "branches.read",
     },
-    component: () => import("@/pages/panels/owner/branches/view.vue"),
+    component: () => import("@/layouts/OwnerBranchWorkspaceLayout.vue"),
+    redirect: (to) =>
+      ({ name: "owner.branch.overview", params: { id: to.params.id } }) as const,
+    children: [
+      {
+        path: "",
+        name: "owner.branch.overview",
+        meta: {
+          title: setTitle("Filial — Resumo"),
+          authRequired: true,
+          panel: "owner",
+          permission: "branches.read",
+        },
+        component: () => import("@/pages/panels/owner/branches/view.vue"),
+      },
+      {
+        path: "sectors",
+        name: "owner.branch.sectors",
+        meta: {
+          title: setTitle("Filial — Setores"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["sectors.index", "sectors.read"],
+        },
+        component: () => import("@/pages/panels/owner/sectors/index.vue"),
+      },
+      {
+        path: "employees",
+        name: "owner.branch.employees",
+        meta: {
+          title: setTitle("Filial — Funcionários"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["employees.index", "employees.read"],
+        },
+        component: () => import("@/pages/panels/owner/employees/index.vue"),
+      },
+      {
+        path: "users",
+        name: "owner.branch.users",
+        meta: {
+          title: setTitle("Filial — Usuários"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["users.index", "users.read"],
+        },
+        component: () => import("@/pages/panels/owner/users/index.vue"),
+      },
+      {
+        path: "roles",
+        name: "owner.branch.roles",
+        meta: {
+          title: setTitle("Filial — Perfis"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["roles.index", "roles.read"],
+        },
+        component: () => import("@/pages/panels/owner/roles/index.vue"),
+      },
+      {
+        path: "modality-types",
+        name: "owner.branch.modality-types",
+        meta: {
+          title: setTitle("Filial — Modalidade de domingo"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["modality_types.index", "modality_types.read"],
+        },
+        component: () => import("@/pages/panels/owner/modality-types/index.vue"),
+      },
+      {
+        path: "scale-types",
+        name: "owner.branch.scale-types",
+        meta: {
+          title: setTitle("Filial — Tipos de escala"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["scale_types.index", "scale_types.read"],
+        },
+        component: () => import("@/pages/panels/owner/scale-types/index.vue"),
+      },
+      {
+        path: "positions",
+        name: "owner.branch.positions",
+        meta: {
+          title: setTitle("Filial — Cargos"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["positions.index", "positions.read", "roles.index", "roles.read"],
+        },
+        component: () => import("@/pages/panels/owner/positions/index.vue"),
+      },
+      {
+        path: "holidays",
+        name: "owner.branch.holidays",
+        meta: {
+          title: setTitle("Filial — Feriados"),
+          authRequired: true,
+          panel: "owner",
+          permission: ["branches.holidays"],
+        },
+        component: () => import("@/pages/panels/owner/companies/workspace/holidays.vue"),
+      },
+    ],
   },
   {
     path: "/sectors",
@@ -1361,6 +1463,16 @@ const panelRoutes = [
               permission: ["positions.index", "positions.read", "roles.index", "roles.read"],
             },
             component: () => import("@/pages/panels/owner/positions/index.vue"),
+          },
+          {
+            path: "holidays",
+            name: "company.branch.holidays",
+            meta: {
+              title: setTitle("Filial — Feriados"),
+              authRequired: true,
+              permission: ["branches.holidays"],
+            },
+            component: () => import("@/pages/panels/owner/companies/workspace/holidays.vue"),
           },
         ],
       },

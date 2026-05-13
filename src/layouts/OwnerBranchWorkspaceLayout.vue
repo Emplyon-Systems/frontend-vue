@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import { branchesApi } from "@/api/resources";
 import { useAuthStore } from "@/stores/auth";
 
@@ -22,54 +23,54 @@ const tabs = computed<TabDef[]>(() => {
   const isSuperadmin = authStore.hasRole("superadmin");
 
   const main: TabDef[] = [
-    { key: "summary", label: "Resumo", name: "company.branch.overview", visible: true },
+    { key: "summary", label: "Resumo", name: "owner.branch.overview", visible: true },
     {
       key: "sectors",
       label: "Setores",
-      name: "company.branch.sectors",
+      name: "owner.branch.sectors",
       visible: isSuperadmin || canAny(["sectors.index", "sectors.read"]),
     },
     {
       key: "employees",
       label: "Funcionários",
-      name: "company.branch.employees",
+      name: "owner.branch.employees",
       visible: isSuperadmin || canAny(["employees.index", "employees.read"]),
     },
     {
       key: "users",
       label: "Usuários",
-      name: "company.branch.users",
+      name: "owner.branch.users",
       visible: isSuperadmin || canAny(["users.index", "users.read"]),
     },
     {
       key: "roles",
       label: "Perfis",
-      name: "company.branch.roles",
+      name: "owner.branch.roles",
       visible: isSuperadmin || canAny(["roles.index", "roles.read"]),
     },
     {
       key: "modality-types",
       label: "Modalidade de domingo",
-      name: "company.branch.modality-types",
+      name: "owner.branch.modality-types",
       visible: isSuperadmin || canAny(["modality_types.index", "modality_types.read"]),
     },
     {
       key: "scale-types",
       label: "Tipos de escala",
-      name: "company.branch.scale-types",
+      name: "owner.branch.scale-types",
       visible: isSuperadmin || canAny(["scale_types.index", "scale_types.read"]),
     },
     {
       key: "positions",
       label: "Cargos",
-      name: "company.branch.positions",
+      name: "owner.branch.positions",
       visible: isSuperadmin || canAny(["positions.index", "positions.read", "roles.index", "roles.read"]),
     },
     {
       key: "holidays",
       label: "Feriados",
-      name: "company.branch.holidays",
-      visible: !isSuperadmin && can("branches.holidays"),
+      name: "owner.branch.holidays",
+      visible: isSuperadmin || can("branches.holidays"),
     },
   ];
 
@@ -83,7 +84,7 @@ function tabTo(tab: TabDef) {
 function isTabActive(tab: TabDef): boolean {
   const n = String(route.name ?? "");
   if (n === tab.name) return true;
-  if (tab.name === "company.branch.overview") return n === "company.branch.overview";
+  if (tab.name === "owner.branch.overview") return n === "owner.branch.overview";
   return n === tab.name || n.startsWith(`${tab.name}.`);
 }
 
@@ -142,14 +143,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div>
+  <DefaultLayout>
+    <div>
     <nav aria-label="breadcrumb" class="mb-2">
       <ol class="breadcrumb mb-0 small">
         <li class="breadcrumb-item">
-          <router-link :to="{ name: 'panels.company.dashboard' }">Dashboard</router-link>
+          <router-link :to="{ name: 'panels.owner.dashboard' }">Dashboard</router-link>
         </li>
         <li class="breadcrumb-item">
-          <router-link :to="{ name: 'company.branches' }">Filiais</router-link>
+          <router-link :to="{ name: 'owner.branches' }">Filiais</router-link>
         </li>
         <li class="breadcrumb-item active" aria-current="page">
           {{ branchName || "…" }}
@@ -188,6 +190,7 @@ onBeforeUnmount(() => {
 
     <router-view />
   </div>
+  </DefaultLayout>
 </template>
 
 <style scoped>

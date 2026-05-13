@@ -75,7 +75,7 @@ function onPageChange(page: number) {
 }
 
 function goView(id: number) {
-  router.push({ name: "owner.branches.view", params: { id: String(id) } });
+  router.push({ name: "owner.branch.overview", params: { id: String(id) } });
 }
 </script>
 

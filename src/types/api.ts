@@ -514,3 +514,16 @@ export interface EmployeeDayOffRecord {
   leave_request?: { id: number; request_date?: string; status?: string } | null;
   approved_by_user?: { id: number; name?: string; email?: string } | null;
 }
+
+export interface BranchHolidayRecord {
+  id: number;
+  branch_id?: number;
+  /** ISO date: "YYYY-MM-DD" */
+  observed_date: string;
+  name: string;
+  /** NACIONAL | ESTADUAL | MUNICIPAL ou null */
+  holiday_kind?: string | null;
+  source?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

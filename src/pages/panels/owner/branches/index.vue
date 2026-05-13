@@ -174,12 +174,8 @@ function goCreate() {
 
 function goView(id: number) {
   if (!canRead.value) return;
-  if (isOwnerWorkspace.value) {
-    router.push({ name: "owner.branches.view", params: { id: String(id) }, query: { company_id: String(workspaceCompanyId.value) } });
-    return;
-  }
   router.push({
-    name: companyScoped.value ? "company.branch.overview" : "owner.branches.view",
+    name: companyScoped.value ? "company.branch.overview" : "owner.branch.overview",
     params: { id: String(id) },
   });
 }

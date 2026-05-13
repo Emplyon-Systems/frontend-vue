@@ -23,7 +23,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const rolePermissions = useModulePermissions("roles");
-const { scopedCompanyId, currentBranchId } = usePanelScope();
+const { scopedCompanyId, currentBranchId, isCompanyBranchWorkspace } = usePanelScope();
 const loading = ref(true);
 const roles = ref<RoleRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
@@ -75,7 +75,7 @@ const forcedCompanyId = computed(() => {
   return 0;
 });
 const forcedBranchId = computed(() => {
-  if (routeName.value === "company.branch.roles") {
+  if (routeName.value === "company.branch.roles" || routeName.value === "owner.branch.roles") {
     const id = Number(route.params.id ?? 0);
     return id > 0 ? id : 0;
   }
@@ -235,8 +235,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
-    <div :class="isInsideCompanyPanelWorkspace ? '' : 'py-4'">
+  <component :is="isCompanyBranchWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div :class="isCompanyBranchWorkspace || isInsideCompanyPanelWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Perfis</h1>

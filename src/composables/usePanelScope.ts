@@ -14,7 +14,9 @@ export function usePanelScope() {
   const isOwnerWorkspace = computed(() => routeName.value.startsWith("owner.company.workspace"));
   const isCompanyScoped = computed(() => routeName.value.startsWith("company."));
   const isBranchScoped = computed(() => routeName.value.startsWith("branch."));
-  const isCompanyBranchWorkspace = computed(() => routeName.value.startsWith("company.branch."));
+  const isCompanyBranchWorkspace = computed(
+    () => routeName.value.startsWith("company.branch.") || routeName.value.startsWith("owner.branch.")
+  );
 
   const workspaceCompanyId = computed(() => {
     if (!isOwnerWorkspace.value) return 0;

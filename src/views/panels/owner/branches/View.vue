@@ -28,7 +28,10 @@ const branchId = computed(() => {
   return 0;
 });
 /** Resumo da filial com abas horizontais no layout (Setores/Funcionários vêm das tabs superiores). */
-const isCompanyBranchOverview = computed(() => String(route.name ?? "") === "company.branch.overview");
+const isCompanyBranchOverview = computed(() => {
+  const n = String(route.name ?? "");
+  return n === "company.branch.overview" || n === "owner.branch.overview";
+});
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
 const workspaceCompanyId = computed(() => {
   const id = Number(route.query.company_id ?? 0);
@@ -54,6 +57,13 @@ const showBranchEmployeesTab = computed(
     authStore.hasRole("superadmin") ||
     ((companyScoped.value || branchScoped.value) && authStore.hasPermission("employees.read")),
 );
+/** Aba Feriados: empresa e branch — irrelevante para superadmin (sem contexto de filial fixo). */
+const showHolidaysTab = computed(
+  () => !authStore.hasRole("superadmin") && branchId.value > 0,
+);
+const canSyncHolidays = computed(
+  () => showHolidaysTab.value && authStore.hasPermission("branches.update"),
+);
 
 function back() {
   if (branchScoped.value) {
@@ -65,6 +75,10 @@ function back() {
     return;
   }
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
+}
+
+function backFromOwnerWorkspace() {
+  router.push({ name: "owner.branches" });
 }
 
 function goEdit() {
@@ -209,6 +223,8 @@ onMounted(async () => {
         :schedule-rules="scheduleRulesView"
         :branch-workspace-overview="isCompanyBranchOverview"
         :only-branch-information="branchScoped"
+        :show-holidays-tab="showHolidaysTab"
+        :can-sync-holidays="canSyncHolidays"
       />
     </div>
   </component>
