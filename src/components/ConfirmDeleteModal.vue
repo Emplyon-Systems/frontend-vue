@@ -49,7 +49,7 @@ function onConfirm() {
     <p class="mb-0 text-body">{{ message }}</p>
 
     <template #footer>
-      <div class="d-flex justify-content-end gap-2 w-100">
+      <div class="d-flex justify-content-start gap-2 w-100">
         <b-button
           variant="outline-secondary"
           :disabled="loading"
@@ -63,7 +63,7 @@ function onConfirm() {
           @click="onConfirm"
         >
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-          {{ confirmLabel ?? "Eliminar" }}
+          {{ confirmLabel ?? "Excluir" }}
         </b-button>
       </div>
     </template>

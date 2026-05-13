@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import UsersEditView from "@/views/panels/owner/users/Edit.vue";
+import UsersEditView from "@/views/panels/owner/users/edit.vue";
 </script>
 
 <template>

@@ -1,0 +1,22 @@
+{
+  "buildCommand": "npm run build",
+  "framework": "vite",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "emplyon.com" }],
+      "destination": "https://www.emplyon.com/:path*",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://serveremplyon.cloud/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

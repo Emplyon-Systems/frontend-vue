@@ -26,6 +26,7 @@ const sectorNames = ref<string[]>([]);
 const branches = ref<UserRecord["branches"]>([]);
 const sectors = ref<UserRecord["sectors"]>([]);
 const permissions = ref<PermissionItem[]>([]);
+const directPermissions = ref<PermissionItem[]>([]);
 
 const roleNames = ref<string[]>([]);
 const primaryCompanyName = computed(() => companyNames.value[0] ?? "");
@@ -44,8 +45,13 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
   form.value = {
     name: user.name ?? "",
     email: user.email ?? "",
+    status: (user.status === "inactive" ? "inactive" : "active"),
     password: undefined,
     roles: (user.roles ?? []).map((r) => r.id),
+    direct_permission_ids: (user.permissions ?? []).map((p) => p.id),
+    company_ids: (user.companies ?? []).map((c) => c.id),
+    branch_ids: (user.branches ?? []).map((b) => b.id),
+    sector_ids: (user.sectors ?? []).map((s) => s.id),
   };
 
   roleNames.value = (user.roles ?? []).map((r) => r.name).filter(Boolean);
@@ -58,6 +64,12 @@ function fillFormFromUser(data: Awaited<ReturnType<typeof usersApi.getById>>) {
   const map = new Map<string, PermissionItem>();
   for (const permission of (user.roles ?? []).flatMap((role) => role.permissions ?? [])) {
     if (!permission?.slug || !permission?.name) continue;
+    map.set(permission.slug, { slug: permission.slug, name: permission.name });
+  }
+  directPermissions.value = (user.permissions ?? [])
+    .filter((permission) => !!permission?.slug && !!permission?.name)
+    .map((permission) => ({ slug: permission.slug, name: permission.name }));
+  for (const permission of directPermissions.value) {
     map.set(permission.slug, { slug: permission.slug, name: permission.name });
   }
   permissions.value = [...map.values()];
@@ -80,7 +92,7 @@ function loadUser() {
   loadingUser.value = true;
 
   if (Number.isNaN(userId.value)) {
-    loadError.value = "Utilizador inválido.";
+    loadError.value = "Usuário inválido.";
     loadingUser.value = false;
     return;
   }
@@ -93,7 +105,7 @@ function loadUser() {
         await hydratePermissionsByRoles(form.value.roles);
       }
     })
-    .catch(() => (loadError.value = "Utilizador não encontrado."))
+    .catch(() => (loadError.value = "Usuário não encontrado."))
     .finally(() => (loadingUser.value = false));
 }
 
@@ -105,14 +117,14 @@ onMounted(loadUser);
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-          <h1 class="h4 mb-1">Visualizar utilizador</h1>
-          <p class="text-muted mb-0 small">Consulta dos dados do utilizador.</p>
+          <h1 class="h4 mb-1">Visualizar usuário</h1>
+          <p class="text-muted mb-0 small">Consulta dos dados do usuário.</p>
         </div>
         <b-button variant="outline-secondary" @click="back">Voltar</b-button>
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingUser" class="text-muted">A carregar utilizador...</div>
+      <div v-else-if="loadingUser" class="text-muted">Carregando usuário...</div>
       <ProfilePage
         v-else
         :name="form.name"
@@ -124,6 +136,7 @@ onMounted(loadUser);
         :branches="branches"
         :sectors="sectors"
         :permissions="permissions"
+        :direct-permissions="directPermissions"
         :subtitle="primaryCompanyName || form.email"
         :onEdit="goEdit"
       />

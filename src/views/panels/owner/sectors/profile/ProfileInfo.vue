@@ -1,3 +1,16 @@
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    name?: string;
+    subtitle?: string;
+    usersCount?: number;
+    branchName?: string;
+    hideBranchContext?: boolean;
+  }>(),
+  { hideBranchContext: false }
+);
+</script>
+
 <template>
   <b-col cols="12">
     <b-card no-body>
@@ -21,11 +34,17 @@
           </b-col>
           <b-col lg="8" class="ms-auto align-self-center">
             <div class="d-flex justify-content-center">
-              <div class="border-dashed rounded border-theme-color p-2 me-2 flex-grow-1 flex-basis-0">
+              <div
+                class="border-dashed rounded border-theme-color p-2 flex-grow-1 flex-basis-0"
+                :class="hideBranchContext ? '' : 'me-2'"
+              >
                 <h5 class="fw-semibold fs-22 mb-1">{{ usersCount }}</h5>
                 <p class="text-muted mb-0 fw-medium">Usuários</p>
               </div>
-              <div class="border-dashed rounded border-theme-color p-2 flex-grow-1 flex-basis-0">
+              <div
+                v-if="!hideBranchContext"
+                class="border-dashed rounded border-theme-color p-2 flex-grow-1 flex-basis-0"
+              >
                 <h5 class="fw-semibold fs-22 mb-1">{{ branchName || "—" }}</h5>
                 <p class="text-muted mb-0 fw-medium">Filial</p>
               </div>
@@ -36,12 +55,3 @@
     </b-card>
   </b-col>
 </template>
-
-<script setup lang="ts">
-defineProps<{
-  name?: string;
-  subtitle?: string;
-  usersCount?: number;
-  branchName?: string;
-}>();
-</script>

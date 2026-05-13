@@ -3,10 +3,13 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "./form/DataForm.vue";
 import { companiesApi } from "@/api/resources";
 import { companyInitialForm, validateCompanyForm, type CompanyFormData } from "@/core/schemas";
-import { notifySuccess } from "@/helpers/notify";
+import { notifyError, notifySuccess } from "@/helpers/notify";
+import { parseApiValidationResponse, pickToastMessage } from "@/helpers/map-laravel-errors";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 
 const route = useRoute();
 const router = useRouter();
@@ -15,21 +18,17 @@ const companyId = computed(() => Number(route.params.id));
 const loading = ref(false);
 const loadingCompany = ref(true);
 const loadError = ref("");
+/** Contagem atual (API) — não pode salvar limite abaixo disto. */
+const usersUsed = ref(0);
+const branchesUsed = ref(0);
 const form = ref<CompanyFormData>(companyInitialForm());
-const errors = ref<Record<string, string>>({});
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
+const logoUrl = ref<string | null>(null);
+const logoUploading = ref(false);
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 
 function cancel() {
   router.push({ name: "owner.companies" });
@@ -52,7 +51,31 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
     phone: company.phone ?? "",
   };
   next.street_number = company.street_number ?? "";
+  next.branch_limit = Number(company.branch_limit ?? 10);
+  next.user_limit = Number(company.user_limit ?? 50);
+  usersUsed.value = Number(company.users_used ?? 0);
+  branchesUsed.value = Number(company.branches_used ?? 0);
+  logoUrl.value = company.logo_url ?? null;
   form.value = next;
+}
+
+async function onLogoSelect(file: File) {
+  if (Number.isNaN(companyId.value)) return;
+  logoUploading.value = true;
+  try {
+    const res = await companiesApi.uploadLogo(companyId.value, file);
+    logoUrl.value = res.company?.logo_url ?? null;
+    notifySuccess("Logo da empresa atualizado.");
+  } catch (e) {
+    onApiError(e);
+    const parsed = parseApiValidationResponse((e as { response?: { data?: unknown } })?.response?.data);
+    const message = parsed.fieldErrors
+      ? pickToastMessage(parsed.fieldErrors, ["file", "company", "general"])
+      : parsed.messageOnly;
+    notifyError(message || "Falha ao enviar a imagem da empresa.");
+  } finally {
+    logoUploading.value = false;
+  }
 }
 
 function loadCompany() {
@@ -73,10 +96,23 @@ function loadCompany() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateCompanyForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
+    return;
+  }
+
+  if (usersUsed.value > 0 && validation.data.user_limit < usersUsed.value) {
+    errors.value = {
+      user_limit: `Esta empresa tem ${usersUsed.value} usuário(s) cadastrado(s). Não pode definir o limite abaixo de ${usersUsed.value} para evitar conflitos.`,
+    };
+    return;
+  }
+  if (branchesUsed.value > 0 && validation.data.branch_limit < branchesUsed.value) {
+    errors.value = {
+      branch_limit: `Esta empresa tem ${branchesUsed.value} filial(is) cadastrada(s). Não pode definir o limite abaixo de ${branchesUsed.value} para evitar conflitos.`,
+    };
     return;
   }
 
@@ -87,7 +123,7 @@ function submit() {
       notifySuccess("Empresa atualizada com sucesso.");
       router.push({ name: "owner.companies" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -106,12 +142,26 @@ onMounted(loadCompany);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingCompany" class="text-muted">A carregar empresa...</div>
+      <div v-else-if="loadingCompany" class="text-muted">Carregando empresa...</div>
       <b-form v-else @submit.prevent="submit">
-        <DataForm v-model="form" :errors="errors" mode="edit" @clear-error="clearError">
+        <ImageUploadCard
+          class="mb-3"
+          title="Logo da empresa"
+          :preview-url="logoUrl"
+          :uploading="logoUploading"
+          @select="onLogoSelect"
+        />
+        <DataForm
+          v-model="form"
+          :errors="errors"
+          mode="edit"
+          :users-used="usersUsed"
+          :branches-used="branchesUsed"
+          @clear-error="clearError"
+        >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>

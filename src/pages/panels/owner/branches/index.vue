@@ -12,14 +12,33 @@ import { branchesApi, companiesApi } from "@/api/resources";
 import type { BranchRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useFilterState } from "@/composables/useFilterState";
+import { useListPageState } from "@/composables/useListPageState";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const branchPermissions = useModulePermissions("branches");
+const {
+  isCompanyScoped: companyScoped,
+  scopedCompanyId,
+  isOwnerWorkspace,
+  workspaceCompanyId,
+  isCompanyFixed,
+  effectiveCompanyId,
+} = usePanelScope();
 const loading = ref(true);
 const branches = ref<BranchRecord[]>([]);
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
-const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
+const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
+  perPage: 15,
+  orderBy: "id",
+  orderDir: "desc",
+});
 const initialFilters = () => ({
   name: "",
   cnpj: "",
@@ -28,46 +47,66 @@ const initialFilters = () => ({
   created_at_until: "",
   per_page: 15,
 });
-const filters = ref(initialFilters());
-const appliedFilters = ref(initialFilters());
-const orderBy = ref("id");
-const orderDir = ref<"asc" | "desc">("desc");
+const { filters, appliedFilters, hasActiveFilters, applyFilters, resetFilters } = useFilterState(
+  initialFilters,
+  (f) =>
+    !!f.name.trim() ||
+    !!f.cnpj.trim() ||
+    (f.company_ids?.length ?? 0) > 0 ||
+    !!f.created_at_from ||
+    !!f.created_at_until
+);
 
-const listagemColumns = [
-  { key: "id", label: "ID", sortable: true, align: "start" as const },
-  { key: "name", label: "Nome", sortable: true, align: "start" as const },
-  { key: "cnpj", label: "CNPJ", sortable: true, align: "start" as const },
-  { key: "company", label: "Empresa", sortable: false, align: "start" as const },
-  { key: "city", label: "Município", sortable: true, align: "start" as const },
-  { key: "state", label: "Estado", sortable: true, align: "start" as const },
-  { key: "actions", label: "Ações", sortable: false, align: "end" as const },
-];
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
 const showFilters = ref(false);
-const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
-const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
-const hasActiveFilters = computed(
-  () =>
-    !!appliedFilters.value.name.trim() ||
-    !!appliedFilters.value.cnpj.trim() ||
-    (appliedFilters.value.company_ids?.length ?? 0) > 0 ||
-    !!appliedFilters.value.created_at_from ||
-    !!appliedFilters.value.created_at_until
-);
+const listagemColumns = computed(() => [
+  { key: "id", label: "ID", sortable: true, align: "start" as const },
+  { key: "name", label: "Nome", sortable: true, align: "start" as const },
+  { key: "cnpj", label: "CNPJ", sortable: true, align: "start" as const },
+  ...(!isCompanyFixed.value ? [{ key: "company", label: "Empresa", sortable: false, align: "start" as const }] : []),
+  { key: "city", label: "Município", sortable: true, align: "start" as const },
+  { key: "state", label: "Estado", sortable: true, align: "start" as const },
+  { key: "actions", label: "Ações", sortable: false, align: "end" as const },
+]);
+const canCreate = branchPermissions.canCreate;
+/** Painel empresa: limite de filiais já atingido (botão desativado). */
+const branchLimitReached = ref(false);
+const canRead = branchPermissions.canRead;
+const canUpdate = branchPermissions.canUpdate;
+const canDelete = branchPermissions.canDelete;
 
-const resultLabel = computed(() => {
-  const n = pagination.value.total;
-  if (n === 0) return "Nenhum resultado";
-  if (n === 1) return "1 resultado encontrado";
-  return `${n} resultados encontrados`;
-});
-const canCreate = computed(() => authStore.hasPermission("branches.create"));
-const canRead = computed(() => authStore.hasPermission("branches.read"));
-const canUpdate = computed(() => authStore.hasPermission("branches.update"));
-const canDelete = computed(() => authStore.hasPermission("branches.delete"));
+async function loadCompanyBranchQuota() {
+  if (!isCompanyFixed.value || effectiveCompanyId.value <= 0) {
+    branchLimitReached.value = false;
+    return;
+  }
+  try {
+    const res = await companiesApi.getById(effectiveCompanyId.value);
+    const c = res.company;
+    if (!c) {
+      branchLimitReached.value = false;
+      return;
+    }
+    const used = c.branches_used ?? c.branches?.length ?? 0;
+    const limit = c.branch_limit ?? 0;
+    branchLimitReached.value = limit > 0 && used >= limit;
+  } catch {
+    branchLimitReached.value = false;
+  }
+}
 
 async function loadPlucks() {
+  if (isOwnerWorkspace.value && workspaceCompanyId.value > 0) {
+    try {
+      const res = await companiesApi.getById(workspaceCompanyId.value);
+      const name = res.company?.name ?? `Empresa #${workspaceCompanyId.value}`;
+      companyOptions.value = [{ id: workspaceCompanyId.value, name }];
+    } catch {
+      companyOptions.value = [{ id: workspaceCompanyId.value, name: `Empresa #${workspaceCompanyId.value}` }];
+    }
+    return;
+  }
   if (companyScoped.value && scopedCompanyId.value > 0) {
     const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
     companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
@@ -87,8 +126,8 @@ function loadList(page = 1) {
       per_page: appliedFilters.value.per_page,
       name: appliedFilters.value.name.trim() || undefined,
       cnpj: appliedFilters.value.cnpj.trim() || undefined,
-      company_id: companyScoped.value ? scopedCompanyId.value : undefined,
-      company_ids: !companyScoped.value && (appliedFilters.value.company_ids?.length ?? 0)
+      company_id: isCompanyFixed.value ? effectiveCompanyId.value : undefined,
+      company_ids: !isCompanyFixed.value && (appliedFilters.value.company_ids?.length ?? 0)
         ? appliedFilters.value.company_ids
         : undefined,
       created_at_from: appliedFilters.value.created_at_from || undefined,
@@ -108,17 +147,6 @@ function loadList(page = 1) {
     .finally(() => (loading.value = false));
 }
 
-function applyFilters() {
-  appliedFilters.value = { ...filters.value };
-  loadList(1);
-}
-
-function resetFilters() {
-  filters.value = initialFilters();
-  appliedFilters.value = initialFilters();
-  loadList(1);
-}
-
 function confirmDelete(branch: BranchRecord) {
   deleteId.value = branch.id;
   deleteModal.value = true;
@@ -130,64 +158,79 @@ function doDelete() {
     deleteModal.value = false;
     deleteId.value = null;
     notifySuccess("Filial eliminada com sucesso.");
+    void loadCompanyBranchQuota();
     loadList(pagination.value.current_page);
   });
 }
 
 function goCreate() {
   if (!canCreate.value) return;
+  if (isOwnerWorkspace.value) {
+    router.push({ name: "owner.branches.create", query: { company_id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches.create" : "owner.branches.create" });
 }
 
 function goView(id: number) {
   if (!canRead.value) return;
-  router.push({ name: companyScoped.value ? "company.branches.view" : "owner.branches.view", params: { id: String(id) } });
+  router.push({
+    name: companyScoped.value ? "company.branch.overview" : "owner.branch.overview",
+    params: { id: String(id) },
+  });
 }
 
 function goEdit(id: number) {
   if (!canUpdate.value) return;
+  if (isOwnerWorkspace.value) {
+    router.push({ name: "owner.branches.edit", params: { id: String(id) }, query: { company_id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches.edit" : "owner.branches.edit", params: { id: String(id) } });
 }
 
 function onPerPageChange(value: number) {
   appliedFilters.value.per_page = value;
   filters.value.per_page = value;
-  pagination.value.per_page = value;
+  setPerPage(value);
   loadList(1);
 }
 
 function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir: "asc" | "desc" }) {
-  orderBy.value = ob;
-  orderDir.value = od;
+  setSort({ orderBy: ob, orderDir: od });
   loadList(1);
 }
 
-onMounted(async () => {
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    filters.value.company_ids = [scopedCompanyId.value];
-    appliedFilters.value.company_ids = [scopedCompanyId.value];
+onMounted(() => {
+  if (isCompanyFixed.value && effectiveCompanyId.value > 0) {
+    filters.value.company_ids = [effectiveCompanyId.value];
+    appliedFilters.value.company_ids = [effectiveCompanyId.value];
   }
-  await loadPlucks();
+  void loadPlucks();
+  void loadCompanyBranchQuota();
   loadList();
 });
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
+  <component :is="isOwnerWorkspace || isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div :class="isOwnerWorkspace ? '' : 'py-4'">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
           <h1 class="h4 mb-1">Filiais</h1>
           <p class="text-muted mb-0 small">
-            {{ companyScoped ? "Listar e criar filiais da sua empresa." : "Listar e criar filiais vinculadas às empresas." }}
+            {{ isCompanyFixed ? "Listar e criar filiais desta empresa." : "Listar e criar filiais vinculadas às empresas." }}
           </p>
         </div>
         <div class="d-flex align-items-center gap-2">
           <FilterTriggerButton v-model="showFilters" :active="hasActiveFilters" />
-          <b-button v-if="canCreate" variant="primary" @click="goCreate">
-            <i class="iconoir-plus me-1"></i>
-            Nova filial
-          </b-button>
+          <template v-if="canCreate">
+            <b-button v-if="!branchLimitReached" variant="primary" @click="goCreate">
+              <i class="iconoir-plus me-1"></i>
+              Nova filial
+            </b-button>
+            <span v-else class="text-muted small">Limite de filiais atingido</span>
+          </template>
         </div>
       </div>
 
@@ -196,9 +239,9 @@ onMounted(async () => {
           v-model="filters"
           :active="hasActiveFilters"
           :company-options="companyOptions"
-          :hide-company-selector="companyScoped"
-          @apply="applyFilters"
-          @reset="resetFilters"
+          :hide-company-selector="isCompanyFixed"
+          @apply="() => { applyFilters(); loadList(1); }"
+          @reset="() => { resetFilters(); loadList(1); }"
         />
       </UIComponentCard>
 
@@ -223,7 +266,7 @@ onMounted(async () => {
             <b-td>{{ (item as BranchRecord).id }}</b-td>
             <b-td>{{ (item as BranchRecord).name }}</b-td>
             <b-td>{{ (item as BranchRecord).cnpj }}</b-td>
-            <b-td>{{ (item as BranchRecord).company?.name ?? "—" }}</b-td>
+            <b-td v-if="!isCompanyFixed">{{ (item as BranchRecord).company?.name ?? "—" }}</b-td>
             <b-td>{{ (item as BranchRecord).city }}</b-td>
             <b-td>{{ (item as BranchRecord).state }}</b-td>
             <b-td class="text-end">
@@ -234,7 +277,7 @@ onMounted(async () => {
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const b = branches.find((x) => x.id === id); if (b) confirmDelete(b); }"
@@ -247,9 +290,9 @@ onMounted(async () => {
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar filial"
-      message="Tem a certeza que deseja eliminar esta filial?"
+      title="Excluir filial"
+      message="Tem certeza de que deseja excluir esta filial?"
       @confirm="doDelete"
     />
-  </DefaultLayout>
+  </component>
 </template>

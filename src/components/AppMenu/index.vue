@@ -1,3 +1,15 @@
+<script setup lang="ts">
+import type { MenuItemType } from "@/types/menu";
+import MenuItemWithChildren from "@/components/AppMenu/MenuItemWithChildren.vue";
+import MenuItem from "@/components/AppMenu/MenuItem.vue";
+
+type AppMenuProps = {
+  menuItems: Array<MenuItemType>;
+};
+
+defineProps<AppMenuProps>();
+</script>
+
 <template>
   <ul class="navbar-nav mb-auto w-100">
     <template v-for="(item, idx) in menuItems || []" :key="idx">
@@ -32,15 +44,3 @@
     </template>
   </ul>
 </template>
-
-<script setup lang="ts">
-import type { MenuItemType } from "@/types/menu";
-import MenuItemWithChildren from "@/components/AppMenu/MenuItemWithChildren.vue";
-import MenuItem from "@/components/AppMenu/MenuItem.vue";
-
-type AppMenuProps = {
-  menuItems: Array<MenuItemType>;
-};
-
-defineProps<AppMenuProps>();
-</script>

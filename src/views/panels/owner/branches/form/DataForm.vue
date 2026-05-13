@@ -3,7 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import Selectr from "@/lib/selectr";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import InputMask from "@/components/InputMask.vue";
-import type { BranchFormData } from "@/core/schemas";
+import BranchScheduleRulesFields from "./BranchScheduleRulesFields.vue";
+import type { BranchFormData, BranchScheduleRuleFormRow } from "@/core/schemas";
 import { notifyError } from "@/helpers/notify";
 
 const props = withDefaults(
@@ -13,12 +14,18 @@ const props = withDefaults(
     mode?: "create" | "edit" | "view";
     companyOptions?: Array<{ id: number; name: string }>;
     lockCompanyId?: number | null;
+    /** Expediente / horário da loja: só no fluxo do gerente de filial (configuração inicial). */
+    showOperatingHours?: boolean;
+    /** Editar com abas «Dados cadastrais» + «Horários» (com showOperatingHours). */
+    editTabbed?: boolean;
   }>(),
   {
     errors: () => ({}),
     mode: "create",
     companyOptions: () => [],
     lockCompanyId: null,
+    showOperatingHours: false,
+    editTabbed: false,
   }
 );
 
@@ -29,6 +36,7 @@ const emit = defineEmits<{
 
 const searchingZipCode = ref(false);
 const isView = computed(() => props.mode === "view");
+const useEditTabs = computed(() => !isView.value && props.editTabbed && props.showOperatingHours);
 const isCompanyLocked = computed(() => Number(props.lockCompanyId ?? 0) > 0);
 const companySelectRef = ref<HTMLSelectElement | null>(null);
 let companySelectr: any = null;
@@ -56,13 +64,6 @@ function onCompanyChange(event: Event) {
   updateField("company_id", value === "" ? 0 : Number(value));
 }
 
-function parseSingleNumber(value: unknown): number {
-  const text = String(value ?? "").trim();
-  if (!text) return 0;
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function destroySelectrs() {
   companySelectr?.destroy?.();
   companySelectr = null;
@@ -79,12 +80,40 @@ function initSelectrs() {
     placeholder: "Selecione uma empresa",
   });
   companySelectr.on("selectr.change", () => {
-    updateField("company_id", parseSingleNumber(companySelectr.getValue()));
+    const raw = companySelectr.getValue();
+    updateField("company_id", raw === "" ? 0 : Number(raw));
   });
 }
 
 function cleanZipCode(value: string): string {
   return value.replace(/\D/g, "");
+}
+
+function formatTime(v: string): string {
+  const m = String(v ?? "").match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : "—";
+}
+
+const WEEKDAYS = [
+  { value: 1, label: "Seg", long: "Segunda" },
+  { value: 2, label: "Ter", long: "Terça" },
+  { value: 3, label: "Qua", long: "Quarta" },
+  { value: 4, label: "Qui", long: "Quinta" },
+  { value: 5, label: "Sex", long: "Sexta" },
+  { value: 6, label: "Sáb", long: "Sábado" },
+  { value: 7, label: "Dom", long: "Domingo" },
+] as const;
+
+function scheduleRulesList(): BranchScheduleRuleFormRow[] {
+  return props.modelValue.schedule_rules ?? [];
+}
+
+function dayLongLabel(d: number): string {
+  return WEEKDAYS.find((x) => x.value === d)?.long ?? String(d);
+}
+
+function onScheduleRulesUpdate(rules: BranchScheduleRuleFormRow[]) {
+  emit("update:modelValue", { ...localForm.value, schedule_rules: rules });
 }
 
 async function fillAddressByZipCode() {
@@ -236,22 +265,70 @@ onBeforeUnmount(() => {
                 <p class="text-muted mb-0 small">Estado</p>
                 <p class="mb-0 fw-medium">{{ localForm.state || "—" }}</p>
               </b-col>
+              <b-col v-if="showOperatingHours" cols="12">
+                <div class="border rounded p-3 mt-1">
+                  <h6 class="mb-2">Horários por período</h6>
+                  <p class="text-muted small mb-3">1 = segunda … 7 = domingo. Cada dia numa única regra.</p>
+                  <div
+                    v-for="(rule, ri) in scheduleRulesList()"
+                    :key="ri"
+                    class="mb-3 pb-3 border-bottom"
+                    :class="{ 'border-0 mb-0 pb-0': ri === scheduleRulesList().length - 1 }"
+                  >
+                    <p class="fw-medium mb-1">Período {{ ri + 1 }}</p>
+                    <p class="text-muted small mb-2">
+                      Dias:
+                      {{ rule.weekdays.length ? rule.weekdays.map(dayLongLabel).join(", ") : "—" }}
+                    </p>
+                    <template v-if="rule.is_closed">
+                      <p class="mb-0 text-muted">Fechado (sem expediente nem loja)</p>
+                    </template>
+                    <template v-else>
+                      <p class="small mb-1">
+                        Expediente:
+                        {{ formatTime(String(rule.expedient_start_time ?? "")) }} –
+                        {{ formatTime(String(rule.expedient_end_time ?? "")) }}
+                      </p>
+                      <p class="small mb-0">
+                        Clientes:
+                        {{ formatTime(String(rule.store_open_time ?? "")) }} –
+                        {{ formatTime(String(rule.store_close_time ?? "")) }}
+                      </p>
+                    </template>
+                    <p
+                      v-if="rule.break_duration_minutes != null && rule.break_duration_minutes > 0"
+                      class="small mb-0 mt-1 text-muted"
+                    >
+                      Intervalo de refeição: {{ rule.break_duration_minutes }} min
+                    </p>
+                    <p
+                      v-if="rule.daily_work_minutes != null && rule.daily_work_minutes > 0"
+                      class="small mb-0 text-muted"
+                    >
+                      Carga horária diária: {{ rule.daily_work_minutes }} min
+                    </p>
+                  </div>
+                </div>
+              </b-col>
             </b-row>
           </div>
         </b-col>
       </b-row>
     </b-card-body>
   </b-card>
-  <UIComponentCard v-else title="Dados da filial">
+  <UIComponentCard v-else :title="useEditTabs ? 'Editar filial' : 'Dados da filial'">
+    <b-alert v-if="errors.branch" :model-value="true" variant="danger" class="mb-3">{{ errors.branch }}</b-alert>
+    <b-tabs v-if="useEditTabs" content-class="pt-2">
+      <b-tab title="Dados cadastrais">
     <b-row>
-      <b-col md="6">
+      <b-col v-if="!isCompanyLocked" md="12">
         <b-form-group label-for="branch-company-id" class="mb-3">
           <template #label>Empresa vinculada <span class="text-danger">*</span></template>
           <select
             id="branch-company-id"
             ref="companySelectRef"
             class="form-select"
-            :disabled="isView || isCompanyLocked"
+            :disabled="isView"
             :class="{ 'is-invalid': !!errors.company_id }"
             @change="onCompanyChange"
           >
@@ -268,6 +345,9 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.company_id">{{ errors.company_id }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
+    </b-row>
+
+    <b-row>
       <b-col md="6">
         <b-form-group label-for="branch-name" class="mb-3">
           <template #label>Nome <span class="text-danger">*</span></template>
@@ -282,9 +362,6 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-    </b-row>
-
-    <b-row>
       <b-col md="6">
         <b-form-group label-for="branch-cnpj" class="mb-3">
           <template #label>CNPJ <span class="text-danger">*</span></template>
@@ -299,7 +376,10 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.cnpj">{{ errors.cnpj }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="6">
+    </b-row>
+
+    <b-row>
+      <b-col md="3">
         <b-form-group label-for="branch-zip" class="mb-3">
           <template #label>CEP <span class="text-danger">*</span></template>
           <b-input-group>
@@ -324,10 +404,7 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.zip_code">{{ errors.zip_code }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-    </b-row>
-
-    <b-row>
-      <b-col md="8">
+      <b-col md="9">
         <b-form-group label-for="branch-street" class="mb-3">
           <template #label>Logradouro <span class="text-danger">*</span></template>
           <b-form-input
@@ -341,7 +418,10 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.street">{{ errors.street }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="4">
+    </b-row>
+
+    <b-row>
+      <b-col md="2">
         <b-form-group label-for="branch-street-number" class="mb-3">
           <template #label>Número <span class="text-danger">*</span></template>
           <b-form-input
@@ -356,9 +436,6 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.street_number">{{ errors.street_number }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-    </b-row>
-
-    <b-row>
       <b-col md="4">
         <b-form-group label-for="branch-neighborhood" class="mb-3">
           <template #label>Bairro <span class="text-danger">*</span></template>
@@ -387,7 +464,7 @@ onBeforeUnmount(() => {
           <b-form-invalid-feedback v-if="errors.city">{{ errors.city }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
-      <b-col md="4">
+      <b-col md="2">
         <b-form-group label-for="branch-state" class="mb-3">
           <template #label>Estado (UF) <span class="text-danger">*</span></template>
           <b-form-input
@@ -404,7 +481,190 @@ onBeforeUnmount(() => {
       </b-col>
     </b-row>
 
-    <div class="d-flex gap-2">
+      </b-tab>
+      <b-tab title="Horários">
+        <BranchScheduleRulesFields
+          :rules="scheduleRulesList()"
+          :errors="errors"
+          :disabled="isView"
+          @update:rules="onScheduleRulesUpdate"
+          @clear-error="emit('clear-error', $event)"
+        />
+      </b-tab>
+    </b-tabs>
+    <template v-else>
+      <b-row>
+        <b-col v-if="!isCompanyLocked" md="12">
+          <b-form-group label-for="branch-company-id-else" class="mb-3">
+            <template #label>Empresa vinculada <span class="text-danger">*</span></template>
+            <select
+              id="branch-company-id-else"
+              ref="companySelectRef"
+              class="form-select"
+              :disabled="isView"
+              :class="{ 'is-invalid': !!errors.company_id }"
+              @change="onCompanyChange"
+            >
+              <option value="" :selected="!localForm.company_id">Selecione uma empresa</option>
+              <option
+                v-for="company in companyOptions"
+                :key="company.id"
+                :value="company.id"
+                :selected="Number(localForm.company_id || 0) === company.id"
+              >
+                {{ company.name }}
+              </option>
+            </select>
+            <b-form-invalid-feedback v-if="errors.company_id">{{ errors.company_id }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+      </b-row>
+
+      <b-row>
+        <b-col md="6">
+          <b-form-group label-for="branch-name-else" class="mb-3">
+            <template #label>Nome <span class="text-danger">*</span></template>
+            <b-form-input
+              id="branch-name-else"
+              :model-value="localForm.name"
+              type="text"
+              :disabled="isView"
+              :state="errors.name ? false : null"
+              @update:model-value="updateField('name', String($event ?? ''))"
+            />
+            <b-form-invalid-feedback v-if="errors.name">{{ errors.name }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+        <b-col md="6">
+          <b-form-group label-for="branch-cnpj-else" class="mb-3">
+            <template #label>CNPJ <span class="text-danger">*</span></template>
+            <InputMask
+              id="branch-cnpj-else"
+              mask="99.999.999/9999-99"
+              :model-value="localForm.cnpj"
+              :disabled="isView"
+              :state="errors.cnpj ? false : null"
+              @update:model-value="updateField('cnpj', String($event ?? ''))"
+            />
+            <b-form-invalid-feedback v-if="errors.cnpj">{{ errors.cnpj }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+      </b-row>
+
+      <b-row>
+        <b-col md="3">
+          <b-form-group label-for="branch-zip-else" class="mb-3">
+            <template #label>CEP <span class="text-danger">*</span></template>
+            <b-input-group>
+              <b-form-input
+                id="branch-zip-else"
+                :model-value="localForm.zip_code"
+                type="text"
+                :disabled="isView"
+                :state="errors.zip_code ? false : null"
+                @update:model-value="updateField('zip_code', String($event ?? ''))"
+                @blur="fillAddressByZipCode"
+              />
+              <b-button
+                type="button"
+                variant="outline-primary"
+                :disabled="searchingZipCode || isView"
+                @click="fillAddressByZipCode"
+              >
+                {{ searchingZipCode ? "Buscando..." : "Buscar CEP" }}
+              </b-button>
+            </b-input-group>
+            <b-form-invalid-feedback v-if="errors.zip_code">{{ errors.zip_code }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+        <b-col md="9">
+          <b-form-group label-for="branch-street-else" class="mb-3">
+            <template #label>Logradouro <span class="text-danger">*</span></template>
+            <b-form-input
+              id="branch-street-else"
+              :model-value="localForm.street"
+              type="text"
+              :disabled="isView"
+              :state="errors.street ? false : null"
+              @update:model-value="updateField('street', String($event ?? ''))"
+            />
+            <b-form-invalid-feedback v-if="errors.street">{{ errors.street }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+      </b-row>
+
+      <b-row>
+        <b-col md="2">
+          <b-form-group label-for="branch-street-number-else" class="mb-3">
+            <template #label>Número <span class="text-danger">*</span></template>
+            <b-form-input
+              id="branch-street-number-else"
+              :model-value="localForm.street_number"
+              type="text"
+              maxlength="20"
+              :disabled="isView"
+              :state="errors.street_number ? false : null"
+              @update:model-value="updateField('street_number', String($event ?? ''))"
+            />
+            <b-form-invalid-feedback v-if="errors.street_number">{{ errors.street_number }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+        <b-col md="4">
+          <b-form-group label-for="branch-neighborhood-else" class="mb-3">
+            <template #label>Bairro <span class="text-danger">*</span></template>
+            <b-form-input
+              id="branch-neighborhood-else"
+              :model-value="localForm.neighborhood"
+              type="text"
+              :disabled="isView"
+              :state="errors.neighborhood ? false : null"
+              @update:model-value="updateField('neighborhood', String($event ?? ''))"
+            />
+            <b-form-invalid-feedback v-if="errors.neighborhood">{{ errors.neighborhood }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+        <b-col md="4">
+          <b-form-group label-for="branch-city-else" class="mb-3">
+            <template #label>Município <span class="text-danger">*</span></template>
+            <b-form-input
+              id="branch-city-else"
+              :model-value="localForm.city"
+              type="text"
+              :disabled="isView"
+              :state="errors.city ? false : null"
+              @update:model-value="updateField('city', String($event ?? ''))"
+            />
+            <b-form-invalid-feedback v-if="errors.city">{{ errors.city }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+        <b-col md="2">
+          <b-form-group label-for="branch-state-else" class="mb-3">
+            <template #label>Estado (UF) <span class="text-danger">*</span></template>
+            <b-form-input
+              id="branch-state-else"
+              :model-value="localForm.state"
+              type="text"
+              maxlength="2"
+              :disabled="isView"
+              :state="errors.state ? false : null"
+              @update:model-value="updateField('state', String($event ?? ''))"
+            />
+            <b-form-invalid-feedback v-if="errors.state">{{ errors.state }}</b-form-invalid-feedback>
+          </b-form-group>
+        </b-col>
+      </b-row>
+
+      <BranchScheduleRulesFields
+        v-if="showOperatingHours"
+        :rules="scheduleRulesList()"
+        :errors="errors"
+        :disabled="isView"
+        @update:rules="onScheduleRulesUpdate"
+        @clear-error="emit('clear-error', $event)"
+      />
+    </template>
+
+    <div class="d-flex gap-2" :class="{ 'mt-3 pt-3 border-top': useEditTabs }">
       <slot name="actions" />
     </div>
   </UIComponentCard>

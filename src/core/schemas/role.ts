@@ -9,7 +9,6 @@ const requiredText = (label: string, max: number) =>
 
 export const roleFormSchema = z.object({
   name: requiredText("Nome", 255),
-  slug: requiredText("Slug", 255),
   description: z.string().trim().max(500).optional().or(z.literal("")),
   permissions: z.array(z.number()).default([]),
 });
@@ -19,7 +18,7 @@ export type RoleFormDataOutput = z.output<typeof roleFormSchema>;
 export type RoleFieldErrors = Partial<Record<keyof RoleFormData, string>>;
 
 export function roleInitialForm(): RoleFormData {
-  return { name: "", slug: "", description: "", permissions: [] };
+  return { name: "", description: "", permissions: [] };
 }
 
 function toFieldErrors(error: z.ZodError): RoleFieldErrors {

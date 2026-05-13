@@ -3,20 +3,31 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
+import ImageUploadCard from "@/components/ImageUploadCard.vue";
 import DataForm from "@/views/panels/owner/companies/form/DataForm.vue";
 import { companiesApi } from "@/api/resources";
 import { companyInitialForm, validateCompanyForm, type CompanyFormData } from "@/core/schemas";
-import { notifySuccess } from "@/helpers/notify";
+import { notifyError, notifySuccess } from "@/helpers/notify";
+import { parseApiValidationResponse, pickToastMessage } from "@/helpers/map-laravel-errors";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 
 const loading = ref(false);
 const loadingCompany = ref(true);
 const loadError = ref("");
 const form = ref<CompanyFormData>(companyInitialForm());
-const errors = ref<Record<string, string>>({});
+const logoUrl = ref<string | null>(null);
+const logoUploading = ref(false);
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 
 const companyId = computed(() => {
   const fromContext = Number(authStore.activeContext?.company_id ?? 0);
@@ -26,19 +37,6 @@ const companyId = computed(() => {
   const fromBranches = Number(authStore.user?.branches?.[0]?.company_id ?? 0);
   return fromBranches > 0 ? fromBranches : 0;
 });
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
 
 function cancel() {
   router.push({ name: "panels.company.dashboard" });
@@ -61,7 +59,27 @@ function fillFormFromCompany(data: Awaited<ReturnType<typeof companiesApi.getByI
     phone: company.phone ?? "",
   };
   next.street_number = company.street_number ?? "";
+  logoUrl.value = company.logo_url ?? null;
   form.value = next;
+}
+
+async function onLogoSelect(file: File) {
+  if (!companyId.value) return;
+  logoUploading.value = true;
+  try {
+    const res = await companiesApi.uploadLogo(companyId.value, file);
+    logoUrl.value = res.company?.logo_url ?? null;
+    notifySuccess("Logo da empresa atualizado.");
+  } catch (e) {
+    onApiError(e);
+    const parsed = parseApiValidationResponse((e as { response?: { data?: unknown } })?.response?.data);
+    const message = parsed.fieldErrors
+      ? pickToastMessage(parsed.fieldErrors, ["file", "company", "general"])
+      : parsed.messageOnly;
+    notifyError(message || "Falha ao enviar a imagem da empresa.");
+  } finally {
+    logoUploading.value = false;
+  }
 }
 
 function loadCompany() {
@@ -82,7 +100,7 @@ function loadCompany() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateCompanyForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -101,7 +119,7 @@ function submit() {
       notifySuccess("Empresa atualizada com sucesso.");
       router.push({ name: "panels.company.dashboard" });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -109,7 +127,7 @@ onMounted(loadCompany);
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -120,17 +138,25 @@ onMounted(loadCompany);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingCompany" class="text-muted">A carregar empresa...</div>
+      <div v-else-if="loadingCompany" class="text-muted">Carregando empresa...</div>
       <b-form v-else @submit.prevent="submit">
+        <ImageUploadCard
+          class="mb-3"
+          title="Logo da empresa"
+          description="Imagem institucional."
+          :preview-url="logoUrl"
+          :uploading="logoUploading"
+          @select="onLogoSelect"
+        />
         <DataForm v-model="form" :errors="errors" mode="edit" @clear-error="clearError">
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>
         </DataForm>
       </b-form>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

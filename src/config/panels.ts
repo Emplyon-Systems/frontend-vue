@@ -34,24 +34,72 @@ export const PANEL_CONFIG: Record<string, PanelConfig> = {
   },
 };
 
-/** Utilizador mínimo para decidir o painel (roles + vínculos empresa/filial). */
-export type UserPanelInput = Pick<User, "roles"> & {
+/** Usuário mínimo para decidir o painel (roles + vínculos empresa/filial). */
+export type UserPanelInput = Pick<User, "roles" | "permissions"> & {
   companies?: Array<{ id: number }>;
   branches?: Array<{ id: number }>;
 };
+export type PanelContextInput = {
+  company_id: number;
+  branch_id?: number | null;
+} | null | undefined;
+
+function inferredCompanyIdsFromRoles(user: UserPanelInput | undefined): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const r of user?.roles ?? []) {
+    const id = Number(r.company_id ?? 0);
+    if (id > 0 && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+    const m = String(r.slug ?? "").match(/-c(\d+)$/);
+    if (m) {
+      const cid = Number(m[1]);
+      if (cid > 0 && !seen.has(cid)) {
+        seen.add(cid);
+        out.push(cid);
+      }
+    }
+  }
+  return out;
+}
+
+function inferredBranchIdsFromRoles(user: UserPanelInput | undefined): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const r of user?.roles ?? []) {
+    const id = Number(r.branch_id ?? 0);
+    if (id > 0 && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+    const m = String(r.slug ?? "").match(/-b(\d+)$/);
+    if (m) {
+      const bid = Number(m[1]);
+      if (bid > 0 && !seen.has(bid)) {
+        seen.add(bid);
+        out.push(bid);
+      }
+    }
+  }
+  return out;
+}
 
 /**
- * Redireciona o utilizador para a home do painel conforme perfis e vínculos (empresa/filial).
+ * Redireciona o usuário para a home do painel conforme perfis e vínculos (empresa/filial).
  * Regras: superadmin → owner; só colaborador → employee; tem perfil de filial e está atribuído a filial(ais) → branch;
  * tem perfil de empresa e está atribuído a empresa(s) → company; senão → employee.
  */
-export function getPanelHomeForUser(user: UserPanelInput | undefined): string {
+export function getPanelHomeForUser(user: UserPanelInput | undefined, context?: PanelContextInput): string {
   const roles = user?.roles;
   if (!roles?.length) return PANEL_CONFIG.employee.defaultRoute;
 
   const slugs = roles.map((r) => r.slug);
   const hasBranches = (user?.branches?.length ?? 0) > 0;
   const hasCompanies = (user?.companies?.length ?? 0) > 0;
+  const inferredCompanies = inferredCompanyIdsFromRoles(user).length > 0;
+  const inferredBranches = inferredBranchIdsFromRoles(user).length > 0;
 
   const isCollaboratorRole = (slug: string) => slug === "colaborador" || slug.startsWith("colaborador-b");
   const isBranchScopedRole = (slug: string) =>
@@ -64,8 +112,12 @@ export function getPanelHomeForUser(user: UserPanelInput | undefined): string {
 
   if (slugs.includes("superadmin")) return PANEL_CONFIG.owner.defaultRoute;
   if (onlyCollaborator()) return PANEL_CONFIG.employee.defaultRoute;
-  if (hasBranchRole() && hasBranches) return PANEL_CONFIG.branch.defaultRoute;
-  if (hasCompanyRole() && hasCompanies) return PANEL_CONFIG.company.defaultRoute;
+  if (context) {
+    if (context.branch_id != null && hasBranchRole()) return PANEL_CONFIG.branch.defaultRoute;
+    if (context.company_id && hasCompanyRole()) return PANEL_CONFIG.company.defaultRoute;
+  }
+  if (hasBranchRole() && (hasBranches || inferredBranches)) return PANEL_CONFIG.branch.defaultRoute;
+  if (hasCompanyRole() && (hasCompanies || inferredCompanies)) return PANEL_CONFIG.company.defaultRoute;
 
   return PANEL_CONFIG.employee.defaultRoute;
 }

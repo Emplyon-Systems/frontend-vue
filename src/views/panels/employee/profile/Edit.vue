@@ -6,6 +6,7 @@ import AppAlert from "@/components/AppAlert.vue";
 import UIComponentCard from "@/components/UIComponentCard.vue";
 import { usersApi } from "@/api/resources";
 import { notifySuccess } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
@@ -30,22 +31,11 @@ const form = ref({
   password: "",
   password_confirmation: "",
 });
-const errors = ref<Record<string, string>>({});
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  const next = { ...errors.value };
-  delete next[field];
-  errors.value = next;
-}
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 
 function cancel() {
   router.push({ name: profileViewRoute.value });
@@ -55,7 +45,7 @@ function loadUser() {
   loadError.value = "";
   loadingUser.value = true;
   if (!userId.value) {
-    loadError.value = "Utilizador não identificado.";
+    loadError.value = "Usuário não identificado.";
     loadingUser.value = false;
     return;
   }
@@ -77,7 +67,7 @@ function loadUser() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   if (!form.value.name.trim()) {
     errors.value.name = "Nome é obrigatório.";
     return;
@@ -87,7 +77,7 @@ function submit() {
     return;
   }
   if (form.value.password && form.value.password !== form.value.password_confirmation) {
-    errors.value.password_confirmation = "A confirmação da palavra-passe não confere.";
+    errors.value.password_confirmation = "A confirmação da senha não confere.";
     return;
   }
 
@@ -102,7 +92,7 @@ function submit() {
       notifySuccess("Perfil atualizado com sucesso.");
       router.push({ name: profileViewRoute.value });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
@@ -121,7 +111,7 @@ onMounted(loadUser);
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingUser" class="text-muted">A carregar perfil...</div>
+      <div v-else-if="loadingUser" class="text-muted">Carregando perfil...</div>
 
       <UIComponentCard v-else title="Dados do perfil">
         <b-form @submit.prevent="submit">
@@ -151,7 +141,7 @@ onMounted(loadUser);
 
           <b-row>
             <b-col md="6">
-              <b-form-group label="Nova palavra-passe" class="mb-3">
+              <b-form-group label="Nova senha" class="mb-3">
                 <b-form-input
                   v-model="form.password"
                   type="password"
@@ -163,11 +153,11 @@ onMounted(loadUser);
               </b-form-group>
             </b-col>
             <b-col md="6">
-              <b-form-group label="Confirmar palavra-passe" class="mb-3">
+              <b-form-group label="Confirmar senha" class="mb-3">
                 <b-form-input
                   v-model="form.password_confirmation"
                   type="password"
-                  placeholder="Repita a nova palavra-passe"
+                  placeholder="Repita a nova senha"
                   :state="errors.password_confirmation ? false : null"
                   @input="clearError('password_confirmation')"
                 />
@@ -180,7 +170,7 @@ onMounted(loadUser);
 
           <div class="d-flex gap-2">
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </div>

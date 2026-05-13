@@ -11,8 +11,12 @@ export interface AuditsListParams {
   page?: number;
   per_page?: number;
   auditable_type?: string;
+  auditable_types?: string[];
   event?: string;
+  events?: string[];
   user_id?: number;
+  company_ids?: number[];
+  branch_ids?: number[];
   created_at_from?: string;
   created_at_until?: string;
   order_by?: string;

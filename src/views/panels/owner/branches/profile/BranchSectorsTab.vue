@@ -1,32 +1,3 @@
-<template>
-  <ListagemCard
-    :columns="columns"
-    :data="pagedSectors"
-    :loading="false"
-    :pagination="pagination"
-    :per-page-options="[5, 10, 15, 25]"
-    :result-label="resultLabel"
-    :has-active-filters="false"
-    empty-message="Nenhum setor nesta filial."
-    result-badge-class="result-badge-default"
-    @update:per-page="onPerPageChange"
-    @update:page="onPageChange"
-  >
-    <template #row="{ item }">
-      <b-tr>
-        <b-td>{{ (item as BranchSector).id }}</b-td>
-        <b-td>{{ (item as BranchSector).name }}</b-td>
-        <b-td><code>{{ (item as BranchSector).slug }}</code></b-td>
-        <b-td class="text-end">
-          <b-button size="sm" variant="outline-primary" @click="goView((item as BranchSector).id)">
-            Ver setor
-          </b-button>
-        </b-td>
-      </b-tr>
-    </template>
-  </ListagemCard>
-</template>
-
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -92,3 +63,32 @@ function goView(id: number) {
   router.push({ name, params: { id: String(id) } });
 }
 </script>
+
+<template>
+  <ListagemCard
+    :columns="columns"
+    :data="pagedSectors"
+    :loading="false"
+    :pagination="pagination"
+    :per-page-options="[5, 10, 15, 25]"
+    :result-label="resultLabel"
+    :has-active-filters="false"
+    empty-message="Nenhum setor nesta filial."
+    result-badge-class="result-badge-default"
+    @update:per-page="onPerPageChange"
+    @update:page="onPageChange"
+  >
+    <template #row="{ item }">
+      <b-tr>
+        <b-td>{{ (item as BranchSector).id }}</b-td>
+        <b-td>{{ (item as BranchSector).name }}</b-td>
+        <b-td><code>{{ (item as BranchSector).slug }}</code></b-td>
+        <b-td class="text-end">
+          <b-button size="sm" variant="outline-primary" @click="goView((item as BranchSector).id)">
+            Ver setor
+          </b-button>
+        </b-td>
+      </b-tr>
+    </template>
+  </ListagemCard>
+</template>

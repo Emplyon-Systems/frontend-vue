@@ -1,7 +1,3 @@
-<template>
-  <b-form-input type="text" :id="id" v-bind="$attrs" />
-</template>
-
 <script setup lang="ts">
 import { onMounted } from "vue";
 import Inputmask from "inputmask";
@@ -19,3 +15,7 @@ onMounted(() => {
   new Inputmask({ mask: props.mask, ...props.options }).mask(`#${props.id}`);
 });
 </script>
+
+<template>
+  <b-form-input type="text" :id="id" v-bind="$attrs" />
+</template>

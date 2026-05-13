@@ -104,7 +104,7 @@ onBeforeUnmount(() => {
 <template>
   <UIComponentCard title="Dados do setor">
     <b-row class="g-3">
-      <b-col md="12">
+      <b-col v-if="!isBranchLocked" md="12">
         <b-form-group label="Filial" label-for="sector-branch_id">
           <select
             id="sector-branch_id"
@@ -140,6 +140,32 @@ onBeforeUnmount(() => {
           />
           <b-form-text v-if="!isView">O slug será gerado automaticamente a partir do nome.</b-form-text>
           <b-form-invalid-feedback v-if="errors?.name">{{ errors.name }}</b-form-invalid-feedback>
+        </b-form-group>
+      </b-col>
+      <b-col md="6">
+        <b-form-group label="Horário de início" label-for="sector-start_time">
+          <b-form-input
+            id="sector-start_time"
+            :model-value="modelValue.start_time"
+            type="time"
+            :readonly="isView"
+            :class="{ 'is-invalid': errors?.start_time }"
+            @update:model-value="updateField('start_time', String($event ?? ''))"
+          />
+          <b-form-invalid-feedback v-if="errors?.start_time">{{ errors.start_time }}</b-form-invalid-feedback>
+        </b-form-group>
+      </b-col>
+      <b-col md="6">
+        <b-form-group label="Horário de término" label-for="sector-end_time">
+          <b-form-input
+            id="sector-end_time"
+            :model-value="modelValue.end_time"
+            type="time"
+            :readonly="isView"
+            :class="{ 'is-invalid': errors?.end_time }"
+            @update:model-value="updateField('end_time', String($event ?? ''))"
+          />
+          <b-form-invalid-feedback v-if="errors?.end_time">{{ errors.end_time }}</b-form-invalid-feedback>
         </b-form-group>
       </b-col>
     </b-row>

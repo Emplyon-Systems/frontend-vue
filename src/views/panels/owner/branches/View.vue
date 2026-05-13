@@ -4,26 +4,40 @@ import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import AppAlert from "@/components/AppAlert.vue";
 import ProfilePage from "./profile/index.vue";
-import { branchesApi, companiesApi } from "@/api/resources";
+import { branchesApi } from "@/api/resources";
 import { branchInitialForm, type BranchFormData } from "@/core/schemas";
 import { useAuthStore } from "@/stores/auth";
-import type { BranchRecord } from "@/types/api";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
+import { useScopePlucks } from "@/composables/useScopePlucks";
+import type { BranchRecord, BranchScheduleRuleRecord } from "@/types/api";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const branchScoped = computed(() => String(route.name ?? "").startsWith("branch."));
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+const { loadCompanyOptionsByScope } = useScopePlucks();
+const { isBranchScoped: branchScoped, isCompanyScoped: companyScoped, currentBranchId } = usePanelScope();
 const branchId = computed(() => {
   const fromParam = Number(route.params.id);
   if (Number.isFinite(fromParam) && fromParam > 0) return fromParam;
   if (branchScoped.value) {
-    const fromContext = Number(authStore.activeContext?.branch_id ?? authStore.user?.branches?.[0]?.id ?? 0);
+    const fromContext = Number(currentBranchId.value ?? 0);
     return fromContext > 0 ? fromContext : 0;
   }
   return 0;
 });
-const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
+/** Resumo da filial com abas horizontais no layout (Setores/Funcionários vêm das tabs superiores). */
+const isCompanyBranchOverview = computed(() => {
+  const n = String(route.name ?? "");
+  return n === "company.branch.overview" || n === "owner.branch.overview";
+});
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
+const workspaceCompanyId = computed(() => {
+  const id = Number(route.query.company_id ?? 0);
+  return id > 0 ? id : 0;
+});
+const isWorkspaceContext = computed(() => workspaceCompanyId.value > 0);
 
 const loadingBranch = ref(true);
 const loadError = ref("");
@@ -31,15 +45,40 @@ const form = ref<BranchFormData>(branchInitialForm());
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 const users = ref<BranchRecord["users"]>([]);
 const usersCount = ref(0);
+const branchUserLimit = ref<number | null>(null);
+const branchUsersUsedDisplay = ref<number | null>(null);
 const sectors = ref<BranchRecord["sectors"]>([]);
+const scheduleRulesView = ref<BranchScheduleRuleRecord[]>([]);
+const branchLogoUrl = ref<string | null>(null);
 const canEditBranch = computed(() => authStore.hasPermission("branches.update") || branchScoped.value);
+/** Aba Funcionários na vista da filial: superadmin ou gestor empresa/filial com permissão. */
+const showBranchEmployeesTab = computed(
+  () =>
+    authStore.hasRole("superadmin") ||
+    ((companyScoped.value || branchScoped.value) && authStore.hasPermission("employees.read")),
+);
+/** Aba Feriados: empresa e branch — irrelevante para superadmin (sem contexto de filial fixo). */
+const showHolidaysTab = computed(
+  () => !authStore.hasRole("superadmin") && branchId.value > 0,
+);
+const canSyncHolidays = computed(
+  () => showHolidaysTab.value && authStore.hasPermission("branches.update"),
+);
 
 function back() {
   if (branchScoped.value) {
     router.push({ name: "panels.branch.dashboard" });
     return;
   }
+  if (isWorkspaceContext.value) {
+    router.push({ name: "owner.company.workspace.branches", params: { id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
+}
+
+function backFromOwnerWorkspace() {
+  router.push({ name: "owner.branches" });
 }
 
 function goEdit() {
@@ -48,12 +87,43 @@ function goEdit() {
     router.push({ name: "branch.my-branch.edit" });
     return;
   }
+  if (isWorkspaceContext.value) {
+    router.push({ name: "owner.branches.edit", params: { id: String(branchId.value) }, query: { company_id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches.edit" : "owner.branches.edit", params: { id: String(branchId.value) } });
+}
+
+function toHhMm(v: string): string {
+  const m = String(v ?? "").trim().match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : "08:00";
+}
+
+function buildScheduleRulesForDisplay(branch: BranchRecord): BranchScheduleRuleRecord[] {
+  if (branch.schedule_rules && branch.schedule_rules.length > 0) {
+    return [...branch.schedule_rules].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }
+  return [
+    {
+      id: 0,
+      branch_id: branch.id,
+      weekdays: [1, 2, 3, 4, 5, 6, 7],
+      is_closed: false,
+      expedient_start_time: branch.expedient_start_time ?? "08:00",
+      expedient_end_time: branch.expedient_end_time ?? "18:00",
+      store_open_time: branch.store_open_time ?? "09:00",
+      store_close_time: branch.store_close_time ?? "18:00",
+      break_duration_minutes: null,
+      daily_work_minutes: null,
+      sort_order: 0,
+    },
+  ];
 }
 
 function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>>) {
   const branch = data.branch as BranchRecord | undefined;
   if (!branch) return;
+  scheduleRulesView.value = buildScheduleRulesForDisplay(branch);
   form.value = {
     company_id: branch.company_id ?? 0,
     name: branch.name ?? "",
@@ -64,10 +134,18 @@ function fillFormFromBranch(data: Awaited<ReturnType<typeof branchesApi.getById>
     neighborhood: branch.neighborhood ?? "",
     city: branch.city ?? "",
     state: branch.state ?? "",
+    expedient_start_time: toHhMm(branch.expedient_start_time ?? "08:00"),
+    expedient_end_time: toHhMm(branch.expedient_end_time ?? "18:00"),
+    store_open_time: toHhMm(branch.store_open_time ?? "09:00"),
+    store_close_time: toHhMm(branch.store_close_time ?? "18:00"),
   };
   users.value = branch.users ?? [];
-  usersCount.value = branch.users?.length ?? 0;
+  branchUserLimit.value = null;
+  branchUsersUsedDisplay.value =
+    branch.users_used != null ? Number(branch.users_used) : (branch.users?.length ?? 0);
+  usersCount.value = branchUsersUsedDisplay.value;
   sectors.value = branch.sectors ?? [];
+  branchLogoUrl.value = branch.logo_url ?? null;
 }
 
 function loadBranch() {
@@ -88,23 +166,21 @@ function loadBranch() {
 }
 
 onMounted(async () => {
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
-    companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
-  } else {
-    const companies = await companiesApi.plucks();
-    companyOptions.value = companies
-      .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
+  companyOptions.value = await loadCompanyOptionsByScope({
+    companyScoped: companyScoped.value,
+    scopedCompanyId: scopedCompanyId.value,
+  });
   loadBranch();
 });
 </script>
 
 <template>
-  <DefaultLayout>
-    <div class="py-4">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
+    <div :class="isCompanyBranchOverview ? '' : 'py-4'">
+      <div
+        v-if="!isCompanyBranchOverview"
+        class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4"
+      >
         <div>
           <h1 class="h4 mb-1">Visualizar filial</h1>
           <p class="text-muted mb-0 small">Consulta dos dados cadastrais da filial.</p>
@@ -114,9 +190,15 @@ onMounted(async () => {
           <b-button variant="outline-secondary" @click="back">Voltar</b-button>
         </div>
       </div>
+      <div v-else class="d-flex justify-content-end gap-2 mb-3">
+        <b-button v-if="canEditBranch" variant="outline-primary" size="sm" @click="goEdit">
+          Editar filial
+        </b-button>
+        <b-button variant="outline-secondary" size="sm" @click="back">Voltar às filiais</b-button>
+      </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingBranch" class="text-muted">A carregar filial...</div>
+      <div v-else-if="loadingBranch" class="text-muted">Carregando filial...</div>
       <ProfilePage
         v-else
         :name="form.name"
@@ -130,10 +212,20 @@ onMounted(async () => {
         :state="form.state"
         :users="users"
         :usersCount="usersCount"
+        :userLimit="branchUserLimit"
+        :usersUsedDisplay="branchUsersUsedDisplay"
         :sectors="sectors"
         :subtitle="companyOptions.find((c) => c.id === form.company_id)?.name || ''"
+        :logo-src="branchLogoUrl ?? undefined"
         :onEdit="canEditBranch ? goEdit : undefined"
+        :branch-id="branchId"
+        :show-employees-tab="showBranchEmployeesTab"
+        :schedule-rules="scheduleRulesView"
+        :branch-workspace-overview="isCompanyBranchOverview"
+        :only-branch-information="branchScoped"
+        :show-holidays-tab="showHolidaysTab"
+        :can-sync-holidays="canSyncHolidays"
       />
     </div>
-  </DefaultLayout>
+  </component>
 </template>

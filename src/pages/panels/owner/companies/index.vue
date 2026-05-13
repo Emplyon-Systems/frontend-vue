@@ -12,12 +12,20 @@ import { companiesApi } from "@/api/resources";
 import type { CompanyRecord } from "@/types/api";
 import { notifySuccess } from "@/helpers/notify";
 import { useAuthStore } from "@/stores/auth";
+import { useModulePermissions } from "@/composables/usePermissions";
+import { useFilterState } from "@/composables/useFilterState";
+import { useListPageState } from "@/composables/useListPageState";
 
 const router = useRouter();
 const authStore = useAuthStore();
+const companyPermissions = useModulePermissions("companies");
 const loading = ref(true);
 const companies = ref<CompanyRecord[]>([]);
-const pagination = ref({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
+const { pagination, orderBy, orderDir, resultLabel, setPerPage, setSort } = useListPageState({
+  perPage: 15,
+  orderBy: "id",
+  orderDir: "desc",
+});
 const initialFilters = () => ({
   name: "",
   cnpj: "",
@@ -25,11 +33,14 @@ const initialFilters = () => ({
   created_at_until: "",
   per_page: 15,
 });
-const filters = ref(initialFilters());
-/** Filtros efetivamente aplicados à listagem (atualizados ao clicar em "Aplicar filtros") */
-const appliedFilters = ref(initialFilters());
-const orderBy = ref("id");
-const orderDir = ref<"asc" | "desc">("desc");
+const { filters, appliedFilters, hasActiveFilters, applyFilters, resetFilters } = useFilterState(
+  initialFilters,
+  (f) =>
+    !!f.name.trim() ||
+    !!f.cnpj.trim() ||
+    !!f.created_at_from ||
+    !!f.created_at_until
+);
 
 const listagemColumns = [
   { key: "id", label: "ID", sortable: true, align: "start" as const },
@@ -42,25 +53,10 @@ const listagemColumns = [
 const deleteId = ref<number | null>(null);
 const deleteModal = ref(false);
 const showFilters = ref(false);
-/** "Ativo" apenas quando há filtros aplicados (listagem está filtrada) */
-const hasActiveFilters = computed(
-  () =>
-    !!appliedFilters.value.name.trim() ||
-    !!appliedFilters.value.cnpj.trim() ||
-    !!appliedFilters.value.created_at_from ||
-    !!appliedFilters.value.created_at_until
-);
-
-const resultLabel = computed(() => {
-  const n = pagination.value.total;
-  if (n === 0) return "Nenhum resultado";
-  if (n === 1) return "1 resultado encontrado";
-  return `${n} resultados encontrados`;
-});
-const canCreate = computed(() => authStore.hasPermission("companies.create"));
-const canRead = computed(() => authStore.hasPermission("companies.read"));
-const canUpdate = computed(() => authStore.hasPermission("companies.update"));
-const canDelete = computed(() => authStore.hasPermission("companies.delete"));
+const canCreate = companyPermissions.canCreate;
+const canRead = companyPermissions.canRead;
+const canUpdate = companyPermissions.canUpdate;
+const canDelete = companyPermissions.canDelete;
 
 function loadList(page = 1) {
   loading.value = true;
@@ -87,17 +83,6 @@ function loadList(page = 1) {
     .finally(() => (loading.value = false));
 }
 
-function applyFilters() {
-  appliedFilters.value = { ...filters.value };
-  loadList(1);
-}
-
-function resetFilters() {
-  filters.value = initialFilters();
-  appliedFilters.value = initialFilters();
-  loadList(1);
-}
-
 function confirmDelete(company: CompanyRecord) {
   deleteId.value = company.id;
   deleteModal.value = true;
@@ -120,7 +105,7 @@ function goCreate() {
 
 function goView(id: number) {
   if (!canRead.value) return;
-  router.push({ name: "owner.companies.view", params: { id: String(id) } });
+  router.push({ name: "owner.company.workspace.overview", params: { id: String(id) } });
 }
 
 function goEdit(id: number) {
@@ -131,13 +116,12 @@ function goEdit(id: number) {
 function onPerPageChange(value: number) {
   appliedFilters.value.per_page = value;
   filters.value.per_page = value;
-  pagination.value.per_page = value;
+  setPerPage(value);
   loadList(1);
 }
 
 function onSortChange({ orderBy: ob, orderDir: od }: { orderBy: string; orderDir: "asc" | "desc" }) {
-  orderBy.value = ob;
-  orderDir.value = od;
+  setSort({ orderBy: ob, orderDir: od });
   loadList(1);
 }
 
@@ -165,8 +149,8 @@ onMounted(() => loadList());
         <CompaniesFilter
           v-model="filters"
           :active="hasActiveFilters"
-          @apply="applyFilters"
-          @reset="resetFilters"
+          @apply="() => { applyFilters(); loadList(1); }"
+          @reset="() => { resetFilters(); loadList(1); }"
         />
       </UIComponentCard>
 
@@ -201,7 +185,7 @@ onMounted(() => loadList());
                 :show-delete="canDelete"
                 view-title="Visualizar"
                 edit-title="Editar"
-                delete-title="Eliminar"
+                delete-title="Excluir"
                 @view="goView"
                 @edit="goEdit"
                 @delete="(id) => { const c = companies.find((x) => x.id === id); if (c) confirmDelete(c); }"
@@ -214,8 +198,8 @@ onMounted(() => loadList());
 
     <ConfirmDeleteModal
       v-model="deleteModal"
-      title="Eliminar empresa"
-      message="Tem a certeza que deseja eliminar esta empresa?"
+      title="Excluir empresa"
+      message="Tem certeza de que deseja excluir esta empresa?"
       @confirm="doDelete"
     />
   </DefaultLayout>

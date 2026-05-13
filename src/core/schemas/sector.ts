@@ -10,6 +10,8 @@ const requiredText = (label: string, max: number) =>
 const sectorBaseSchema = z.object({
   branch_id: z.number({ required_error: "Filial é obrigatória." }).int().positive("Filial é obrigatória."),
   name: requiredText("Nome", 255),
+  start_time: z.string().trim().min(1, "Horário de início é obrigatório."),
+  end_time: z.string().trim().min(1, "Horário de término é obrigatório."),
 });
 
 export const sectorCreateSchema = sectorBaseSchema;
@@ -24,6 +26,8 @@ export type SectorFieldErrors = Partial<Record<keyof SectorFormData, string>>;
 export const sectorInitialForm = (): SectorFormData => ({
   branch_id: 0,
   name: "",
+  start_time: "08:00",
+  end_time: "17:00",
 });
 
 function toFieldErrors(error: z.ZodError): SectorFieldErrors {
@@ -47,6 +51,15 @@ export function validateSectorForm(
 
   if (!parsed.success) {
     return { success: false, errors: toFieldErrors(parsed.error) };
+  }
+
+  if (parsed.data.end_time <= parsed.data.start_time) {
+    return {
+      success: false,
+      errors: {
+        end_time: "Horário de término deve ser maior que o horário de início.",
+      },
+    };
   }
 
   return { success: true, data: parsed.data };

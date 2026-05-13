@@ -1,3 +1,7 @@
+<script setup lang="ts">
+import AuthLayout from "@/layouts/AuthLayout.vue";
+</script>
+
 <template>
   <AuthLayout>
     <b-col lg="4" class="mx-auto">
@@ -106,6 +110,3 @@
     </b-col>
   </AuthLayout>
 </template>
-<script setup lang="ts">
-import AuthLayout from "@/layouts/AuthLayout.vue";
-</script>

@@ -7,15 +7,15 @@ import DataForm from "./form/DataForm.vue";
 import { sectorsApi, branchesApi } from "@/api/resources";
 import { sectorInitialForm, validateSectorForm, type SectorFormData } from "@/core/schemas";
 import { notifySuccess } from "@/helpers/notify";
-import { useAuthStore } from "@/stores/auth";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
+import { usePanelScope } from "@/composables/usePanelScope";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
 const sectorId = computed(() => Number(route.params.id));
-const routeName = computed(() => String(route.name ?? ""));
-const companyScoped = computed(() => routeName.value.startsWith("company."));
-const branchScoped = computed(() => routeName.value.startsWith("branch."));
+const { isCompanyScoped: companyScoped, isBranchScoped: branchScoped, currentBranchId } = usePanelScope();
 
 function sectorsListRoute() {
   return branchScoped.value ? "branch.sectors" : companyScoped.value ? "company.sectors" : "owner.sectors";
@@ -25,21 +25,18 @@ const loading = ref(false);
 const loadingSector = ref(true);
 const loadError = ref("");
 const form = ref<SectorFormData>(sectorInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  notifyOnApiFieldErrors: false,
+  notifyOnGenericApiMessage: false,
+  notifyOnEmptyResponse: false,
+});
 const branchOptions = ref<Array<{ id: number; name: string }>>([]);
-
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
+const branchExpedientEnvelopeById = ref<Record<number, { start: string; end: string } | null>>({});
+const branchScheduleHint = computed(() => {
+  const envelope = branchExpedientEnvelopeById.value[Number(form.value.branch_id ?? 0)] ?? null;
+  if (!envelope) return "";
+  return `Horário permitido nesta filial: ${envelope.start} às ${envelope.end}.`;
+});
 
 function cancel() {
   router.push({ name: sectorsListRoute() });
@@ -51,6 +48,8 @@ function fillFormFromSector(data: Awaited<ReturnType<typeof sectorsApi.getById>>
   form.value = {
     branch_id: sector.branch_id ?? 0,
     name: sector.name ?? "",
+    start_time: sector.start_time ?? "08:00",
+    end_time: sector.end_time ?? "17:00",
   };
 }
 
@@ -72,11 +71,28 @@ function loadSector() {
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateSectorForm(form.value, "edit");
   if (!validation.success) {
     errors.value = validation.errors;
     return;
+  }
+  const envelope = branchExpedientEnvelopeById.value[Number(form.value.branch_id ?? 0)] ?? null;
+  if (envelope) {
+    if (form.value.start_time < envelope.start || form.value.start_time > envelope.end) {
+      errors.value = {
+        ...errors.value,
+        start_time: `Horário de início deve estar entre ${envelope.start} e ${envelope.end} (funcionamento da filial).`,
+      };
+      return;
+    }
+    if (form.value.end_time < envelope.start || form.value.end_time > envelope.end) {
+      errors.value = {
+        ...errors.value,
+        end_time: `Horário de término deve estar entre ${envelope.start} e ${envelope.end} (funcionamento da filial).`,
+      };
+      return;
+    }
   }
 
   loading.value = true;
@@ -86,21 +102,44 @@ function submit() {
       notifySuccess("Setor atualizado com sucesso.");
       router.push({ name: sectorsListRoute() });
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
 onMounted(async () => {
+  const envelopeFromRules = (rules?: Array<{ is_closed?: boolean; expedient_start_time?: string | null; expedient_end_time?: string | null }>) => {
+    const valid = (rules ?? [])
+      .filter((r) => !r.is_closed && r.expedient_start_time && r.expedient_end_time)
+      .map((r) => ({
+        start: String(r.expedient_start_time ?? "").slice(0, 5),
+        end: String(r.expedient_end_time ?? "").slice(0, 5),
+      }));
+    if (!valid.length) return null;
+    const start = valid.reduce((acc, item) => (item.start < acc ? item.start : acc), valid[0].start);
+    const end = valid.reduce((acc, item) => (item.end > acc ? item.end : acc), valid[0].end);
+    return { start, end };
+  };
+
   const branches = await branchesApi.plucks();
   branchOptions.value = (branches as { id: number; name?: string }[])
     .map((b) => ({ id: b.id, name: b.name ?? `Filial #${b.id}` }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  await Promise.all(
+    branchOptions.value.map(async (b) => {
+      try {
+        const branchRes = await branchesApi.getById(b.id);
+        branchExpedientEnvelopeById.value[b.id] = envelopeFromRules(branchRes.branch?.schedule_rules);
+      } catch {
+        branchExpedientEnvelopeById.value[b.id] = null;
+      }
+    })
+  );
   loadSector();
 });
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -111,24 +150,27 @@ onMounted(async () => {
       </div>
 
       <AppAlert v-if="loadError" variant="danger">{{ loadError }}</AppAlert>
-      <div v-else-if="loadingSector" class="text-muted">A carregar setor...</div>
+      <div v-else-if="loadingSector" class="text-muted">Carregando setor...</div>
       <b-form v-else @submit.prevent="submit">
         <DataForm
           v-model="form"
           :errors="errors"
           :branch-options="branchOptions"
-          :lock-branch-id="null"
+          :lock-branch-id="branchScoped && currentBranchId > 0 ? currentBranchId : null"
           mode="edit"
           @clear-error="clearError"
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>
         </DataForm>
+        <p v-if="branchScheduleHint" class="text-muted small mt-2 mb-0">
+          {{ branchScheduleHint }}
+        </p>
       </b-form>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

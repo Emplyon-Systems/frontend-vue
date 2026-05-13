@@ -1,43 +1,60 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import DataForm from "./form/DataForm.vue";
 import { branchesApi, companiesApi } from "@/api/resources";
-import { branchInitialForm, validateBranchForm, type BranchFormData } from "@/core/schemas";
-import { notifySuccess } from "@/helpers/notify";
+import type { BranchCreatePayload } from "@/api/resources/branches";
+import {
+  branchInitialForm,
+  validateBranchForm,
+  type BranchFormData,
+} from "@/core/schemas";
+import { notifySuccess, notifyError } from "@/helpers/notify";
+import { useFormValidationErrors } from "@/composables/useFormValidationErrors";
 import { useAuthStore } from "@/stores/auth";
+import { useCompanyPanelWorkspaceLayout } from "@/composables/useCompanyPanelWorkspace";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { isInsideCompanyPanelWorkspace } = useCompanyPanelWorkspaceLayout();
+
+/** Contexto workspace do superadmin: ?company_id=X na query */
+const workspaceCompanyId = computed(() => {
+  const id = Number(route.query.company_id ?? 0);
+  return id > 0 ? id : 0;
+});
+const isWorkspaceContext = computed(() => workspaceCompanyId.value > 0);
+
+/** Contexto painel da própria empresa */
 const companyScoped = computed(() => String(route.name ?? "").startsWith("company."));
 const scopedCompanyId = computed(() => (companyScoped.value ? Number(authStore.user?.companies?.[0]?.id ?? 0) : 0));
+
+/** ID de empresa travado (workspace ou company-scoped) */
+const lockCompanyId = computed<number | null>(() => {
+  if (isWorkspaceContext.value) return workspaceCompanyId.value;
+  if (companyScoped.value && scopedCompanyId.value > 0) return scopedCompanyId.value;
+  return null;
+});
+
 const loading = ref(false);
 const form = ref<BranchFormData>(branchInitialForm());
-const errors = ref<Record<string, string>>({});
+const { errors, clearError, resetErrors, onApiError } = useFormValidationErrors({
+  toastFieldPriority: ["branch", "company_id", "general"],
+});
 const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 
-function mapApiErrors(err: { response?: { data?: { errors?: Record<string, string[]> } } }) {
-  const data = err.response?.data?.errors;
-  if (!data) return;
-  const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) map[k] = Array.isArray(v) ? v[0] : String(v);
-  errors.value = map;
-}
-
-function clearError(field: string) {
-  if (!errors.value[field]) return;
-  delete errors.value[field];
-}
-
 function cancel() {
+  if (isWorkspaceContext.value) {
+    router.push({ name: "owner.company.workspace.branches", params: { id: String(workspaceCompanyId.value) } });
+    return;
+  }
   router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
 }
 
 function submit() {
-  errors.value = {};
+  resetErrors();
   const validation = validateBranchForm(form.value, "create");
   if (!validation.success) {
     errors.value = validation.errors;
@@ -46,26 +63,56 @@ function submit() {
 
   loading.value = true;
   branchesApi
-    .create(validation.data as branchesApi.BranchCreatePayload)
+    .create(validation.data as BranchCreatePayload)
     .then(() => {
       notifySuccess("Filial criada com sucesso.");
-      router.push({ name: companyScoped.value ? "company.branches" : "owner.branches" });
+      cancel();
     })
-    .catch(mapApiErrors)
+    .catch(onApiError)
     .finally(() => (loading.value = false));
 }
 
 onMounted(async () => {
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    form.value.company_id = scopedCompanyId.value;
-  }
-
-  if (companyScoped.value && scopedCompanyId.value > 0) {
-    const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
-    companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
+  /** Workspace do superadmin: empresa fixa via query param */
+  if (isWorkspaceContext.value) {
+    form.value.company_id = workspaceCompanyId.value;
+    try {
+      const res = await companiesApi.getById(workspaceCompanyId.value);
+      const c = res.company;
+      companyOptions.value = [{ id: workspaceCompanyId.value, name: c?.name ?? `Empresa #${workspaceCompanyId.value}` }];
+      const used = c?.branches_used ?? c?.branches?.length ?? 0;
+      const limit = c?.branch_limit ?? 0;
+      if (limit > 0 && used >= limit) {
+        notifyError("Limite de filiais atingido.");
+        cancel();
+      }
+    } catch {
+      companyOptions.value = [{ id: workspaceCompanyId.value, name: `Empresa #${workspaceCompanyId.value}` }];
+    }
     return;
   }
 
+  /** Painel da própria empresa */
+  if (companyScoped.value && scopedCompanyId.value > 0) {
+    form.value.company_id = scopedCompanyId.value;
+    const companyName = authStore.user?.companies?.[0]?.name ?? "Minha empresa";
+    companyOptions.value = [{ id: scopedCompanyId.value, name: companyName }];
+    try {
+      const res = await companiesApi.getById(scopedCompanyId.value);
+      const c = res.company;
+      const used = c?.branches_used ?? c?.branches?.length ?? 0;
+      const limit = c?.branch_limit ?? 0;
+      if (limit > 0 && used >= limit) {
+        notifyError("Limite de filiais atingido.");
+        router.replace({ name: "company.branches" });
+      }
+    } catch {
+      /* guard de rota e API validam na mesma */
+    }
+    return;
+  }
+
+  /** Superadmin sem contexto fixo: escolha livre */
   const companies = await companiesApi.plucks();
   companyOptions.value = companies
     .map((c) => ({ id: c.id, name: c.name ?? `Empresa #${c.id}` }))
@@ -74,7 +121,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DefaultLayout>
+  <component :is="isInsideCompanyPanelWorkspace ? 'div' : DefaultLayout">
     <div class="py-4">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
@@ -89,18 +136,18 @@ onMounted(async () => {
           v-model="form"
           :errors="errors"
           :company-options="companyOptions"
-          :lock-company-id="companyScoped ? scopedCompanyId : null"
+          :lock-company-id="lockCompanyId"
           mode="create"
           @clear-error="clearError"
         >
           <template #actions>
             <b-button type="submit" variant="primary" :disabled="loading">
-              {{ loading ? "A guardar..." : "Guardar" }}
+              {{ loading ? "Salvando..." : "Salvar" }}
             </b-button>
             <b-button type="button" variant="outline-secondary" @click="cancel">Cancelar</b-button>
           </template>
         </DataForm>
       </b-form>
     </div>
-  </DefaultLayout>
+  </component>
 </template>

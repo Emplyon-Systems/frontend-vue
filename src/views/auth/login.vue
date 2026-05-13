@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import { required, email } from "@vuelidate/validators";
+import { ref, reactive, computed, watch } from "vue";
+import { helpers, required, email } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
 import httpClient from "@/helpers/http-client";
 import { useAuthStore } from "@/stores/auth";
-import { useRoute } from "vue-router";
+import { useRoute, type RouteLocationRaw } from "vue-router";
 import router from "@/router";
 import { getPanelHomeForUser } from "@/config/panels";
 import type { LoginResponse } from "@/types/auth";
+
+const AUTH_DEBUG = String(import.meta.env.VITE_AUTH_DEBUG ?? "").toLowerCase() === "true";
 
 const credentials = reactive({
   email: "",
@@ -16,8 +18,13 @@ const credentials = reactive({
 });
 
 const vuelidateRules = computed(() => ({
-  email: { required, email },
-  password: { required },
+  email: {
+    required: helpers.withMessage("O e-mail é obrigatório.", required),
+    email: helpers.withMessage("Informe um e-mail válido.", email),
+  },
+  password: {
+    required: helpers.withMessage("A senha é obrigatória.", required),
+  },
 }));
 
 const v = useVuelidate(vuelidateRules, credentials);
@@ -26,6 +33,15 @@ const route = useRoute();
 const error = ref("");
 const loading = ref(false);
 const showPassword = ref(false);
+const resetSuccess = ref(false);
+
+watch(
+  () => route.query.senhaAlterada,
+  (v) => {
+    resetSuccess.value = v === "1";
+  },
+  { immediate: true }
+);
 
 /** Só aceita paths internos (evita open redirect). */
 function isInternalPath(path: unknown): path is string {
@@ -46,25 +62,45 @@ async function handleLogin() {
     });
     const data = res.data;
     if (data.user && data.token) {
+      if (AUTH_DEBUG) {
+        console.groupCollapsed("[auth-login] login response");
+        console.log("roles", (data.user.roles ?? []).map((r) => r.slug));
+        console.log("companies", (data.user.companies ?? []).map((c) => c.id));
+        console.log("branches", (data.user.branches ?? []).map((b) => b.id));
+        console.groupEnd();
+      }
       const roles = data.user.roles;
       if (!roles?.length) {
-        error.value = "Utilizador sem acesso. Nenhum perfil atribuído.";
+        error.value = "Usuário sem acesso. Nenhum perfil atribuído.";
         return;
       }
       authStore.saveSession(data.user, data.token);
+      if (AUTH_DEBUG) {
+        console.log("[auth-login] contextOptions after saveSession", authStore.getContextOptions());
+      }
       const from = route.query.redirectedFrom;
+      let destination: RouteLocationRaw;
       if (isInternalPath(from)) {
-        await router.push(from);
-      } else if (
-        !authStore.hasRole("superadmin") &&
-        authStore.hasMultipleContexts()
-      ) {
-        await router.push({ name: "auth.select-context" });
+        destination = from;
+      } else if (!authStore.hasRole("superadmin") && authStore.hasMultipleContexts()) {
+        destination = { name: "auth.select-context" };
       } else {
         const opts = authStore.getContextOptions();
-        if (opts.length === 1) authStore.selectContext(opts[0]);
-        await router.push(getPanelHomeForUser(data.user) || "/");
+        const selected = opts.length === 1 ? opts[0] : null;
+        if (selected) authStore.selectContext(selected);
+        destination = getPanelHomeForUser(data.user, selected) || "/";
       }
+      if (AUTH_DEBUG) {
+        console.log("[auth-login] destination", destination);
+      }
+      // Desbloquear o formulário antes da navegação: se router.push ficar pendente
+      // (chunk lento, guard, rede), o utilizador não fica preso em "Entrando…".
+      loading.value = false;
+      void router.push(destination).catch((navErr: unknown) => {
+        console.error(navErr);
+        error.value =
+          "Login OK, mas não foi possível abrir o painel. Atualize a página (F5) ou limpe os dados do site para este domínio.";
+      });
     } else {
       error.value = data.msg || "Resposta inválida.";
     }
@@ -89,8 +125,16 @@ async function handleLogin() {
           <img src="/logohorizontal.svg" alt="Emplyon" class="login-form-logo-img" />
         </router-link>
         <p class="login-subtitle">
-          Inicie sessão na sua conta para começar a usar o Emplyon
+          Faça login na sua conta para começar a usar a Emplyon
         </p>
+
+        <div
+          v-if="resetSuccess"
+          class="alert alert-success py-2 mb-3"
+          role="status"
+        >
+          Senha alterada com sucesso. Entre com a nova senha.
+        </div>
 
         <b-form class="login-form" @submit.prevent="handleLogin">
           <b-form-group label="E-mail" label-for="email" class="mb-3">
@@ -109,7 +153,7 @@ async function handleLogin() {
             </div>
           </b-form-group>
 
-          <b-form-group label="Palavra-passe" label-for="userpassword" class="mb-3">
+          <b-form-group label="Senha" label-for="userpassword" class="mb-3">
             <b-input-group>
               <b-form-input
                 id="userpassword"
@@ -146,7 +190,7 @@ async function handleLogin() {
               Lembrar a minha preferência
             </b-form-checkbox>
             <router-link to="/auth/reset-pass" class="login-link">
-              Esqueceu a palavra-passe?
+              Esqueceu a senha?
             </router-link>
           </div>
 
@@ -156,7 +200,7 @@ async function handleLogin() {
             class="login-btn w-100"
             :disabled="loading"
           >
-            <span v-if="loading">A iniciar sessão…</span>
+            <span v-if="loading">Entrando…</span>
             <span v-else>Entrar</span>
           </b-button>
         </b-form>
@@ -181,9 +225,9 @@ async function handleLogin() {
         </div>
         -->
 
-        <!-- Registo (oculto)
+        <!-- Registro (oculto)
         <p class="login-register mt-4 mb-0">
-          Ainda não está registado?
+          Ainda não está registrado?
           <router-link to="/auth/register" class="login-link">Registe-se</router-link>
         </p>
         -->
@@ -334,6 +378,11 @@ async function handleLogin() {
   color: #6c757d;
 }
 
+.login-doc-link {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
 /* Coluna direita: apenas a imagem */
 .login-brand-col {
   flex: 0 0 50%;
@@ -365,17 +414,13 @@ async function handleLogin() {
   .login-page {
     flex-direction: column;
   }
-  .login-form-col,
-  .login-brand-col {
+  .login-form-col {
     flex: 1 1 auto;
     max-width: 100%;
+    width: 100%;
   }
   .login-brand-col {
-    min-height: 0;
-    padding-top: 1.5rem;
-  }
-  .login-brand-empty {
-    min-height: 80px;
+    display: none;
   }
 }
 </style>

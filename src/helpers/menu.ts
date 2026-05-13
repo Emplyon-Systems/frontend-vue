@@ -1,5 +1,6 @@
 import { MENU_ITEMS } from "@/assets/data/menu-items";
 import { getPanelHomeForUser, type UserPanelInput } from "@/config/panels";
+import type { AuthContext } from "@/stores/auth";
 import type { User } from "@/types/auth";
 import type { MenuItemType } from "@/types/menu";
 
@@ -8,16 +9,17 @@ export { MENU_ITEMS };
 const ownerSlugs = ["superadmin"];
 
 /**
- * Menu com o Dashboard a apontar para o painel do utilizador (owner / company / branch / employee).
- * No painel owner mostra "Sistema" com submenu: Usuários, Perfis, Auditoria.
+ * Menu com o Dashboard a apontar para o painel do usuário (owner / company / branch / employee).
+ * O agrupador "Templates" usa ícone como outros menus com submenu; as entradas *dentro* de Templates não têm ícone (apenas texto + bullet lateral).
  */
-export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemType[] {
-  const path = getPanelHomeForUser(user);
+export function getMenuItemsForUser(user: UserPanelInput | undefined, context?: AuthContext | null): MenuItemType[] {
+  const path = getPanelHomeForUser(user, context);
   const roles = user?.roles;
   const isOwner = roles?.some((r) => ownerSlugs.includes(r.slug));
   const isSuperadmin = roles?.some((r) => r.slug === "superadmin");
-  const branchRouteName = path === "/company" ? "company.branches" : "owner.branches";
-  const permissionSet = new Set((roles ?? []).flatMap((role) => role.permissions?.map((p) => p.slug) ?? []));
+  const rolePermissionSlugs = (roles ?? []).flatMap((role) => role.permissions?.map((p) => p.slug) ?? []);
+  const directPermissionSlugs = (user as User | undefined)?.permissions?.map((p) => p.slug) ?? [];
+  const permissionSet = new Set([...rolePermissionSlugs, ...directPermissionSlugs]);
   const hasAny = (prefixes: string[]) => prefixes.some((prefix) => permissionSet.has(prefix));
   const canCompaniesList = hasAny(["companies.index"]);
   const canCompanies = hasAny([
@@ -43,7 +45,62 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
     "sectors.delete",
     "sectors.plucks",
   ]);
-  const companiesRouteName = path === "/company" ? "company.branches" : "owner.companies";
+  const canPositions = hasAny([
+    "positions.index",
+    "positions.read",
+    "positions.create",
+    "positions.update",
+    "positions.delete",
+    "positions.plucks",
+  ]);
+  const canEmployees = hasAny([
+    "employees.index",
+    "employees.read",
+    "employees.create",
+    "employees.update",
+    "employees.delete",
+    "employees.plucks",
+  ]);
+  const canModalityTypes = hasAny([
+    "modality_types.index",
+    "modality_types.read",
+    "modality_types.create",
+    "modality_types.update",
+    "modality_types.delete",
+    "modality_types.plucks",
+  ]);
+  const canScaleTypes = hasAny([
+    "scale_types.index",
+    "scale_types.read",
+    "scale_types.create",
+    "scale_types.update",
+    "scale_types.delete",
+    "scale_types.plucks",
+  ]);
+  const canDayOffModalities = hasAny([
+    "day_off_modalities.index",
+    "day_off_modalities.read",
+    "day_off_modalities.create",
+    "day_off_modalities.update",
+    "day_off_modalities.delete",
+    "day_off_modalities.plucks",
+  ]);
+  const canEmployeeLeaveRequests = hasAny([
+    "employee_leave_requests.index",
+    "employee_leave_requests.read",
+    "employee_leave_requests.create",
+    "employee_leave_requests.update",
+    "employee_leave_requests.delete",
+    "employee_leave_requests.plucks",
+  ]);
+  const canEmployeeDayOffs = hasAny([
+    "employee_day_offs.index",
+    "employee_day_offs.read",
+    "employee_day_offs.create",
+    "employee_day_offs.update",
+    "employee_day_offs.delete",
+    "employee_day_offs.plucks",
+  ]);
   const companySelfRouteName = "company.my-company.view";
   const branchSelfRouteName = "branch.my-branch.view";
 
@@ -54,6 +111,49 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
   if (hasAny(["roles.index", "roles.read", "roles.create", "roles.update", "roles.delete", "roles.plucks"])) {
     systemChildren.push({ key: "roles", icon: "iconoir-shield", label: "Perfis", route: { name: "owner.roles" } });
   }
+  /** Submenu agrupador: templates globais em vários domínios. */
+  const templateMenuChildren: MenuItemType[] = [];
+  if (
+    isSuperadmin ||
+    hasAny([
+      "role_templates.index",
+      "role_templates.read",
+      "role_templates.update",
+      "role_templates.create",
+      "role_templates.delete",
+    ])
+  ) {
+    templateMenuChildren.push({
+      key: "role-templates",
+      label: "Perfis",
+      route: { name: "owner.role-templates" },
+    });
+  }
+  if (
+    isSuperadmin ||
+    hasAny([
+      "modality_type_templates.index",
+      "modality_type_templates.read",
+      "modality_type_templates.create",
+      "modality_type_templates.update",
+      "modality_type_templates.delete",
+      "modality_type_templates.plucks",
+    ])
+  ) {
+    templateMenuChildren.push({
+      key: "modality-type-templates",
+      label: "Modalidades de domingo",
+      route: { name: "owner.modality-type-templates" },
+    });
+  }
+  if (templateMenuChildren.length > 0) {
+    systemChildren.push({
+      key: "templates-hub",
+      icon: "iconoir-book-stack",
+      label: "Templates",
+      children: templateMenuChildren,
+    });
+  }
   if (hasAny(["audits.index", "audits.read"])) {
     systemChildren.push({ key: "audits", icon: "iconoir-database", label: "Auditoria", route: { name: "owner.audits" } });
   }
@@ -62,46 +162,35 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
     return [
       { key: "main", label: "Menu", isTitle: true },
       { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name: "panels.owner.dashboard" } },
-      ...((isSuperadmin || canCompanies || canBranches || canSectors)
+      ...((isSuperadmin || canCompanies)
         ? [
             {
               key: "companies",
               icon: "iconoir-building",
               label: "Empresas",
-              route: { name: companiesRouteName },
+              route: { name: "owner.companies" },
+            } as MenuItemType,
+          ]
+        : []),
+      ...(isSuperadmin
+        ? [
+            {
+              key: "tutorials-admin",
+              icon: "iconoir-play",
+              label: "Tutoriais",
               children: [
-                ...(canCompaniesList || isSuperadmin
-                  ? [
-                      {
-                        key: "companies-list",
-                        icon: "iconoir-building",
-                        label: "Empresas",
-                        route: { name: "owner.companies" },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(canBranches
-                  ? [
-                      {
-                        key: "branches-list",
-                        icon: "iconoir-git-branch",
-                        label: "Filiais",
-                        route: { name: branchRouteName },
-                      } as MenuItemType,
-                    ]
-                  : []),
-                ...(isSuperadmin || canSectors
-                  ? [
-                      {
-                        key: "sectors-list",
-                        icon: "iconoir-folder",
-                        label: "Setores",
-                        route: {
-                          name: "owner.sectors",
-                        },
-                      } as MenuItemType,
-                    ]
-                  : []),
+                {
+                  key: "tutorial-categories",
+                  icon: "iconoir-book-stack",
+                  label: "Categorias",
+                  route: { name: "owner.tutorial-categories" },
+                },
+                {
+                  key: "tutorials-content",
+                  icon: "iconoir-page",
+                  label: "Conteúdo",
+                  route: { name: "owner.tutorials" },
+                },
               ],
             } as MenuItemType,
           ]
@@ -127,33 +216,36 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
       : path === "/employee"
         ? "panels.employee.dashboard"
         : "panels.owner.dashboard";
-  const myProfileRouteName =
-    path === "/company"
-      ? "company.my-profile.view"
-      : path === "/branch"
-        ? "branch.my-profile.view"
-        : path === "/employee"
-          ? "employee.my-profile.view"
-          : "owner.my-profile.view";
 
   const baseMenu: MenuItemType[] = [
     { key: "main", label: "Menu", isTitle: true },
     { key: "dashboard", icon: "iconoir-home-simple", label: "Dashboard", route: { name } },
-    { key: "my-profile", icon: "iconoir-user", label: "Perfil", route: { name: myProfileRouteName } },
   ];
-
-  if (systemChildren.length) {
+  if (path === "/employee" && canEmployeeLeaveRequests) {
     baseMenu.push({
-      key: "sistema",
-      icon: "iconoir-settings",
-      label: "Sistema",
-      children: systemChildren,
+      key: "employee-leave-requests",
+      icon: "iconoir-calendar",
+      label: "Solicitar folga",
+      route: { name: "employee.leave-requests" },
     });
   }
+  if (path === "/employee" && canEmployeeDayOffs) {
+    baseMenu.push({
+      key: "employee-day-offs",
+      icon: "iconoir-calendar-minus",
+      label: "Minhas folgas",
+      route: { name: "employee.day-offs" },
+    });
+  }
+  // Tutoriais no menu lateral: só superadmin; tenants acessam pelo cartão no rodapé da sidebar.
+  // Perfil removido do sidebar — acessível apenas pelo dropdown do usuário (TopBar)
 
-  if (path !== "/employee" && (canBranches || canCompanies || canSectors)) {
+  if (path !== "/employee" && (canBranches || canCompanies || canSectors || canPositions || canEmployees || canModalityTypes || canScaleTypes || canDayOffModalities || canEmployeeLeaveRequests)) {
     const isBranchPanel = path === "/branch";
     if (isBranchPanel) {
+      const branchManagementChildren: MenuItemType[] = [];
+      const branchWorkforceChildren: MenuItemType[] = [];
+
       if (canBranches) {
         baseMenu.push({
           key: "branch",
@@ -163,63 +255,123 @@ export function getMenuItemsForUser(user: UserPanelInput | undefined): MenuItemT
         });
       }
       if (canSectors) {
-        baseMenu.push({
+        branchManagementChildren.push({
           key: "sectors-list",
           icon: "iconoir-folder",
           label: "Setores",
           route: { name: "branch.sectors" },
         });
       }
+      if (canPositions) {
+        branchManagementChildren.push({
+          key: "positions-list",
+          icon: "iconoir-user-crown",
+          label: "Cargos",
+          route: { name: "branch.positions" },
+        });
+      }
+      if (canEmployees) {
+        branchManagementChildren.push({
+          key: "employees-list",
+          icon: "iconoir-community",
+          label: "Funcionários",
+          route: { name: "branch.employees" },
+        });
+      }
+      if (canEmployeeLeaveRequests) {
+        baseMenu.push({
+          key: "branch-leave-requests",
+          icon: "iconoir-calendar",
+          label: "Solicitações de folgas",
+          route: { name: "branch.leave-requests" },
+        });
+      }
+      if (canModalityTypes) {
+        branchWorkforceChildren.push({
+          key: "modality-types-list",
+          icon: "iconoir-book",
+          label: "Modalidade de domingo",
+          route: { name: "branch.modality-types" },
+        });
+      }
+      if (canDayOffModalities) {
+        branchWorkforceChildren.push({
+          key: "day-off-modalities-list",
+          icon: "iconoir-calendar-minus",
+          label: "Modalidades de folga",
+          route: { name: "branch.day-off-modalities" },
+        });
+      }
+      if (canScaleTypes) {
+        branchWorkforceChildren.push({
+          key: "scale-types-list",
+          icon: "iconoir-calendar",
+          label: "Tipos de escala",
+          route: { name: "branch.scale-types" },
+        });
+      }
+      if (branchManagementChildren.length) {
+        baseMenu.push({
+          key: "branch-management",
+          icon: "iconoir-building",
+          label: "Gestão da filial",
+          children: branchManagementChildren,
+        });
+      }
+      if (branchWorkforceChildren.length) {
+        baseMenu.push({
+          key: "branch-workforce",
+          icon: "iconoir-clock",
+          label: "Jornada",
+          children: branchWorkforceChildren,
+        });
+      }
+      if (systemChildren.length) {
+        baseMenu.push({
+          key: "sistema",
+          icon: "iconoir-settings",
+          label: "Sistema",
+          children: systemChildren,
+        });
+      }
       return baseMenu;
     }
 
+    /** Painel empresa: só organização (Minha empresa + Filiais). Setores/etc. só após entrar numa filial (tela Ver filial). */
+    if (path === "/company") {
+      baseMenu.push({
+        key: "my-company-top",
+        icon: "iconoir-building",
+        label: "Minha empresa",
+        route: { name: companySelfRouteName },
+      });
+      if (canBranches) {
+        baseMenu.push({
+          key: "branches-list",
+          icon: "iconoir-git-branch",
+          label: "Filiais",
+          route: { name: "company.branches" },
+        });
+      }
+      if (systemChildren.length) {
+        baseMenu.push({
+          key: "sistema",
+          icon: "iconoir-settings",
+          label: "Sistema",
+          children: systemChildren,
+        });
+      }
+      return baseMenu;
+    }
+  }
+
+  // Sistema sempre por último (Empresas e Filial)
+  if (systemChildren.length) {
     baseMenu.push({
-      key: isBranchPanel ? "branch" : "companies",
-      icon: isBranchPanel ? "iconoir-git-branch" : "iconoir-building",
-      label: isBranchPanel ? "Filial" : "Empresas",
-      route: { name: isBranchPanel ? branchSelfRouteName : companiesRouteName },
-      children: [
-        ...(path === "/company" && canCompanies
-          ? [
-              {
-                key: "my-company-view",
-                icon: "iconoir-eye",
-                label: "Minha empresa",
-                route: { name: companySelfRouteName },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canCompaniesList && isOwner
-          ? [
-              {
-                key: "companies-list",
-                icon: "iconoir-building",
-                label: "Empresas",
-                route: { name: "owner.companies" },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canBranches
-          ? [
-              {
-                key: "branches-list",
-                icon: "iconoir-git-branch",
-                label: "Filiais",
-                route: { name: branchRouteName },
-              } as MenuItemType,
-            ]
-          : []),
-        ...(canSectors
-          ? [
-              {
-                key: "sectors-list",
-                icon: "iconoir-folder",
-                label: "Setores",
-                route: { name: path === "/company" ? "company.sectors" : "owner.sectors" },
-              } as MenuItemType,
-            ]
-          : []),
-      ],
+      key: "sistema",
+      icon: "iconoir-settings",
+      label: "Sistema",
+      children: systemChildren,
     });
   }
 
